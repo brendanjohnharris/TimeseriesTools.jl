@@ -1,0 +1,16 @@
+*.code-workspace
+*.csv
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+*.jld2
+*.mat
+*.parquet
+.CondaPkg/
+/Manifest.toml
+/docs/build/
+Artifacts.toml, Manifest.toml
+LocalPreferences.toml
+data
+docs/build/
+docs/site/
