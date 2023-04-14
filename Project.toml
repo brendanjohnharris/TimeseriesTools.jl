@@ -3,5 +3,17 @@ uuid = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
+OhMyREPL = "5fb14364-9ced-5910-84b2-373655c76a03"
+PkgTemplates = "14b8a8f1-9102-5b29-a752-f990bacb7fe1"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
 [compat]
 julia = "1.6"
