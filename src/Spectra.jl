@@ -1,8 +1,10 @@
 using FFTW
+using Statistics
 
 export  FreqDim, Freq,
-        AbstractSpectrum, RegularSpectrum,
-        spectrum,
+        AbstractSpectrum, RegularSpectrum, MultivariateSpectrum,
+        spectrum, energyspectrum, powerspectrum,
+        _energyspectrum, _powerspectrum,
         FreqIndex, RegularFreqIndex
 
 abstract type FreqDim{T} <: DimensionalData.IndependentDim{T} end
@@ -11,8 +13,9 @@ FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
 AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
 RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim{<:RegularIndex}}
 RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
+MultivariateSpectrum = AbstractSpectrum{T, 2} where T
 
-function spectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
+function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
     fs = samplingrate(x)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
@@ -20,9 +23,9 @@ function spectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 
         f_min = validfreqs[2]
         nfft = floor(Int, n/2)*2
     else
-        nfft = ceil(Int, fs/f_min)
+        nfft = ceil(Int, ustrip(fs)/ustrip(f_min))
     end
-    if f_min < validfreqs[2]
+    if ustrip(f_min) < ustrip(validfreqs[2])
         error("Cannot resolve an `f_min` of $f_min")
     end
 
@@ -33,32 +36,43 @@ function spectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 
     n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
 
     # Get the type of the spectrum
-    X = rfft(x[1:nfft]).^2
-    Pxx = convertconst.(zeros(nfft ÷ 2 + 1, n_segments), (first(X),))
-
+    u = unit(eltype(x)) * unit(eltype(dims(x, Ti)))
+    S̄ = zeros(nfft ÷ 2 + 1, n_segments)*u^2
     for i in 1:n_segments
         start_idx = (i - 1) * (nfft - overlap) + 1
         end_idx = start_idx + nfft - 1
         segment = x[start_idx:end_idx] .* hann_window
 
-        X = rfft(segment) / nfft
-        Pxx[:, i] .= (abs.(X).^2) ./ sum(hann_window.^2)
+        y = rfft(segment) / nfft
+        y |> eltype |> unit == NoUnits && (y = y * u)
+        S̄[:, i] .= (abs.(y).^2) / sum(hann_window.^2)
     end
 
     # Normalize the averaged periodogram
-    Pxx[2:end-1, :] .*= 2
+    S̄[2:end-1, :] .*= 2
 
     # Calculate the frequencies
-    freqs = range(convertconst(0, fs), stop=fs/2, length=size(Pxx, 1))
+    freqs = range(convertconst(0, fs), stop=fs/2, length=size(S̄, 1))
     df = step(freqs)
 
-    # Normalize the power spectrum to obey Parseval's theorem
-    Pxx = Pxx ./ sum(Pxx, dims=1).*(df).*unit(df) # Maybe do proper integration
-    Pxx = 0.5 .* Pxx .* sum(x.^2)./(fs)
+    # Normalize the mean energy spectrum to obey Parseval's theorem
+    meanS̄ = mean(S̄, dims=2)
+    S̄ = S̄ ./ ustrip(sum(meanS̄) .* df)
+    S̄ = 0.5 * S̄ .* ustrip(sum(x.^2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
 
-    return DimArray(Pxx, (Freq(freqs), Dim{:window}(1:n_segments)))
+    return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)))
 end
 
-function spectrum(X::typeintersect(MultivariateTS, RegularTS))
-    mapslices(spectrum, X, dims=Ti)
+_energyspectrum(x::typeintersect(MultivariateTS, RegularTS), args...; kwargs...) = cat([_energyspectrum(_x, args...; kwargs...) for _x in eachslice(x, dims=2)]..., dims=dims(x, 2))
+
+energyspectrum(x::RegularTimeSeries, args...; kwargs...) = dropdims(mean(_energyspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+
+
+function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
+    S̄ = _energyspectrum(x, args...; kwargs...)
+    return S̄ ./ duration(x)
 end
+
+powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+
+spectrum = powerspectrum

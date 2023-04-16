@@ -11,6 +11,7 @@ UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B
 TimeSeries(t, x, unit::Unitful.Units) = TimeSeries((t)unit, x)
 
 function FFTW.rfft(x::AbstractVector{<:Quantity})
+    # Assume this is a discrete fourier transform, to time indices/units
     s = x |> eltype |> unit
     x_re = reinterpret(Float64, collect(x))
     f = rfft(x_re)
@@ -19,9 +20,9 @@ end
 
 function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity})
     # In this case the rfft is treated as an approximation to the continuosu Fourier transform
-    f = samplingrate(x)
-    s = x |> eltype |> unit
+    t = samplingperiod(x)
+    a = x |> eltype |> unit
     x_re = reinterpret(Float64, collect(x))
     ℱ = rfft(x_re)
-    ℱ = (ℱ)*(f*s) # Output units normalised to the 'bin width' of frequency
+    ℱ = (ℱ)*(a*t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end

@@ -4,7 +4,7 @@ export  AbstractTimeSeries, AbstractTS,
         RegularTimeSeries, RegularTS,
         IrregularTimeSeries, IrregularTS,
         TimeIndex, RegularIndex, RegularTimeIndex,
-        TimeSeries
+        TimeSeries, Var
 
 ## Time-series types
 TimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim}

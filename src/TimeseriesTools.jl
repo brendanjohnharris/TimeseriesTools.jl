@@ -14,6 +14,7 @@ using IntervalSets
 
 include("Types.jl")
 include("Utils.jl")
+include("Unitful.jl")
 include("Spectra.jl")
 
 
