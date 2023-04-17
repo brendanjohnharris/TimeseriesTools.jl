@@ -1,7 +1,10 @@
 using Unitful
+import Unitful.unit
 using FFTW
 using TimeseriesTools
+import TimeseriesTools.TimeSeries
 using Test
+using CairoMakie
 
 @testset "TimeseriesTools.Vl" begin
     ts = 1:100
@@ -33,15 +36,32 @@ end
     @test x[At(dims(x, Ti)[1:10]), :] == x[1:10, :]
 end
 
+
+@testset "Makie" begin
+    x = TimeSeries(0.01:0.01:10, randn(1000))
+    p = @test_nowarn plot(x)
+    @test p.plot isa Scatter
+    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
+    p = @test_nowarn plot(x)
+    @test p.plot isa Heatmap
+    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
+end
+
 @testset "Spectra" begin
     # Define a test time series
     fs = 1000
     t = range(0, stop=1, length=fs+1)
-    x = sin.(2 * π * 50 * t) + sin.(2 * π * 100 * t)
-    ts = x = TimeSeries(t, x)
+    x = 0.8.*sin.(2 * π * 50 * t) + 1.1.*sin.(2 * π * 100 * t)
+    ts = x = TimeseriesTools.TimeSeries(t, x)
     f_min = fs/100
     Pxx = powerspectrum(ts, f_min)
     @test Pxx isa RegularSpectrum
+
+    # Plotting
+    p = @test_nowarn lines(Pxx)
+
 
     freqs = dims(Pxx, Freq)
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
@@ -79,7 +99,7 @@ end
 end
 
 @testset "Twice unitful" begin
-    ts = (-50+0.0005:0.0005:50)*u"s"
+    ts = (-100+0.01:0.0005:100)*u"s"
     f = rfftfreq(length(ts), 1/step(ts))
     x = 4.2u"V".*sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V".*sin.(2 * π * 100u"Hz" * ts)
     x = TimeSeries(ts, x)
@@ -101,7 +121,10 @@ end
     x = TimeSeries(ts, x*u"V")
     ℱ = sqrt(π).*exp.(-π^2 .* ustrip.(f).^2)
     _S = abs.(ℱ).^2*u"V^2*s^2"
-    S = energyspectrum(x, 10.0)
-    sum(x.^2).*samplingperiod(x)
+    S = energyspectrum(x, 0.0)
     @test sum(_S).*step(f) ≈ sum(S).*step(dims(S, Freq)) rtol=0.05
+
+    lines(ustrip(f), ustrip(_S), axis=(; limits=((0, 1),(0, 4))))
+    plot!(collect(ustrip.(dims(S, Freq))), collect(ustrip.(S)))
+    current_figure()
 end

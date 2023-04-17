@@ -48,8 +48,6 @@ function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(
         S̄[:, i] .= (abs.(y).^2) / sum(hann_window.^2)
     end
 
-    # Normalize the averaged periodogram
-    S̄[2:end-1, :] .*= 2
 
     # Calculate the frequencies
     freqs = range(convertconst(0, fs), stop=fs/2, length=size(S̄, 1))
@@ -57,7 +55,7 @@ function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(
 
     # Normalize the mean energy spectrum to obey Parseval's theorem
     meanS̄ = mean(S̄, dims=2)
-    S̄ = S̄ ./ ustrip(sum(meanS̄) .* df)
+    S̄ = S̄ ./ ustrip((sum(meanS̄) - 0.5.*meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
     S̄ = 0.5 * S̄ .* ustrip(sum(x.^2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
 
     return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)))

@@ -4,7 +4,7 @@ export  AbstractTimeSeries, AbstractTS,
         RegularTimeSeries, RegularTS,
         IrregularTimeSeries, IrregularTS,
         TimeIndex, RegularIndex, RegularTimeIndex,
-        TimeSeries, Var
+        TimeSeries, Timeseries, TS, Var
 
 ## Time-series types
 TimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim}
@@ -25,5 +25,6 @@ IrregularTimeSeries = AbstractTimeSeries
 ## Methods
 TimeSeries(t, x) = DimArray(x, (Ti(t),))
 TimeSeries(t, v, x) = DimArray(x, (Ti(t), Var(v)))
+TS = Timeseries = TimeSeries
 
 convertconst(a, _) = a
