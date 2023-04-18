@@ -7,14 +7,56 @@ export  FreqDim, Freq,
         _energyspectrum, _powerspectrum,
         FreqIndex, RegularFreqIndex
 
+
 abstract type FreqDim{T} <: DimensionalData.IndependentDim{T} end
+
+"""
+    Freq
+
+A DimensionalData.jl dimension representing the frequency domain.
+"""
 DimensionalData.@dim Freq FreqDim "Freq"
+
+"""
+    FreqIndex
+
+A type alias for a tuple of dimensions, where the first dimension is of type `FreqDim`.
+"""
 FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
+
+"""
+    AbstractSpectrum{T, N, B}
+
+A type alias for an `AbstractDimArray` in which the first dimension is [@ref](Freq)uency.
+"""
 AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
+
+"""
+    RegularFreqIndex
+
+A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [@ref](Freq)uency.
+"""
 RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim{<:RegularIndex}}
+
+"""
+    RegularSpectrum{T, N, B}
+
+A type alias for a spectrum with a regularly sampled frequency index.
+"""
 RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
+
+"""
+    MultivariateSpectrum{T} = AbstractSpectrum{T, 2} where T
+
+A type alias for a multivariate spectrum.
+"""
 MultivariateSpectrum = AbstractSpectrum{T, 2} where T
 
+"""
+    _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
+
+Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
+"""
 function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
     fs = samplingrate(x)
     n = length(x)
@@ -60,17 +102,52 @@ function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(
 
     return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)))
 end
+"""
+    _energyspectrum(x::RegularTimeSeries, f_min=0)
 
+Computes the energy spectrum of a time series using the fast Fourier transform.
+
+If `f_min > 0`, the energy spectrum is calculated for windows of the time series determined by `f_min`,  the minimum frequency that will be resolved in the spectrum.
+If `f_min > 0`, the second dimension of the output will correspond to the windows. For an averaged periodogram, see [@ref](energyspectrum).
+
+If the input time series is a [@ref](UnitfulTimeSeries), the frequency will also have units.
+Moreover if the elements of `x` are unitful, so are the elements of the spectrum.
+
+# Examples
+```jldoctest
+julia> using TimeseriesTools
+julia> t = range(0.0, stop=1.0, length=1000);
+julia> x = sin.(2 * π * 5 * t);
+julia> ts = RegularTimeSeries(t, x);
+julia> S = _energyspectrum(ts);
+julia> S isa MultivariateSpectrum
+"""
 _energyspectrum(x::typeintersect(MultivariateTS, RegularTS), args...; kwargs...) = cat([_energyspectrum(_x, args...; kwargs...) for _x in eachslice(x, dims=2)]..., dims=dims(x, 2))
 
+"""
+    energyspectrum(x::RegularTimeSeries, f_min=0; kwargs...)
+
+Computes the average energy spectrum of a regularly sampled time series `x`.
+`f_min` determines the minimum frequency that will be resolved in the spectrum.
+See [@ref](_energyspectrum).
+"""
 energyspectrum(x::RegularTimeSeries, args...; kwargs...) = dropdims(mean(_energyspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
 
+"""
+    _powerspectrum(x::AbstractTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
 
+Computes the power spectrum of a time series `x` in Welch periodogram windows.
+Note that the `_powerspectrum` is simply the [@ref](_energyspectrum) divided by the duration of each window.
+See [@ref](_energyspectrum).
+"""
 function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
     S̄ = _energyspectrum(x, args...; kwargs...)
     return S̄ ./ duration(x)
 end
 
-powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+"""
+    powerspectrum(x::AbstractTimeSeries, f_minsamplingrate(x)/min(length(x)÷4, 1000); kwargs...)
 
-spectrum = powerspectrum
+Computes the average power spectrum of a time series `x` using the Welch periodogram method.
+"""
+powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})

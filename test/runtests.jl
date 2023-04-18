@@ -5,6 +5,7 @@ using TimeseriesTools
 import TimeseriesTools.TimeSeries
 using Test
 using CairoMakie
+using Documenter
 
 @testset "TimeseriesTools.Vl" begin
     ts = 1:100
@@ -127,4 +128,8 @@ end
     lines(ustrip(f), ustrip(_S), axis=(; limits=((0, 1),(0, 4))))
     plot!(collect(ustrip.(dims(S, Freq))), collect(ustrip.(S)))
     current_figure()
+end
+
+@testset "Doctests" begin
+    doctest(TimeseriesTools; manual = false)
 end

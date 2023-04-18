@@ -2,7 +2,7 @@ using MakieCore
 using LaTeXStrings
 using DimensionalData
 import MakieCore.plot!
-using GeometryBasics
+import GeometryBasics
 
 export dimname, decompose
 
@@ -54,7 +54,7 @@ function plotLFPspectra(X::AbstractTimeSeries; slope=nothing, position=Point2f([
     return fig
 end
 
-GeometryBasics.decompose(x::AbstractTimeSeries) = ((dims(x).|>collect)..., x.data)
+GeometryBasics.decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = ((dims(x).|>collect)..., x.data)
 
 MakieCore.convert_arguments(P::MakieCore.PointBased, x::UnivariateTimeSeries) = MakieCore.convert_arguments(P, decompose(x)...)
 
