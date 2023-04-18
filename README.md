@@ -32,37 +32,14 @@ import TimeseriesTools.TimeSeries # or TS
 
 # Generate some quick brown noise
 t = 0.005:0.005:100.0
-x = colorednoise(t)*u"V"
+x = colorednoise(t, u"s")*u"V"
 
 # Plot the time series
-lines(x[1:10000])
+lines(ustrip.(x[1:10000]), axis=(; xlabel="Time ($(timeunit(x)))", ylabel="Voltage ($(unit(x)))")) # TODO: Fix this
 
 # Calculate the power spectrum
 S = powerspectrum(x)
-@test Pxx isa RegularSpectrum
-
-# Plotting
-p = @test_nowarn lines(Pxx)
-```
-
-## Example Spectrum Plot
-
-```julia
-# To create a beautiful spectrum plot, use the following code:
-
-using TimeseriesTools, CairoMakie
-
-# Load your time series data
-data = ... # Load your time series data here
-
-# Compute the energy spectrum
-energy_spectrum = _energyspectrum(data)
-
-# Create a SpectrumPlot
-spectrum_plot = SpectrumPlot(energy_spectrum)
-
-# Visualize the plot
-figure, axis, lines = plot(spectrum_plot)
+p = lines(S)
 ```
 
 ![Example Spectrum Plot](path/to/your/example_spectrum_plot.png)
@@ -70,5 +47,7 @@ figure, axis, lines = plot(spectrum_plot)
 ## Acknowledgements 🙏
 
 TimeseriesTools.jl builds upon the excellent [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl) package for handling dimensions and indexing in time series data.
+
+_And don't blame me for this readme, blame gpt-4 🤖_
 
 Happy analyzing! 🚀

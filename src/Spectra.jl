@@ -24,6 +24,7 @@ DimensionalData.@dim Freq FreqDim "Freq"
 A type alias for a tuple of dimensions, where the first dimension is of type `FreqDim`.
 """
 FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
+UnitfulFreqIndex = UnitfulTimeIndex
 
 """
     AbstractSpectrum{T, N, B}
@@ -172,7 +173,7 @@ julia> using TimeseriesTools
 julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
 julia> pink_noise isa RegularTimeSeries
 """
-function colorednoise(ts::AbstractRange; α=2.0)
+function colorednoise(ts::AbstractRange, args...; α=2.0)
     f = rfftfreq(length(ts), step(ts))
     x̂ = sqrt.(1.0./f.^α).*exp.(2π.*rand(length(f))*im)
     x̂[1] = 0
@@ -180,5 +181,5 @@ function colorednoise(ts::AbstractRange; α=2.0)
     dt = length(ts)*step(f)
     t = range(dt, length(x)*dt, length=length(x))
     @assert all(t .== ts)
-    TimeSeries(t, x)
+    TimeSeries(t, x, args...)
 end

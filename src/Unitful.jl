@@ -1,6 +1,9 @@
 using Unitful
 export UnitfulIndex, UnitfulTimeSeries
 using FFTW
+import Unitful.unit
+
+export dimunit, timeunit, frequnit, unit
 
 # Unitful._promote_unit(::S, ::T) where {S<:Unitful.FreeUnits{(), NoDims, nothing}, T<:Unitful.TimeUnits} = u"s"
 """
@@ -48,18 +51,99 @@ julia> uts isa UnitfulTimeSeries
 ```
 """
 UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B}
+UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
+"""
+    TimeSeries(t, x, timeunit::Unitful.Units)
+
+Constructs a univariate time series with time `t`, data `x`, time units specified by `timeunit`, and element units specified by `elementunit`.
+Note that you can add units to the elements of a time series with, for example, `x*u"V"`.
+
+## Examples
+```jldoctest
+julia> using Unitful;
+julia> t = 1:100;
+julia> x = rand(100);
+julia> ts = TimeSeries(t, x, u"ms")*u"V";
+julia> ts isa Union{UnivariateTimeSeries, RegularTimeSeries, UnitfulTimeSeries}
+```
+"""
 TimeSeries(t, x, unit::Unitful.Units) = TimeSeries((t)unit, x)
 
-function FFTW.rfft(x::AbstractVector{<:Quantity})
-    # Assume this is a discrete fourier transform, to time indices/units
+"""
+    dimunit(x::UnitfulTimeSeries, dim)
+
+Returns the unit associated with the specified dimension `dim` of a [@ref](UnitfulTimeSeries).
+
+## Examples
+```jldoctest
+julia> using Unitful;
+julia> t = 1:100;
+julia> x = rand(100);
+julia> ts = TimeSeries(t, x, u"ms");
+julia> dimunit(ts, Ti) == u"ms"
+```
+"""
+dimunit(x::UnitfulTimeSeries, dim) = dims(x,dim) |> eltype |> unit
+
+"""
+    timeunit(x::UnitfulTimeSeries)
+
+Returns the time units associated with a [@ref](UnitfulTimeSeries).
+
+## Examples
+```jldoctest
+julia> using Unitful;
+julia> t = 1:100;
+julia> x = rand(100);
+julia> ts = TimeSeries(t, x, u"ms");
+julia> timeunits(ts) == u"ms"
+```
+"""
+timeunit(x::UnitfulTimeSeries) = dimunit(x, Ti)
+
+"""
+    frequnit(x::UnitfulSpectrum)
+
+Returns the frequency units associated with a [@ref](UnitfulSpectrum).
+
+## Examples
+```jldoctest
+julia> using Unitful;
+julia> t = 1:100;
+julia> x = rand(100);
+julia> ts = TimeSeries(t, x, u"ms");
+julia> sp = fft(ts);  # assuming fft returns a UnitfulSpectrum
+julia> frequnits(sp) == u"Hz"
+```
+"""
+frequnit(x::UnitfulSpectrum) = dimunit(x, Freq)
+
+"""
+    unit(x::AbstractArray)
+
+Returns the units associated with the elements of an [@ref](UnitfulTimeSeries) or [@ref](UnitfulSpectrum).
+
+## Examples
+```jldoctest
+julia> using Unitful;
+julia> t = 1:100;
+julia> x = rand(100);
+julia> ts = TimeSeries(t, x, u"ms")*u"V";
+julia> unit(ts) == u"V"
+```
+"""
+unit(x::Union{<:AbstractTimeSeries, AbstractSpectrum}) = x |> eltype |> unit
+
+function FFTW.rfft(x::AbstractVector{<:Quantity}) # 🐶
+    # Assume this is a discrete Fourier transform, to time indices/units
     s = x |> eltype |> unit
     x_re = reinterpret(Float64, collect(x))
     f = rfft(x_re)
     return (f)s
 end
 
-function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity})
+function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity}) # 🐕
     # In this case the rfft is treated as an approximation to the continuosu Fourier transform
     t = samplingperiod(x)
     a = x |> eltype |> unit
