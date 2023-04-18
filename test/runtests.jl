@@ -6,6 +6,7 @@ import TimeseriesTools.TimeSeries
 using Test
 using CairoMakie
 using Documenter
+using ImageMagick
 
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
@@ -41,7 +42,7 @@ end
 @testset "Makie" begin
     x = TimeSeries(0.01:0.01:10, randn(1000))
     p = @test_nowarn plot(x)
-    @test p.plot isa Scatter
+    @test p.plot isa Lines
     @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
     p = @test_nowarn plot(x)
@@ -139,3 +140,22 @@ end
 
 #     doctest(TimeseriesTools)
 # end
+
+
+@testset "Readme" begin
+    using TimeseriesTools, CairoMakie, Unitful
+    import TimeseriesTools.TimeSeries # or TS
+
+    t = 0.005:0.005:1e5
+    x = colorednoise(t, u"s")*u"V"
+
+    # Plot the time series
+    plot(x[1:10000])
+
+    # Calculate the power spectrum
+    S = powerspectrum(x, 0.0001)
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1])
+    p = @test_nowarn plot!(ax, S)
+    @test_nowarn save("./powerspectrum.png", f)
+end

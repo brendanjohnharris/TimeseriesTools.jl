@@ -1,7 +1,7 @@
 using FFTW
 using Statistics
 
-export  FreqDim, Freq,
+export  FreqDim, Freq, freqs,
         AbstractSpectrum, RegularSpectrum, MultivariateSpectrum,
         spectrum, energyspectrum, powerspectrum,
         _energyspectrum, _powerspectrum,
@@ -23,7 +23,7 @@ DimensionalData.@dim Freq FreqDim "Freq"
 
 A type alias for a tuple of dimensions, where the first dimension is of type `FreqDim`.
 """
-FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
+FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:Freq}
 
 """
     AbstractSpectrum{T, N, B}
@@ -31,6 +31,8 @@ FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
 A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](@ref)uency.
 """
 AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
+freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
+
 
 """
     RegularFreqIndex
@@ -46,6 +48,12 @@ A type alias for a spectrum with a regularly sampled frequency index.
 """
 RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
 
+"""
+    UnivariateSpectrum{T} = AbstractSpectrum{T, 1} where T
+
+A type alias for a univariate spectrum.
+"""
+UnivariateSpectrum = AbstractSpectrum{T, 1} where T
 """
     MultivariateSpectrum{T} = AbstractSpectrum{T, 2} where T
 

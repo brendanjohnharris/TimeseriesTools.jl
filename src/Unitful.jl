@@ -26,7 +26,8 @@ TimeseriesTools.convertconst(c::Number, u::Unitful.Quantity) = (c)unit(u)
 
 A type alias for a union of `AbstractArray`, `AbstractRange`, and `Tuple` types with `Unitful.Time` elements.
 """
-UnitfulIndex = Union{AbstractArray{<:Unitful.Time}, AbstractRange{<:Unitful.Time}, Tuple{<:Unitful.Time}}
+UnitfulIndex = UnitfulTIndex = Union{AbstractArray{<:Unitful.Time}, AbstractRange{<:Unitful.Time}, Tuple{<:Unitful.Time}}
+
 
 """
     UnitfulTimeIndex
@@ -34,7 +35,6 @@ UnitfulIndex = Union{AbstractArray{<:Unitful.Time}, AbstractRange{<:Unitful.Time
 A type alias for a tuple of dimensions, where the first dimension is of type `DimensionalData.Dimension{<:UnitfulIndex}`.
 """
 UnitfulTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulIndex}}
-UnitfulFreqIndex = UnitfulTimeIndex
 
 """
     UnitfulTimeSeries{T, N, B}
@@ -51,6 +51,9 @@ julia> uts isa UnitfulTimeSeries
 ```
 """
 UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B}
+
+UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency}, AbstractRange{<:Unitful.Frequency}, Tuple{<:Unitful.Frequency}}
+UnitfulFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulFIndex}}
 UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
 """
@@ -84,7 +87,7 @@ julia> ts = TimeSeries(t, x, u"ms");
 julia> TimeseriesTools.dimunit(ts, Ti) == u"ms"
 ```
 """
-dimunit(x::UnitfulTimeSeries, dim) = dims(x,dim) |> eltype |> unit
+dimunit(x::DimArray, dim) = dims(x,dim) |> eltype |> unit
 
 """
     timeunit(x::UnitfulTimeSeries)
@@ -97,10 +100,10 @@ julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
 julia> ts = TimeSeries(t, x, u"ms");
-julia> timeunits(ts) == u"ms"
+julia> timeunit(ts) == u"ms"
 ```
 """
-timeunit(x::UnitfulTimeSeries) = dimunit(x, Ti)
+timeunit(x::AbstractTimeSeries) = dimunit(x, Ti)
 
 """
     frequnit(x::UnitfulSpectrum)
@@ -117,7 +120,7 @@ julia> sp = fft(ts);  # assuming fft returns a UnitfulSpectrum
 julia> frequnits(sp) == u"Hz"
 ```
 """
-frequnit(x::UnitfulSpectrum) = dimunit(x, Freq)
+frequnit(x::AbstractSpectrum) = dimunit(x, Freq)
 
 """
     unit(x::AbstractArray)

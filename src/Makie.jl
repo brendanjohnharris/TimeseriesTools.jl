@@ -1,27 +1,51 @@
-using MakieCore
-using LaTeXStrings
-using DimensionalData
+using ..Makie
 import MakieCore.plot!
-import GeometryBasics.decompose
+import MakieCore.plot
 
-export dimname, decompose
+"""
+    spectrumplot!(ax::Axis, x::UnivariateSpectrum)
+Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
+"""
+function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
+    uf = frequnit(x)
+    ux = unit(x)
+    f, x = decompose(x)
+    f = ustrip.(f) |> collect
+    x = ustrip.(x) |> collect
+    idxs = (f .> 0) .& (x .> 0)
+    ax.limits = ((minimum(f[idxs]), nothing), (minimum(x[idxs]), nothing));
+    ax.xscale = log10
+    ax.yscale = log10
+    p = spectrumplot!(ax, f[idxs], x[idxs]; kwargs...)
+    uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
+    ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    p
+end
+spectrumplot(x::UnivariateSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+plot!(ax, x::UnivariateSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
+plot(x::UnivariateSpectrum; kwargs...) = spectrumplot(x; kwargs...)
 
-# MakieCore.@recipe(SpectrumPlot, x, y) do scene
-#     Theme(
-#         # plot_color = :cornflowerblue
-#     )
-# end
 
-# function plot!(p::SpectrumPlot)
-#     x = p[:x]
-#     y = p[:y]
-#     xs = MakieCore.pseudolog10(first(x.val[x.val .> 0])/2)
-#     ys = log10
-#     lines!(p, x, y, color = p[:plot_color])
-#     p
-# end
+function plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
+    ut = timeunit(x)
+    ux = unit(x)
+    t, x = decompose(x)
+    t = ustrip.(t) |> collect
+    x = ustrip.(x) |> collect
+    p = lines!(ax, t, x; kwargs...)
+    ut == NoUnits ? (ax.xlabel = "Time") : (ax.xlabel = "Time ($ut)")
+    ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
+    p
+end
+plot(x::UnivariateTimeSeries; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
 
-# const ToolSpectrumPlot = SpectrumPlot{Tuple{<:AbstractSpectrum}}
+
+
+
+"""
+    spectrumplot!(ax::Axis, x::AbstractVector, y::AbstractVector)
+"""
+# const ToolSpectrumPlot = SpectrumPlot{Tuple{<:UnivariateSpectrum}}
 # argument_names(::Type{<: ToolSpectrumPlot}) = (:x,)
 
 # function plot!(p::ToolSpectrumPlot)
@@ -31,15 +55,10 @@ export dimname, decompose
 #     p
 # end
 
-# """
-#     spectrumplot!(ax::Axis, x::AbstractSpectrum)
-# Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
-# """
-# spectrumplot!
 
 
 # """
-#     plotLFPspectra(X::AbstractTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
+#     plotLFPspectra(X::UnivariateTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
 
 # Create a line frequency power (LFP) spectra plot for the given time series `X`.
 
@@ -51,7 +70,7 @@ export dimname, decompose
 # - `slopecolor`: The color of the slope line. Default is `:crimson`.
 # - `kwargs...`: Additional keyword arguments to be passed to the plot.
 # """
-# function plotLFPspectra(X::AbstractTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
+# function plotLFPspectra(X::UnivariateTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
 #     times = collect(dims(X, Ti))
 #     if isnothing(fs)
 #         Δt = times[2] - times[1]
@@ -74,23 +93,3 @@ export dimname, decompose
 #     end
 #     return fig
 # end
-
-"""
-    decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum})
-Convert a time series or spectrum to a tuple of the dimensions and the data (as `Array`s).
-"""
-decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = ((dims(x).|>collect)..., x.data)
-MakieCore.convert_arguments(P::MakieCore.PointBased, x::UnivariateTimeSeries) = MakieCore.convert_arguments(P, decompose(x)...)
-MakieCore.convert_arguments(P::MakieCore.SurfaceLike, x::MultivariateTimeSeries) = MakieCore.convert_arguments(P, decompose(x)...)
-MakieCore.convert_arguments(P::Type{<:MakieCore.Heatmap}, x::MultivariateTimeSeries) = MakieCore.convert_arguments(P, decompose(x)...)
-
-# GeometryBasics.decompose(x::AN.DimensionalData.AbstractDimArray, dims...) = (getindex.((dims(x).|>collect), dims)..., x.data[dims...])
-
-dimname(x::DimArray, dim) = dims(x, dim)|>name|>string
-
-# formataxes(x::AN.DimensionalData.AbstractDimArray{T, 2} where T) = (xlabel=dimname(x, 1), ylabel=dimname(x, 2))
-# formataxes(x::AN.DimensionalData.AbstractDimArray{T, 1} where T) = (xlabel=dimname(x, 1),)
-
-
-# TODO Automatic unit stripping and axis units
-# TODO Stacked traces, traces recipe

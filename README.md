@@ -6,7 +6,7 @@
 [![Coverage](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl)
 
 
-TimeseriesTools.jl is a sleek and powerful package for analyzing and visualizing time-series data in Julia. It provides a set of functions for preprocessing, analyzing, and plotting time series data, making your life better and your data look great (in that order)!
+TimeseriesTools.jl is a package for analyzing and visualizing time-series data in Julia. It provides a set of functions for preprocessing, analyzing, and plotting time series data, making your life better and your data look great, in that order.
 
 ## Features
 
@@ -31,23 +31,23 @@ using TimeseriesTools, CairoMakie, TimeseriesTools.FFTW, Unitful
 import TimeseriesTools.TimeSeries # or TS
 
 # Generate some quick brown noise
-t = 0.005:0.005:100.0
+t = 0.005:0.005:1e5
 x = colorednoise(t, u"s")*u"V"
 
 # Plot the time series
-lines(ustrip.(x[1:10000]), axis=(; xlabel="Time ($(timeunit(x)))", ylabel="Voltage ($(unit(x)))")) # TODO: Fix this
+plot(x[1:10000])
 
 # Calculate the power spectrum
-S = powerspectrum(x)
-p = lines(S)
+S = powerspectrum(x, 0.001)
+p = plot(S)
 ```
 
-![Example Spectrum Plot](path/to/your/example_spectrum_plot.png)
+![Example Spectrum Plot](test/powerspectrum.png)
 
 ## Acknowledgements 🙏
 
-TimeseriesTools.jl builds upon the excellent [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl) package for handling dimensions and indexing in time series data.
+TimeseriesTools.jl builds upon the excellent [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl) package for handling dimensions and indexing in time-series data.
 
-_And don't blame me for this readme, blame gpt-4 🤖_
+_Don't blame me for this readme, blame gpt-4 🤖_
 
 Happy analyzing! 🚀
