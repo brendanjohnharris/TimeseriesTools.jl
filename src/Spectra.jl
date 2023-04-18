@@ -5,7 +5,8 @@ export  FreqDim, Freq,
         AbstractSpectrum, RegularSpectrum, MultivariateSpectrum,
         spectrum, energyspectrum, powerspectrum,
         _energyspectrum, _powerspectrum,
-        FreqIndex, RegularFreqIndex
+        FreqIndex, RegularFreqIndex,
+        colorednoise
 
 
 abstract type FreqDim{T} <: DimensionalData.IndependentDim{T} end
@@ -151,3 +152,33 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+
+"""
+    colorednoise(ts::AbstractRange; α=2.0)
+
+Generate a colored-noise time series with a specified power-law exponent `α` on the given times `ts`.
+
+# Arguments
+- `ts`: An `AbstractRange` representing the time range of the generated noise.
+- `α`: The power-law exponent of the colored noise, which will have a spectrum given by 1/f^α. Defaults to 2.0.
+
+# Returns
+- A [@ref](`TimeSeries`) containing the generated colored noise.
+
+# Example
+
+```jldoctest
+julia> using TimeseriesTools
+julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
+julia> pink_noise isa RegularTimeSeries
+"""
+function colorednoise(ts::AbstractRange; α=2.0)
+    f = rfftfreq(length(ts), step(ts))
+    x̂ = sqrt.(1.0./f.^α).*exp.(2π.*rand(length(f))*im)
+    x̂[1] = 0
+    x = irfft(x̂, 2*length(f)-2)
+    dt = length(ts)*step(f)
+    t = range(dt, length(x)*dt, length=length(x))
+    @assert all(t .== ts)
+    TimeSeries(t, x)
+end
