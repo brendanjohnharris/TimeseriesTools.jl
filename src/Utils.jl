@@ -10,7 +10,7 @@ Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 """
     times(x::AbstractTimeSeries)
 
-Returns the time indices of the [@ref](AbstractTimeSeries) `x`.
+Returns the time indices of the [`AbstractTimeSeries`](@ref) `x`.
 
 ## Examples
 ```jldoctest
@@ -25,7 +25,7 @@ times(x::AbstractTimeSeries) = dims(x, Ti).val.data
 """
     step(x::RegularTimeSeries)
 
-Returns the step size (time increment) of a regularly sampled [@ref](RegularTimeSeries).
+Returns the step size (time increment) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
 ```jldoctest
@@ -40,7 +40,7 @@ Base.step(x::RegularTimeSeries) = x |> times |> step
 """
     samplingrate(x::RegularTimeSeries)
 
-Returns the sampling rate (inverse of the step size) of a regularly sampled [@ref](RegularTimeSeries).
+Returns the sampling rate (inverse of the step size) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
 ```jldoctest
@@ -55,7 +55,7 @@ samplingrate(x::RegularTimeSeries) = 1/step(x)
 """
     samplingperiod(x::RegularTimeSeries)
 
-Returns the sampling period (step size) of a regularly sampled [@ref](RegularTimeSeries).
+Returns the sampling period (step size) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
 ```jldoctest
@@ -85,7 +85,7 @@ duration(x::AbstractTimeSeries) = (last∘times)(x) - (first∘times)(x)
 """
     IntervalSets.Interval(x::AbstractTimeSeries)
 
-Returns an interval representing the range of the [@ref](AbstractTimeSeries) `x`.
+Returns an interval representing the range of the [`AbstractTimeSeries`](@ref) `x`.
 
 ## Examples
 ```jldoctest

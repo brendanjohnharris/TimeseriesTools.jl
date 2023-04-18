@@ -33,7 +33,7 @@ end
 
 """
     spectrumplot!(ax::Axis, x::AbstractSpectrum)
-Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [@ref](MultivariateSpectrum), and other niceties.
+Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
 """
 spectrumplot!
 

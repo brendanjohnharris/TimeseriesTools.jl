@@ -54,7 +54,7 @@ RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R} where {T, R
 """
     RegularTimeIndex
 
-A type alias for a tuple of dimensions containing a [@ref](TimeIndex) and any number of other dimensions.
+A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
 RegularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim{<:RegularIndex}}
 

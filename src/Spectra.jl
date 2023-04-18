@@ -29,14 +29,14 @@ UnitfulFreqIndex = UnitfulTimeIndex
 """
     AbstractSpectrum{T, N, B}
 
-A type alias for an `AbstractDimArray` in which the first dimension is [@ref](Freq)uency.
+A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](@ref)uency.
 """
 AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
 
 """
     RegularFreqIndex
 
-A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [@ref](Freq)uency.
+A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
 """
 RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim{<:RegularIndex}}
 
@@ -110,9 +110,9 @@ end
 Computes the energy spectrum of a time series using the fast Fourier transform.
 
 If `f_min > 0`, the energy spectrum is calculated for windows of the time series determined by `f_min`,  the minimum frequency that will be resolved in the spectrum.
-If `f_min > 0`, the second dimension of the output will correspond to the windows. For an averaged periodogram, see [@ref](energyspectrum).
+If `f_min > 0`, the second dimension of the output will correspond to the windows. For an averaged periodogram, see [`energyspectrum`](@ref).
 
-If the input time series is a [@ref](UnitfulTimeSeries), the frequency will also have units.
+If the input time series is a [`UnitfulTimeSeries`](@ref), the frequency will also have units.
 Moreover if the elements of `x` are unitful, so are the elements of the spectrum.
 
 # Examples
@@ -131,7 +131,7 @@ _energyspectrum(x::typeintersect(MultivariateTS, RegularTS), args...; kwargs...)
 
 Computes the average energy spectrum of a regularly sampled time series `x`.
 `f_min` determines the minimum frequency that will be resolved in the spectrum.
-See [@ref](_energyspectrum).
+See [`_energyspectrum`](@ref).
 """
 energyspectrum(x::RegularTimeSeries, args...; kwargs...) = dropdims(mean(_energyspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
 
@@ -139,8 +139,8 @@ energyspectrum(x::RegularTimeSeries, args...; kwargs...) = dropdims(mean(_energy
     _powerspectrum(x::AbstractTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
 
 Computes the power spectrum of a time series `x` in Welch periodogram windows.
-Note that the `_powerspectrum` is simply the [@ref](_energyspectrum) divided by the duration of each window.
-See [@ref](_energyspectrum).
+Note that the `_powerspectrum` is simply the [`_energyspectrum`](@ref) divided by the duration of each window.
+See [`_energyspectrum`](@ref).
 """
 function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
     S̄ = _energyspectrum(x, args...; kwargs...)
@@ -164,7 +164,7 @@ Generate a colored-noise time series with a specified power-law exponent `α` on
 - `α`: The power-law exponent of the colored noise, which will have a spectrum given by 1/f^α. Defaults to 2.0.
 
 # Returns
-- A [@ref](`TimeSeries`) containing the generated colored noise.
+- A [`TimeSeries`](@ref) containing the generated colored noise.
 
 # Example
 
@@ -172,6 +172,7 @@ Generate a colored-noise time series with a specified power-law exponent `α` on
 julia> using TimeseriesTools
 julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
 julia> pink_noise isa RegularTimeSeries
+````
 """
 function colorednoise(ts::AbstractRange, args...; α=2.0)
     f = rfftfreq(length(ts), step(ts))

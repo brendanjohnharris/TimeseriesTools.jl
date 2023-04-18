@@ -73,7 +73,7 @@ TimeSeries(t, x, unit::Unitful.Units) = TimeSeries((t)unit, x)
 """
     dimunit(x::UnitfulTimeSeries, dim)
 
-Returns the unit associated with the specified dimension `dim` of a [@ref](UnitfulTimeSeries).
+Returns the unit associated with the specified dimension `dim` of a [`UnitfulTimeSeries`](@ref).
 
 ## Examples
 ```jldoctest
@@ -89,7 +89,7 @@ dimunit(x::UnitfulTimeSeries, dim) = dims(x,dim) |> eltype |> unit
 """
     timeunit(x::UnitfulTimeSeries)
 
-Returns the time units associated with a [@ref](UnitfulTimeSeries).
+Returns the time units associated with a [`UnitfulTimeSeries`].
 
 ## Examples
 ```jldoctest
@@ -105,7 +105,7 @@ timeunit(x::UnitfulTimeSeries) = dimunit(x, Ti)
 """
     frequnit(x::UnitfulSpectrum)
 
-Returns the frequency units associated with a [@ref](UnitfulSpectrum).
+Returns the frequency units associated with a [`UnitfulSpectrum`](@ref).
 
 ## Examples
 ```jldoctest
@@ -122,7 +122,7 @@ frequnit(x::UnitfulSpectrum) = dimunit(x, Freq)
 """
     unit(x::AbstractArray)
 
-Returns the units associated with the elements of an [@ref](UnitfulTimeSeries) or [@ref](UnitfulSpectrum).
+Returns the units associated with the elements of an ['UnitfulTimeSeries'](@ref) or [`UnitfulSpectrum`](@ref).
 
 ## Examples
 ```jldoctest
