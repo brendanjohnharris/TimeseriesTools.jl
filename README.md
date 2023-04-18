@@ -28,21 +28,25 @@ Here's a quick example to get you started:
 
 ```julia
 using TimeseriesTools, CairoMakie, TimeseriesTools.FFTW, Unitful
-import TimeseriesTools.TimeSeries # or TS
 
 # Generate some quick brown noise
 t = 0.005:0.005:1e5
-x = colorednoise(t, u"s")*u"V"
-
-# Plot the time series
+x = colorednoise(t, u"s")*u"V" # ::AbstractTimeSeries
 plot(x[1:10000])
-
-# Calculate the power spectrum
 S = powerspectrum(x, 0.001)
 p = plot(S)
 ```
 
+![Example Time Series Plot](test/timeseries.png)
 ![Example Spectrum Plot](test/powerspectrum.png)
+
+Note that an instance of the most basic type of this package, the `AbstractTimeSeries`, can be generated with:
+```julia
+t = 0:0.01:1
+x = sin.(t)
+TimeSeries(t, x)
+```
+Please see the documentation for further functionality.
 
 ## Acknowledgements 🙏
 

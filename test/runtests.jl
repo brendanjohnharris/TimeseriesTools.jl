@@ -150,12 +150,15 @@ end
     x = colorednoise(t, u"s")*u"V"
 
     # Plot the time series
-    plot(x[1:10000])
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1])
+    @test_nowarn plot!(ax, x[1:10000])
+    save("./timeseries.png", f)
 
     # Calculate the power spectrum
     S = powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
-    p = @test_nowarn plot!(ax, S)
+    @test_nowarn plot!(ax, S)
     @test_nowarn save("./powerspectrum.png", f)
 end
