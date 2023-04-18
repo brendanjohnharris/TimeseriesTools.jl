@@ -16,10 +16,10 @@ import Unitful.unit
 # end
 
 include("Types.jl")
-# include("Utils.jl")
-# include("Spectra.jl")
-# include("Unitful.jl")
-# include("Makie.jl")
+include("Utils.jl")
+include("Spectra.jl")
+include("Unitful.jl")
+include("Makie.jl")
 
 
 

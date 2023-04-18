@@ -79,7 +79,7 @@ IrregularTimeSeries = AbstractTimeSeries
 Constructs a univariate time series with time `t` and data `x`. Alteratively, use `TS(t, x)`
 
 ## Examples
-```examples 1
+```@example 1
 julia> using TimeseriesTools, Unitful;
 julia> t = 1:100
 julia> x = rand(100)
@@ -95,7 +95,7 @@ TimeSeries(t, x) = DimArray(x, (Ti(t),))
 Constructs a multivariate time series with time t, variable v, and data x.
 
 ## Examples
-```examples 1
+```@example 1
 julia> t = 1:100;
 julia> v = [:a, :b, :c];
 julia> x = rand(100, 3);

@@ -115,13 +115,14 @@ If the input time series is a [`UnitfulTimeSeries`](@ref), the frequency will al
 Moreover if the elements of `x` are unitful, so are the elements of the spectrum.
 
 # Examples
-```examples 1
+```@example 1
 julia> using TimeseriesTools
 julia> t = range(0.0, stop=1.0, length=1000);
 julia> x = sin.(2 * π * 5 * t);
 julia> ts = RegularTimeSeries(t, x);
 julia> S = _energyspectrum(ts);
 julia> S isa MultivariateSpectrum
+```
 """
 _energyspectrum(x::typeintersect(MultivariateTS, RegularTS), args...; kwargs...) = cat([_energyspectrum(_x, args...; kwargs...) for _x in eachslice(x, dims=2)]..., dims=dims(x, 2))
 
@@ -169,11 +170,11 @@ Generate a colored-noise time series with a specified power-law exponent `α` on
 
 # Example
 
-```examples 1
+```@example 1
 julia> using TimeseriesTools
 julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
 julia> pink_noise isa RegularTimeSeries
-````
+```
 """
 function colorednoise(ts::AbstractRange, args...; α=2.0)
     f = rfftfreq(length(ts), step(ts))
