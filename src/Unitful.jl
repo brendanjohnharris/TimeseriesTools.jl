@@ -39,7 +39,7 @@ UnitfulFreqIndex = UnitfulTimeIndex
 """
     UnitfulTimeSeries{T, N, B}
 
-A type alias for an `AbstractDimArray` with a `UnitfulTimeIndex`.
+A type alias for an `AbstractDimArray` with a [`UnitfulTimeIndex`](@ref).
 
 ## Examples
 ```jldoctest

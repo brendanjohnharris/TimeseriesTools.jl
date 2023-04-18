@@ -8,7 +8,7 @@ export dimname, decompose
 
 MakieCore.@recipe(SpectrumPlot, x, y) do scene
     Theme(
-        plot_color = :cornflowerblue
+        # plot_color = :cornflowerblue
     )
 end
 
