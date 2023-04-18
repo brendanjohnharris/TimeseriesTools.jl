@@ -6,36 +6,36 @@ import GeometryBasics.decompose
 
 export dimname, decompose
 
-MakieCore.@recipe(SpectrumPlot, x, y) do scene
-    Theme(
-        # plot_color = :cornflowerblue
-    )
-end
+# MakieCore.@recipe(SpectrumPlot, x, y) do scene
+#     Theme(
+#         # plot_color = :cornflowerblue
+#     )
+# end
 
-function plot!(p::SpectrumPlot)
-    x = p[:x]
-    y = p[:y]
-    xs = MakieCore.pseudolog10(first(x.val[x.val .> 0])/2)
-    ys = log10
-    lines!(p, x, y, color = p[:plot_color])
-    p
-end
+# function plot!(p::SpectrumPlot)
+#     x = p[:x]
+#     y = p[:y]
+#     xs = MakieCore.pseudolog10(first(x.val[x.val .> 0])/2)
+#     ys = log10
+#     lines!(p, x, y, color = p[:plot_color])
+#     p
+# end
 
-const ToolSpectrumPlot = SpectrumPlot{Tuple{<:AbstractSpectrum}}
-argument_names(::Type{<: ToolSpectrumPlot}) = (:x,)
+# const ToolSpectrumPlot = SpectrumPlot{Tuple{<:AbstractSpectrum}}
+# argument_names(::Type{<: ToolSpectrumPlot}) = (:x,)
 
-function plot!(p::ToolSpectrumPlot)
-    x = collect(dims(p[:x], Freq))
-    y = collect(p[:x])
-    spectrumplot!(p, x, y)
-    p
-end
+# function plot!(p::ToolSpectrumPlot)
+#     x = collect(dims(p[:x], Freq))
+#     y = collect(p[:x])
+#     spectrumplot!(p, x, y)
+#     p
+# end
 
-"""
-    spectrumplot!(ax::Axis, x::AbstractSpectrum)
-Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
-"""
-spectrumplot!
+# """
+#     spectrumplot!(ax::Axis, x::AbstractSpectrum)
+# Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
+# """
+# spectrumplot!
 
 
 # """
