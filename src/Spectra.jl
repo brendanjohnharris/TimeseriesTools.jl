@@ -115,7 +115,7 @@ If the input time series is a [`UnitfulTimeSeries`](@ref), the frequency will al
 Moreover if the elements of `x` are unitful, so are the elements of the spectrum.
 
 # Examples
-```jldoctest
+```examples 1
 julia> using TimeseriesTools
 julia> t = range(0.0, stop=1.0, length=1000);
 julia> x = sin.(2 * π * 5 * t);
@@ -169,7 +169,7 @@ Generate a colored-noise time series with a specified power-law exponent `α` on
 
 # Example
 
-```jldoctest
+```examples 1
 julia> using TimeseriesTools
 julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
 julia> pink_noise isa RegularTimeSeries

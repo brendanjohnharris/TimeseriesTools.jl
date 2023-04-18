@@ -13,7 +13,7 @@ Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 Returns the time indices of the [`AbstractTimeSeries`](@ref) `x`.
 
 ## Examples
-```jldoctest
+```examples 1
 julia> t = 1:100;
 julia> x = rand(100);
 julia> ts = TimeSeries(t, x);
@@ -28,7 +28,7 @@ times(x::AbstractTimeSeries) = dims(x, Ti).val.data
 Returns the step size (time increment) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> t = 1:100;
 julia> x = rand(100);
 julia> rts = TimeSeries(t, x);
@@ -43,7 +43,7 @@ Base.step(x::RegularTimeSeries) = x |> times |> step
 Returns the sampling rate (inverse of the step size) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> t = 1:100;
 julia> x = rand(100);
 julia> rts = TimeSeries(t, x);
@@ -58,7 +58,7 @@ samplingrate(x::RegularTimeSeries) = 1/step(x)
 Returns the sampling period (step size) of a regularly sampled [`RegularTimeSeries`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> t = 1:100;
 julia> x = rand(100);
 julia> rts = TimeSeries(t, x);
@@ -73,7 +73,7 @@ samplingperiod(x::RegularTimeSeries) = step(x)
 Returns the duration of the [@ref](AbstractTimeSeries) `x`.
 
 ## Examples
-```jldoctest
+```examples 1
 julia> t = 1:100;
 julia> x = rand(100);
 julia> ts = TimeSeries(t, x);
@@ -88,7 +88,7 @@ duration(x::AbstractTimeSeries) = (last∘times)(x) - (first∘times)(x)
 Returns an interval representing the range of the [`AbstractTimeSeries`](@ref) `x`.
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using IntervalSets;
 julia> t = 1:100;
 julia> x = rand(100);

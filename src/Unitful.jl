@@ -11,7 +11,7 @@ export dimunit, timeunit, frequnit, unit, UnitfulIndex, UnitfulTimeSeries, Unitf
 Converts a constant `c` to have the same units as `u`.
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> c = 5;
 julia> u = 3u"s";
@@ -42,7 +42,7 @@ UnitfulFreqIndex = UnitfulTimeIndex
 A type alias for an `AbstractDimArray` with a [`UnitfulTimeIndex`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = (1:100)u"s";
 julia> x = rand(100);
@@ -60,7 +60,7 @@ Constructs a univariate time series with time `t`, data `x`, time units specifie
 Note that you can add units to the elements of a time series with, for example, `x*u"V"`.
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
@@ -76,7 +76,7 @@ TimeSeries(t, x, unit::Unitful.Units) = TimeSeries((t)unit, x)
 Returns the unit associated with the specified dimension `dim` of a [`UnitfulTimeSeries`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
@@ -92,7 +92,7 @@ dimunit(x::UnitfulTimeSeries, dim) = dims(x,dim) |> eltype |> unit
 Returns the time units associated with a [`UnitfulTimeSeries`].
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
@@ -108,7 +108,7 @@ timeunit(x::UnitfulTimeSeries) = dimunit(x, Ti)
 Returns the frequency units associated with a [`UnitfulSpectrum`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
@@ -125,7 +125,7 @@ frequnit(x::UnitfulSpectrum) = dimunit(x, Freq)
 Returns the units associated with the elements of an [`UnitfulTimeSeries``](@ref) or [`UnitfulSpectrum`](@ref).
 
 ## Examples
-```jldoctest
+```examples 1
 julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
