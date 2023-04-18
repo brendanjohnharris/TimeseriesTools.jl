@@ -1,9 +1,8 @@
 using Unitful
-export UnitfulIndex, UnitfulTimeSeries
 using FFTW
 import Unitful.unit
 
-export dimunit, timeunit, frequnit, unit
+export dimunit, timeunit, frequnit, unit, UnitfulIndex, UnitfulTimeSeries, UnitfulSpectrum
 
 # Unitful._promote_unit(::S, ::T) where {S<:Unitful.FreeUnits{(), NoDims, nothing}, T<:Unitful.TimeUnits} = u"s"
 """
@@ -35,6 +34,7 @@ UnitfulIndex = Union{AbstractArray{<:Unitful.Time}, AbstractRange{<:Unitful.Time
 A type alias for a tuple of dimensions, where the first dimension is of type `DimensionalData.Dimension{<:UnitfulIndex}`.
 """
 UnitfulTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulIndex}}
+UnitfulFreqIndex = UnitfulTimeIndex
 
 """
     UnitfulTimeSeries{T, N, B}
@@ -81,7 +81,7 @@ julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
 julia> ts = TimeSeries(t, x, u"ms");
-julia> dimunit(ts, Ti) == u"ms"
+julia> TimeseriesTools.dimunit(ts, Ti) == u"ms"
 ```
 """
 dimunit(x::UnitfulTimeSeries, dim) = dims(x,dim) |> eltype |> unit
@@ -122,7 +122,7 @@ frequnit(x::UnitfulSpectrum) = dimunit(x, Freq)
 """
     unit(x::AbstractArray)
 
-Returns the units associated with the elements of an ['UnitfulTimeSeries'](@ref) or [`UnitfulSpectrum`](@ref).
+Returns the units associated with the elements of an [`UnitfulTimeSeries``](@ref) or [`UnitfulSpectrum`](@ref).
 
 ## Examples
 ```jldoctest

@@ -17,8 +17,8 @@ import Unitful.unit
 
 include("Types.jl")
 include("Utils.jl")
-include("Unitful.jl")
 include("Spectra.jl")
+include("Unitful.jl")
 include("Makie.jl")
 
 

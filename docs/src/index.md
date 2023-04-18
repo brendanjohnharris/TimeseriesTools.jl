@@ -1,4 +1,9 @@
 ```@meta
+DocTestSetup = quote
+    using Unitful
+    using TimeseriesTools
+    using CairoMakie
+end
 CurrentModule = TimeseriesTools
 ```
 

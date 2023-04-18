@@ -1,7 +1,8 @@
 using TimeseriesTools
+using Unitful
 using Documenter
 
-DocMeta.setdocmeta!(TimeseriesTools, :DocTestSetup, :(using TimeseriesTools); recursive=true)
+DocMeta.setdocmeta!(TimeseriesTools, :DocTestSetup, :(using Unitful, TimeseriesTools); recursive=true)
 
 makedocs(;
     modules=[TimeseriesTools],

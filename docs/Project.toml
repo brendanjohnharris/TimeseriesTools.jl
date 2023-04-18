@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"

@@ -24,7 +24,6 @@ DimensionalData.@dim Freq FreqDim "Freq"
 A type alias for a tuple of dimensions, where the first dimension is of type `FreqDim`.
 """
 FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FreqDim}
-UnitfulFreqIndex = UnitfulTimeIndex
 
 """
     AbstractSpectrum{T, N, B}
@@ -153,6 +152,8 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+
+spectrum = powerspectrum
 
 """
     colorednoise(ts::AbstractRange; α=2.0)
