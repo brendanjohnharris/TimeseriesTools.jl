@@ -9,7 +9,8 @@
 .CondaPkg/
 /Manifest.toml
 /docs/build/
-Artifacts.toml, Manifest.toml
+Artifacts.toml
+Manifest.toml
 LocalPreferences.toml
 data
 docs/build/
