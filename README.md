@@ -37,8 +37,10 @@ S = powerspectrum(x, 0.001)
 p = plot(S)
 ```
 
-![Example Time Series Plot](test/timeseries.png)
-![Example Spectrum Plot](test/powerspectrum.png)
+![Example Time Series Plot](test/timeseries_dark.png#gh-dark-mode-only)
+![Example Spectrum Plot](test/powerspectrum_dark.png#gh-dark-mode-only)
+![Example Time Series Plot](test/timeseries.png#gh-light-mode-only)
+![Example Spectrum Plot](test/powerspectrum.png#gh-light-mode-only)
 
 Note that an instance of the most basic type of this package, the `AbstractTimeSeries`, can be generated with:
 ```julia

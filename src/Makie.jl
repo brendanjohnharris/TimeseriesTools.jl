@@ -1,7 +1,8 @@
 using ..Makie
 import MakieCore.plot!
 import MakieCore.plot
-
+Base.iterate(s::Makie.RichText, i::Integer) = iterate(String(s), i)
+Base.iterate(s::Makie.RichText) = iterate(String(s))
 """
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
@@ -16,9 +17,9 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(x[idxs]), nothing));
     ax.xscale = log10
     ax.yscale = log10
-    p = spectrumplot!(ax, f[idxs], x[idxs]; kwargs...)
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
     ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    p = spectrumplot!(ax, f[idxs], x[idxs]; kwargs...)
     p
 end
 spectrumplot(x::UnivariateSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))

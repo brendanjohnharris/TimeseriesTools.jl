@@ -7,6 +7,7 @@ using Test
 using CairoMakie
 using Documenter
 using ImageMagick
+using Foresight
 
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
@@ -161,4 +162,26 @@ end
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S)
     @test_nowarn save("./powerspectrum.png", f)
+end
+
+@testset "Readme_dark" begin
+    using CairoMakie, TimeseriesTools, Unitful
+    import TimeseriesTools.TimeSeries # or TS
+    set_theme!(foresight(:dark, :transparent))
+
+    t = 0.005:0.005:1e5
+    x = colorednoise(t, u"s")*u"V"
+
+    # Plot the time series
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1])
+    @test_nowarn plot!(ax, x[1:10000])
+    save("./timeseries_dark.png", f)
+
+    # Calculate the power spectrum
+    S = powerspectrum(x, 0.0001)
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1])
+    @test_nowarn plot!(ax, S)
+    @test_nowarn save("./powerspectrum_dark.png", f)
 end

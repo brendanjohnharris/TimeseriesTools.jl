@@ -2,7 +2,7 @@ using FFTW
 using Statistics
 
 export  FreqDim, Freq, freqs,
-        AbstractSpectrum, RegularSpectrum, MultivariateSpectrum,
+        AbstractSpectrum, RegularSpectrum, UnivariateSpectrum, MultivariateSpectrum,
         spectrum, energyspectrum, powerspectrum,
         _energyspectrum, _powerspectrum,
         FreqIndex, RegularFreqIndex,
