@@ -1,11 +1,12 @@
 using ..Makie
 import MakieCore.plot!
 import MakieCore.plot
+using Statistics
 Base.iterate(s::Makie.RichText, i::Integer) = iterate(String(s), i)
 Base.iterate(s::Makie.RichText) = iterate(String(s))
 """
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
-Plot the given spectrum, labelling the axes, adding units if appropriate, ribbons if the input is a [`MultivariateSpectrum`](@ref), and other niceties.
+Plot the given spectrum, labelling the axes, adding units if appropriate, and other niceties.
 """
 function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
     uf = frequnit(x)
@@ -22,9 +23,38 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
     p = spectrumplot!(ax, f[idxs], x[idxs]; kwargs...)
     p
 end
-spectrumplot(x::UnivariateSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
-plot!(ax, x::UnivariateSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
-plot(x::UnivariateSpectrum; kwargs...) = spectrumplot(x; kwargs...)
+
+"""
+    spectrumplot!(ax::Axis, x::MultivariateSpectrum)
+Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
+"""
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; kwargs...)
+    uf = frequnit(x)
+    ux = unit(x)
+    f, _, x = decompose(x)
+    f = ustrip.(f) |> collect
+    x = ustrip.(x) |> collect
+    xmin = minimum(x, dims=2) |> vec
+    xmed = median(x, dims=2) |> vec
+    σₗ = mapslices(x->quantile(x, 0.25), x, dims=2) |> vec
+    σᵤ = mapslices(x->quantile(x, 0.75), x, dims=2) |> vec
+    idxs = (f .> 0) .& (xmin .> 0)
+    ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing));
+    ax.xscale = log10
+    ax.yscale = log10
+    uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
+    ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    _p = band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, kwargs...)
+    p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
+    p
+end
+
+spectrumplot(x::AbstractSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
+plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
+
+
+
 
 
 function plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)

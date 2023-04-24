@@ -108,3 +108,12 @@ TimeSeries(t, v, x) = DimArray(x, (Ti(t), Var(v)))
 TS = Timeseries = TimeSeries
 
 convertconst(a, _) = a
+
+"""
+    Base.cat(D::DimensionalData.Dimension, args...; kwargs...)
+Concatenate the arrays given in `args...`, and give the resulting extra axis dimensions `D`.
+"""
+function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; kwargs...)
+    x′ = cat(x.data, getfield.(args, [:data])...; kwargs...)
+    return DimArray(x′, (dims(x)..., D); refdims=refdims(x), name=name(x), metadata=metadata(x))
+end

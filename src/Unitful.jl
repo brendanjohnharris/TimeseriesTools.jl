@@ -59,8 +59,8 @@ UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 """
     TimeSeries(t, x, timeunit::Unitful.Units)
 
-Constructs a univariate time series with time `t`, data `x`, time units specified by `timeunit`, and element units specified by `elementunit`.
-Note that you can add units to the elements of a time series with, for example, `x*u"V"`.
+Constructs a univariate time series with time `t`, data `x` and time units specified by `timeunit`.
+Note that you can add units to the elements of a time series `x` with, for example, `x*u"V"`.
 
 ## Examples
 ```@example 1

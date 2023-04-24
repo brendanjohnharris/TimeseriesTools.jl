@@ -157,7 +157,7 @@ end
     save("./timeseries.png", f)
 
     # Calculate the power spectrum
-    S = powerspectrum(x, 0.0001)
+    S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S)
@@ -179,7 +179,7 @@ end
     save("./timeseries_dark.png", f)
 
     # Calculate the power spectrum
-    S = powerspectrum(x, 0.0001)
+    S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S)
