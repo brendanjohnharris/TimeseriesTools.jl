@@ -1,7 +1,7 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 
-export times, samplingrate, duration, samplingperiod
+export times, samplingrate, duration, samplingperiod, UnitPower
 
 Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 # Allow dims to be passed directly to selectors
@@ -97,3 +97,18 @@ julia> IntervalSets.Interval(ts) == (1..100)
 ```
 """
 IntervalSets.Interval(x::AbstractTimeSeries) = (first∘times)(x)..(last∘times)(x)
+
+
+𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x)
+mutable struct UnitPower <: Normalization.AbstractNormalization
+    dims
+    p::Union{Nothing, NTuple{1, AbstractArray}}
+    𝑝::NTuple{1, Function}
+    𝑓::Function
+    𝑓⁻¹::Function
+ end;
+ UnitPower(; dims = nothing,
+                     p = nothing,
+                     𝑝 = (𝑝,),
+                     𝑓 = (x, 𝑃) -> x .= x./sqrt.(𝑃),
+                     𝑓⁻¹ = (y, 𝑃) -> y .= y.*sqrt.(𝑃)) = UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
