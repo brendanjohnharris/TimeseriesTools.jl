@@ -98,8 +98,16 @@ julia> IntervalSets.Interval(ts) == (1..100)
 """
 IntervalSets.Interval(x::AbstractTimeSeries) = (first∘times)(x)..(last∘times)(x)
 
-
-𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x)
+# function 𝑝(x::RegularTimeSeries)
+#     dur = duration(x)
+#     if ~isnothing(unit(dur))
+#         return sum(x.^2)/dur
+#     else
+#         @warn "No time units found for unit power normalization. Assuming seconds."
+#         return sum(x.^2)/(dur*u"s")
+#     end
+# end
+𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x) |> ustrip
 mutable struct UnitPower <: Normalization.AbstractNormalization
     dims
     p::Union{Nothing, NTuple{1, AbstractArray}}

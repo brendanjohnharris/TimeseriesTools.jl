@@ -56,6 +56,24 @@ UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency}, AbstractRange{<:Unitfu
 UnitfulFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulFIndex}}
 UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
+
+function unitfultimeseries(x::AbstractTimeSeries, u::Unitful.Units)
+    t = x |> times
+    t = timeunit(x) == NoUnits ? t : ustrip(t)
+    t = t*u
+    ds = dims(x)
+    return DimArray(x.data, (Ti(t), ds[2:end]...); metadata=DimensionalData.metadata(x), name=DimensionalData.name(x), refdims=DimensionalData.refdims(x))
+end
+
+function unitfultimeseries(x::AbstractTimeSeries)
+    if timeunit(x) == NoUnits
+        @warn "No time units found for unitful time series. Assuming seconds."
+        return unitfultimeseries(x, u"s")
+    else
+        return x
+    end
+end
+
 """
     TimeSeries(t, x, timeunit::Unitful.Units)
 
@@ -72,6 +90,7 @@ julia> ts isa Union{UnivariateTimeSeries, RegularTimeSeries, UnitfulTimeSeries}
 ```
 """
 TimeSeries(t, x, unit::Unitful.Units) = TimeSeries((t)unit, x)
+TimeSeries(t, v, x, unit::Unitful.Units) = TimeSeries((t)unit, v, x)
 
 """
     dimunit(x::UnitfulTimeSeries, dim)

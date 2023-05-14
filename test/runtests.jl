@@ -199,4 +199,16 @@ end
     @test X == Y
     @test_nowarn denormalize!(Y, T)
     @test Y ≈ _X
+
+    _X = TimeseriesTools.unitfultimeseries(X, u"s")*u"V"
+    X = copy(_X)
+    T = fit(N, X)
+    Y = normalize(X, T)
+    @test ustrip(sum(Y.^2)/duration(Y)) ≈ 1
+    @test !isnothing(T.p)
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
 end
