@@ -1,9 +1,17 @@
-using ..Makie
+# module MakieExt
+
 import MakieCore.plot!
 import MakieCore.plot
+
+using .Makie
+using TimeseriesTools
 using Statistics
+
+export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!
+
 Base.iterate(s::Makie.RichText, i::Integer) = iterate(String(s), i)
 Base.iterate(s::Makie.RichText) = iterate(String(s))
+
 """
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and other niceties.
@@ -124,3 +132,65 @@ plot(x::UnivariateTimeSeries; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=plot
 #     end
 #     return fig
 # end
+
+
+
+# ? -------------------------- Colored trajectory -------------------------- ? #
+@recipe(Trajectory, x, y, z) do scene
+    Theme(
+        colormode = :velocity,
+    )
+end
+
+function Makie.plot!(plot::Trajectory)
+    x = lift((args...) -> [y for y in args], plot.input_args...)
+    f = x->isfinite.(x)
+    i = @lift reduce(.&, f.($(x)))
+    z = @lift [y[$(i)] for y ∈ $(x)]
+
+    colormode = plot.colormode[]
+    if colormode === :velocity
+        dx = @lift [y[2:end] .- y[1:end-1] for y ∈ $(z)]
+        sqr = x->x.^2
+        colors = @lift sqrt.(sum(sqr.($(dx))))
+    elseif colormode === :time
+        colors = @lift 1:length($(z)[1])
+    elseif !isnothing(colormode) && colormode != :none
+        @error "Not a supported `colormode`"
+    end
+    _z = @lift [y[1:end-1] for y in $(z)]
+    lines!(plot, _z[]...; plot.attributes..., color=colors)
+
+    plot
+end
+
+# ? -------------------------- Trajectory shadows -------------------------- ? #
+function shadows!(ax, x, y, z; shadowmode=:projection, kwargs...)
+    (x isa Observable) || (x = Observable(x))
+    (y isa Observable) || (y = Observable(y))
+    (z isa Observable) || (z = Observable(z))
+    i = @lift isfinite.($(x)) .* isfinite.($(y)) .* isfinite.($(z))
+    x = @lift ($(x)[$(i)])
+    y = @lift ($(y)[$(i)])
+    z = @lift ($(z)[$(i)])
+
+    limits = ax.finallimits
+    _limits = limits[]
+    len = @lift length($(x))
+
+    xp = @lift fill($(limits).origin[1], $(len))
+    yp = @lift fill($(limits).origin[2], $(len))
+    zp = @lift fill($(limits).origin[3], $(len))
+
+    if shadowmode === :projection
+        lines!(ax, xp, y, z; kwargs...)
+        lines!(ax, x, yp, z; kwargs...)
+        lines!(ax, x, y, zp; kwargs...)
+    end
+    ax.finallimits[] = _limits
+    return ax
+end
+
+
+
+# end # module

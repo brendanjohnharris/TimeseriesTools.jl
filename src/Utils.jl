@@ -3,6 +3,11 @@ import DimensionalData.Dimensions.Dimension
 
 export times, samplingrate, duration, samplingperiod, UnitPower
 
+import LinearAlgebra.mul!
+function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
+    mul!(a, b.data, args...; kwargs...)
+end
+
 Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 # Allow dims to be passed directly to selectors
 [:($(S)(D::Dimension) = $(S)(D.val.data)) for S in Selectors] .|> eval

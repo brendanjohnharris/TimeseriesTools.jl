@@ -1,17 +1,23 @@
 module TimeseriesTools
+
+import Unitful.unit
+
 using Reexport
-using Requires
 using DimensionalData
 using IntervalSets
-import Unitful.unit
+# if !isdefined(Base, :get_extension)
+    using Requires
+# end
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
 
 function __init__()
-    @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" begin
-        @eval include("Makie.jl")
-    end
+    # @static if !isdefined(Base, :get_extension)
+        @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" begin
+            @eval include("../ext/MakieExt.jl")
+        end
+    # end
 end
 
 include("Types.jl")

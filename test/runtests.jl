@@ -212,3 +212,9 @@ end
     @test_nowarn denormalize!(Y, T)
     @test Y ≈ _X
 end
+
+
+@testset "TimeseriesSurrogatesExt" begin
+    x = TimeSeries(0.001:0.001:1, rand(1000))
+    @test_nowarn s = surrogate(x, FT())
+end
