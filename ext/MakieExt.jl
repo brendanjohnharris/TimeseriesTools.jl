@@ -3,7 +3,7 @@
 import MakieCore.plot!
 import MakieCore.plot
 
-using .Makie
+using ..Makie
 using TimeseriesTools
 using Statistics
 

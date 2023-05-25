@@ -21,10 +21,6 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 
-[extensions]
-MakieExt = "Makie"
-TimeseriesSurrogatesExt = "TimeseriesSurrogates"
-
 [compat]
 DimensionalData = "0.19 - 0.24"
 FFTW = "1"
