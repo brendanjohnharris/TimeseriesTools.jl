@@ -1,5 +1,5 @@
-using MakieCore
-using MakieCore.Observables
+import MakieCore
+import MakieCore.Observables
 using LaTeXStrings
 using DimensionalData
 import GeometryBasics.decompose
@@ -18,7 +18,7 @@ function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector,<:AbstractVect
     # idxs = map((x, y)->(x .> 0) .& (y .> 0), x, y)
     # _x = map((x, i)->x[i], x, idxs)
     # _y = map((y, i)->y[i], y, idxs)
-    lines!(p, x, y; color = p[:plot_color])
+    MakieCore.lines!(p, x, y; color = p[:plot_color])
     p
 end
 

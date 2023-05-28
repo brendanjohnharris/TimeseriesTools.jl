@@ -3,7 +3,8 @@
 import MakieCore.plot!
 import MakieCore.plot
 
-using ..Makie
+import ..Makie
+import Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable
 using TimeseriesTools
 using Statistics
 
@@ -52,20 +53,20 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; kwargs...)
     ax.yscale = log10
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
     ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
-    _p = band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, kwargs...)
+    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, kwargs...)
     p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
     p
 end
 
 spectrumplot(x::AbstractSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
-plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
-plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
+Makie.plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
+Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
 
 
 
 
 
-function plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
+function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ut = timeunit(x)
     ux = unit(x)
     t, x = decompose(x)
@@ -76,7 +77,7 @@ function plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
     p
 end
-plot(x::UnivariateTimeSeries; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
 
 
 
@@ -165,7 +166,7 @@ function Makie.plot!(plot::Trajectory)
 end
 
 # ? -------------------------- Trajectory shadows -------------------------- ? #
-function shadows!(ax, x, y, z; shadowmode=:projection, kwargs...)
+function shadows!(ax, x, y, z; shadowmode=:projection, swapshadows=false, kwargs...)
     (x isa Observable) || (x = Observable(x))
     (y isa Observable) || (y = Observable(y))
     (z isa Observable) || (z = Observable(z))
@@ -178,9 +179,15 @@ function shadows!(ax, x, y, z; shadowmode=:projection, kwargs...)
     _limits = limits[]
     len = @lift length($(x))
 
-    xp = @lift fill($(limits).origin[1], $(len))
-    yp = @lift fill($(limits).origin[2], $(len))
-    zp = @lift fill($(limits).origin[3], $(len))
+    if swapshadows
+        xp = @lift fill($(limits).origin[1], $(len))
+        yp = @lift fill($(limits).origin[2], $(len))
+        zp = @lift fill($(limits).origin[3], $(len))
+    else
+        xp = @lift fill($(limits).origin[1] .+ $(limits).widths[1], $(len))
+        yp = @lift fill($(limits).origin[2] .+ $(limits).widths[2], $(len))
+        zp = @lift fill($(limits).origin[3], $(len))
+    end
 
     if shadowmode === :projection
         lines!(ax, xp, y, z; kwargs...)
