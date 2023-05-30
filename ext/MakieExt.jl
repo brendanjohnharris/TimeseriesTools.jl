@@ -4,7 +4,7 @@ import MakieCore.plot!
 import MakieCore.plot
 
 import ..Makie
-import Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable
+import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme
 using TimeseriesTools
 using Statistics
 
