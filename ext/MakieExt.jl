@@ -4,7 +4,7 @@ import MakieCore.plot!
 import MakieCore.plot
 
 import ..Makie
-import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme
+import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme, Figure, Axis
 using TimeseriesTools
 using Statistics
 
@@ -77,7 +77,7 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
     p
 end
-Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Makie.Figure(); ax=Makie.Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
 
 
 

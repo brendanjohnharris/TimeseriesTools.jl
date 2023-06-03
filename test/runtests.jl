@@ -3,6 +3,7 @@ import Unitful.unit
 using FFTW
 using TimeseriesTools
 import TimeseriesTools.TimeSeries
+using TimeseriesSurrogates
 using Test
 using CairoMakie
 using Documenter
