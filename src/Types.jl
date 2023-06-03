@@ -87,7 +87,7 @@ julia> ts = TimeSeries(t, x)
 julia> ts isa Union{UnivariateTimeSeries, RegularTimeSeries}
 ```
 """
-TimeSeries(t, x) = DimArray(x, (Ti(t),))
+TimeSeries(t, x; kwargs...) = DimArray(x, (Ti(t),); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -103,7 +103,7 @@ julia> mts = TimeSeries(t, v, x)
 julia> mts isa Union{MultivariateTimeSeries, RegularTimeSeries}
 ```
 """
-TimeSeries(t, v, x) = DimArray(x, (Ti(t), Var(v)))
+TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
 
 TS = Timeseries = TimeSeries
 

@@ -66,7 +66,7 @@ MultivariateSpectrum = AbstractSpectrum{T, 2} where T
 
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
-function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
+function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
     fs = samplingrate(x)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
@@ -109,7 +109,7 @@ function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(
     S̄ = S̄ ./ ustrip((sum(meanS̄) - 0.5.*meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
     S̄ = 0.5 * S̄ .* ustrip(sum(x.^2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
 
-    return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)))
+    return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)); kwargs...)
 end
 """
     _energyspectrum(x::RegularTimeSeries, f_min=0)

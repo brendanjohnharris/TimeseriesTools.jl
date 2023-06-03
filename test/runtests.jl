@@ -218,3 +218,53 @@ end
     x = TimeSeries(0.001:0.001:1, rand(1000))
     @test_nowarn s = surrogate(x, FT())
 end
+
+@testset "IO" begin
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata=Dict(:a=>:test), name="name")
+
+    f = tempname()*".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+
+    f = tempname()*".csv"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = x[:, 1]
+    savetimeseries(f, x)
+    _x = @test_logs (:warn, "Cannot load refdims yet") loadtimeseries(f)
+    @test refdims(_x) == ()
+    @test all(x .≈ _x)
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata=Dict(:a=>:test))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    display(_x)
+    @test x ≈ _x
+
+    # Currently not the greatest way of handling non-serializable metadata
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata=Dict(:a=>DimensionalData.NoName())) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name=TimeSeries) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test name(_x) == DimensionalData.NoName()
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
+    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    display(_x)
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, rand(1000))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+end
