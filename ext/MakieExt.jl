@@ -215,7 +215,7 @@ function Makie.plot!(plot::Traces)
     normalize = plot.normalize[]
     z = lift(z) do z
         (normalize == true) && (normalize = Normalization.MinMax)
-        if normalize <: Normalization.AbstractNormalization
+        if normalize != false && normalize <: Normalization.AbstractNormalization
             N = fit(normalize, z; dims=1)
             z = Normalization.normalize(z, N)
         end
