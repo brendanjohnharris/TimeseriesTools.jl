@@ -7,6 +7,7 @@ import ..Makie
 import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme, Figure, Axis
 using TimeseriesTools
 using Statistics
+using TimeseriesTools.Normalization
 
 export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!
 
@@ -198,6 +199,115 @@ function shadows!(ax, x, y, z; shadowmode=:projection, swapshadows=false, kwargs
     return ax
 end
 
+# ? ------------------------------- # Traces ------------------------------- ? #
+@recipe(Traces) do scene
+    Theme(
+        colormap = nothing,
+        normalize = false, # Can be any normalization type from Normalizations.jl
+        colorrange = nothing,
+
+    )
+end
+
+function Makie.plot!(plot::Traces)
+    x, y, z = plot.input_args
+    colormap = plot.colormap
+    normalize = plot.normalize[]
+    z = lift(z) do z
+        (normalize == true) && (normalize = Normalization.MinMax)
+        if normalize <: Normalization.AbstractNormalization
+            N = fit(normalize, z; dims=1)
+            z = Normalization.normalize(z, N)
+        end
+        z
+    end
+
+    if colormap[] isa Symbol
+        colormap = @lift Makie.cgrad($colormap)
+    end
+    if colormap[] isa Makie.ColorGradient # Color traces by the y value
+        if isnothing(plot.colorrange[])
+            plot.colorrange = @lift (minimum($(y)), maximum($(y)))
+        end
+        _y = lift((x, r)->(x.-r[1])./(r[2] - r[1]), y, plot.colorrange)
+        colormap = lift((c, i)->[c[Float64(_i)] for _i in i], colormap, _y)
+    end
+
+    for (i, _z) in enumerate(eachcol(z[]))
+        if isnothing(colormap[])
+            lines!(plot, x, _z; plot.attributes...)
+        else
+            lines!(plot, x, _z; plot.attributes..., color=colormap[][i])
+        end
+    end
+    plot
+end
+
+
+
+
+
+
+
+
+# ? --------------------------- # Stacked traces --------------------------- ? #
+@recipe(StackedTraces, x, y, z) do scene
+    Theme(
+        offset = false,
+        normalize = true,
+    )
+end
+
+function Makie.plot!(plot::StackedTraces)
+    x, _y, z = plot.input_args
+    offset = plot.offset
+    normalize = plot.normalize
+
+    # z = lift(normalize, z) do normalize, z
+    #     if normalize == true
+
+    # z = lift(offset, normlize, z) do offset, z
+    #     if offset != false
+    #         z = z .- minimum.(eachcol(z))'
+    #         if offset === :normalize # Each trace takes up 1 unit of y space
+    #             z = z./(maximum.(eachcol(z))' .- minimum.(eachcol(z))')
+    #             y = 1:length(_y)
+    #         else # Each
+    #             y = zeros(length(_y))
+    #             for i in 2:size(X, Dim{:channel})
+    #                 c[i] =  c[i-1] + maximum(X[:, i-1] .- X[:, i]) + offset * mean(X)
+    #             end
+    #     end
+    #     z
+    # end
+
+    # if isnothing(offset)
+
+    #     c = 1:size(X, Dim{:channel})
+    # else
+    #     c = zeros(size(X, Dim{:channel}))
+    #     for i in 2:size(X, Dim{:channel})
+    #         c[i] =  c[i-1] + maximum(X[:, i-1] .- X[:, i]) + offset * mean(X)
+    #     end
+    # end
+    # data = [X[:, i] .+ c[i] for i ∈ 1:size(X, 2)]
+    # Makie.lines!.((ax,), (dims(X, Ti)|>collect,), data|>collect; kwargs...)
+    # hlines!(ax, c)
+    # ax.yticks = (mean.(data), string.(channels))
+    ax.yticklabelrotation = 0 # π/2
+    ax.xlabel="time (s)"
+    ax.ylabel="channel"
+    ax.yticklabelsvisible=true
+    ax.yticksvisible=false
+    if stimulus isa DataFrame
+        stimulusvlines!(ax, X, stimulus; stimcolor)
+    end
+
+
+    lines!(plot, _z[]...; plot.attributes..., color=colors)
+
+    plot
+end
 
 
 # end # module

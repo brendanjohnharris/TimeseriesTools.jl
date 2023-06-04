@@ -1,6 +1,8 @@
 using Unitful
 using FFTW
 import Unitful.unit
+import LinearAlgebra.normalize
+import Normalization.denormalize
 
 export dimunit, timeunit, frequnit, unit, UnitfulIndex, UnitfulTimeSeries, UnitfulSpectrum
 
@@ -106,7 +108,7 @@ julia> ts = TimeSeries(t, x, u"ms");
 julia> TimeseriesTools.dimunit(ts, Ti) == u"ms"
 ```
 """
-dimunit(x::DimArray, dim) = dims(x,dim) |> eltype |> unit
+dimunit(x::AbstractDimArray, dim) = dims(x,dim) |> eltype |> unit
 
 """
     timeunit(x::UnitfulTimeSeries)
@@ -173,3 +175,15 @@ function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity}) # 🐕
     ℱ = rfft(x_re)
     ℱ = (ℱ)*(a*t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end
+
+# Extend Normalizations.jl
+# Note that in-place normalization is not defined for unitful arrays unless the normalization doesn't change the units.
+
+normalize(X::AbstractArray{<:Quantity}, T::NormUnion; kwargs...) = (Y=copy(X)|>AbstractArray{Any}; normalize!(Y, T; kwargs...); identity.(Y))
+
+function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
+    Y = copy(X);
+    DimensionalData.modify(x->normalize(x |> AbstractArray{Any}, T; kwargs...), Y)
+end
+
+# I could extend this to denormalize by adding type annotations to the Normalization types

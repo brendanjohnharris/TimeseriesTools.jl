@@ -1,7 +1,8 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
+import Normalization.NormUnion
 
-export times, samplingrate, duration, samplingperiod, UnitPower
+export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames, describedim, describedims, describename
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -125,3 +126,43 @@ mutable struct UnitPower <: Normalization.AbstractNormalization
                      𝑝 = (𝑝,),
                      𝑓 = (x, 𝑃) -> x .= x./sqrt.(𝑃),
                      𝑓⁻¹ = (y, 𝑃) -> y .= y.*sqrt.(𝑃)) = UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
+
+
+dimname(d::DimensionalData.Dimension) = name(d) |> string
+dimname(x::AbstractDimArray, dim) = dims(x, dim) |> dimname
+dimname(x::AbstractDimArray) = map(dimname, dims(x))
+dimnames = dimname
+
+function describedim(d::DimensionalData.Dimension)
+    if d isa DimensionalData.TimeDim
+        n = "Time"
+    elseif d isa FrequencyDim
+        n = "Frequency"
+    elseif d isa VariableDim
+        n = "Variable"
+    else
+        n = name(d)
+    end
+    units = d |> eltype |> unit
+    isnothing(units) && (n = n*" ($units)")
+    n
+end
+
+function describedim(x::Tuple)
+    @assert eltype(x) <: DimensionalData.Dimension # Move this into function args
+    ns = describedim.(x)
+    return ns
+end
+describedim(x::AbstractDimArray, i) = dims(x, i) |> describedim
+describedim(x::AbstractDimArray) = x |> dims |> describedim
+describedims = describedim
+
+function describename(x::AbstractDimArray)
+    n = name(x)
+    n isa DimensionalData.NoName && (n = "")
+    if ~isnothing(n)
+        units = x |> eltype |> unit
+        isnothing(units) && (n = n*" ($units)")
+    end
+    n
+end

@@ -34,10 +34,8 @@ MakieCore.convert_arguments(P::Type{<:MakieCore.Heatmap}, x::MultivariateTimeSer
 
 # GeometryBasics.decompose(x::AN.DimensionalData.AbstractDimArray, dims...) = (getindex.((dims(x).|>collect), dims)..., x.data[dims...])
 
-dimname(x::DimArray, dim) = dims(x, dim) |> name |> string
-
-# formataxes(x::AN.DimensionalData.AbstractDimArray{T, 2} where T) = (xlabel=dimname(x, 1), ylabel=dimname(x, 2))
-# formataxes(x::AN.DimensionalData.AbstractDimArray{T, 1} where T) = (xlabel=dimname(x, 1),)
+formataxislabels(x::UnivariateTimeSeries) = (; xlabel=describedims(x, 1), ylabel=describename(x))
+formataxislabels(x::MultivariateTimeSeries) = (; xlabel=describedims(x, 1), ylabel=describedims(x, 2))
 
 
 # TODO Stacked traces, traces recipe

@@ -1,11 +1,11 @@
 using Unitful
 import Unitful.unit
 using FFTW
+using CairoMakie
 using TimeseriesTools
 import TimeseriesTools.TimeSeries
 using TimeseriesSurrogates
 using Test
-using CairoMakie
 using Documenter
 using ImageMagick
 using Foresight
@@ -268,4 +268,42 @@ end
     savetimeseries(f, x)
     _x = loadtimeseries(f)
     @test x ≈ _x
+
+
+    x = TimeSeries((0.001:0.001:1)*u"s", 1:3, rand(1000, 3); metadata=Dict(:a=>:test), name="name")*u"V"
+
+    f = tempname()*".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+end
+
+
+@testset "Traces" begin
+    using CairoMakie, TimeseriesTools, Unitful
+    import TimeseriesTools.TimeSeries # or TS
+
+    t = 0.005:0.005:1e4
+    x = colorednoise(t, u"s")*u"V"
+    X = cat(Var(1:2), x, x.+1.0*u"V", dims=2)
+
+    # Calculate the power spectrum
+    S = _powerspectrum(x, 0.0005)
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1])
+    x, y, z = collect.(ustrip.(decompose(X)))
+    @test_nowarn traces!(ax, x, y, z)
+    @test_nowarn save("./powerspectrum.png", f)
+end
+
+
+@testset "Unitful Normalization compat" begin
+    _X = rand(100)*u"V"
+    X = copy(_X)
+    T = fit(ZScore, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ (X.-mean(X))./std(X)
 end
