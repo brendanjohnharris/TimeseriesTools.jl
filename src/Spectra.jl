@@ -156,7 +156,7 @@ function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
 end
 
 """
-    powerspectrum(x::AbstractTimeSeries, f_minsamplingrate(x)/min(length(x)÷4, 1000); kwargs...)
+    powerspectrum(x::AbstractTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
 
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
