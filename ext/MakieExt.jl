@@ -158,7 +158,7 @@ function Makie.plot!(plot::Trajectory)
     elseif colormode === :time
         colors = @lift 1:length($(z)[1])
     elseif !isnothing(colormode) && colormode != :none
-        @error "Not a supported `colormode`"
+        error("Not a supported `colormode`")
     end
     _z = @lift [y[1:end-1] for y in $(z)]
     lines!(plot, _z[]...; plot.attributes..., color=colors)

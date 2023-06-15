@@ -176,14 +176,11 @@ function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity}) # 🐕
     ℱ = (ℱ)*(a*t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end
 
-# Extend Normalizations.jl
-# Note that in-place normalization is not defined for unitful arrays unless the normalization doesn't change the units.
 
-normalize(X::AbstractArray{<:Quantity}, T::NormUnion; kwargs...) = (Y=copy(X)|>AbstractArray{Any}; normalize!(Y, T; kwargs...); identity.(Y))
-
+# Extend Normalization.jl to uniful DimArrays
 function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
-    Y = copy(X);
-    DimensionalData.modify(x->normalize(x |> AbstractArray{Any}, T; kwargs...), Y)
+    DimensionalData.modify(x->normalize(x, T; kwargs...), X)
 end
-
-# I could extend this to denormalize by adding type annotations to the Normalization types
+function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity}; kwargs...)
+    error("Denormalization of unitful arrays currently not supported")
+end

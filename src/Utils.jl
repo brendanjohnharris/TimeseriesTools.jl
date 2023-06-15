@@ -1,6 +1,6 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
-import Normalization.NormUnion
+import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames, describedim, describedims, describename
 
@@ -113,20 +113,20 @@ IntervalSets.Interval(x::AbstractTimeSeries) = (first∘times)(x)..(last∘times
 #         return sum(x.^2)/(dur*u"s")
 #     end
 # end
-𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x) |> ustrip
-mutable struct UnitPower <: Normalization.AbstractNormalization
+𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x)
+mutable struct UnitPower{T} <: AbstractNormalization{T}
     dims
-    p::Union{Nothing, NTuple{1, AbstractArray}}
+    p::NTuple{1, AbstractArray{T}}
     𝑝::NTuple{1, Function}
     𝑓::Function
     𝑓⁻¹::Function
  end;
- UnitPower(; dims = nothing,
-                     p = nothing,
+UnitPower{T}(; dims = nothing,
+                     p = (Vector{T}(),),
                      𝑝 = (𝑝,),
                      𝑓 = (x, 𝑃) -> x .= x./sqrt.(𝑃),
-                     𝑓⁻¹ = (y, 𝑃) -> y .= y.*sqrt.(𝑃)) = UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
-
+                     𝑓⁻¹ = (y, 𝑃) -> y .= y.*sqrt.(𝑃)) where T = UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
+UnitPower(; kwargs...) = UnitPower{Nothing}(; kwargs...);
 
 dimname(d::DimensionalData.Dimension) = name(d) |> string
 dimname(x::AbstractDimArray, dim) = dims(x, dim) |> dimname

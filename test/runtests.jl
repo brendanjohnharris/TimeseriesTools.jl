@@ -207,11 +207,11 @@ end
     Y = normalize(X, T)
     @test ustrip(sum(Y.^2)/duration(Y)) ≈ 1
     @test !isnothing(T.p)
-    @test all(denormalize(Y, T) .≈ X)
-    @test_nowarn normalize!(X, T)
+    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y, T)
+    X = @test_nowarn normalize(X, T)
     @test X == Y
-    @test_nowarn denormalize!(Y, T)
-    @test all(Y .≈ _X)
+    Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y, T)
+    # @test all(Y .≈ _X)
 end
 
 
@@ -294,16 +294,4 @@ end
     x, y, z = collect.(ustrip.(decompose(X)))
     @test_nowarn traces!(ax, x, y, z)
     @test_nowarn save("./powerspectrum.png", f)
-end
-
-
-@testset "Unitful Normalization compat" begin
-    _X = rand(100)*u"V"
-    X = copy(_X)
-    T = fit(ZScore, X)
-    Y = normalize(X, T)
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test length(T.p[1]) == 1 == length(T.p[2])
-    @test Y ≈ (X.-mean(X))./std(X)
 end
