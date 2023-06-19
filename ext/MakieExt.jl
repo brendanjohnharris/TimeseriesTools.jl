@@ -38,7 +38,7 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; kwargs...)
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothing, kwargs...)
     uf = frequnit(x)
     ux = unit(x)
     f, _, x = decompose(x)
@@ -54,8 +54,10 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; kwargs...)
     ax.yscale = log10
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
     ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
-    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, kwargs...)
     p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
+    color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
+    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, color, kwargs...)
+    Makie.translate!(p, 0, 0, -1000.0)
     p
 end
 
@@ -243,9 +245,31 @@ function Makie.plot!(plot::Traces)
     plot
 end
 
+Makie.convert_arguments(P::Traces, x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
+Makie.convert_arguments(P::Traces, x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
 
 
+function traces!(ax, S::MultivariateSpectrum; kwargs...)
+    x, y, z = decompose(S)
+    xu, cu, yu = (x, y, z) .|> eltype .|> unit
+    xu = xu == NoUnits ? "" : "($xu)"
+    cu = cu == NoUnits ? "" : "($cu)"
+    yu = yu == NoUnits ? "" : "($yu)"
+    ax.xlabel = "Frequency $xu"
+    ax.ylabel = "Power $yu"
+    traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+end
 
+function traces!(ax, S::MultivariateTimeSeries; kwargs...)
+    x, y, z = decompose(S)
+    xu, cu, yu = (x, y, z) .|> eltype .|> unit
+    xu = xu == NoUnits ? "" : "($xu)"
+    cu = cu == NoUnits ? "" : "($cu)"
+    yu = yu == NoUnits ? "" : "($yu)"
+    ax.xlabel = "Time $xu"
+    ax.ylabel = "Value $yu"
+    traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+end
 
 
 

@@ -288,10 +288,9 @@ end
     X = cat(Var(1:2), x, x.+1.0*u"V", dims=2)
 
     # Calculate the power spectrum
-    S = _powerspectrum(x, 0.0005)
+    S = _powerspectrum(x, 0.0005)[2:end, :]
     f = Figure(; resolution=(720, 480))
-    ax = Axis(f[1, 1])
-    x, y, z = collect.(ustrip.(decompose(X)))
-    @test_nowarn traces!(ax, x, y, z)
-    @test_nowarn save("./powerspectrum.png", f)
+    ax = Axis(f[1, 1], xscale=log10, yscale=log10)
+    # x, y, z = collect.(ustrip.(decompose(S)))
+    @test_nowarn traces!(ax, S; colormap=:turbo)
 end

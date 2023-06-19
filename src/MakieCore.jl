@@ -8,7 +8,7 @@ export dimname, decompose, spectrumplot!, spectrumplot
 
 MakieCore.@recipe(SpectrumPlot, x, y) do scene
     MakieCore.Theme(;
-        plot_color=:cornflowerblue
+        color=:cornflowerblue
     )
 end
 
@@ -18,7 +18,7 @@ function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector,<:AbstractVect
     # idxs = map((x, y)->(x .> 0) .& (y .> 0), x, y)
     # _x = map((x, i)->x[i], x, idxs)
     # _y = map((y, i)->y[i], y, idxs)
-    MakieCore.lines!(p, x, y; color=p[:plot_color])
+    MakieCore.lines!(p, x, y; color=p[:color])
     p
 end
 
