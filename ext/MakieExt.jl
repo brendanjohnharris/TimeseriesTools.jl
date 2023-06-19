@@ -52,8 +52,12 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing));
     ax.xscale = log10
     ax.yscale = log10
-    uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
-    ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    if isempty(ax.xlabel[])
+        uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
+    end
+    if isempty(ax.ylabel[])
+        ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    end
     p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
     _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=0.2, color, kwargs...)
@@ -76,8 +80,12 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     t = ustrip.(t) |> collect
     x = ustrip.(x) |> collect
     p = lines!(ax, t, x; kwargs...)
-    ut == NoUnits ? (ax.xlabel = "Time") : (ax.xlabel = "Time ($ut)")
-    ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
+    if isempty(ax.xlabel[])
+        ut == NoUnits ? (ax.xlabel = "Time") : (ax.xlabel = "Time ($ut)")
+    end
+    if isempty(ax.ylabel[])
+        ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
+    end
     p
 end
 Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Makie.Figure(); ax=Makie.Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
@@ -255,8 +263,8 @@ function traces!(ax, S::MultivariateSpectrum; kwargs...)
     xu = xu == NoUnits ? "" : "($xu)"
     cu = cu == NoUnits ? "" : "($cu)"
     yu = yu == NoUnits ? "" : "($yu)"
-    ax.xlabel = "Frequency $xu"
-    ax.ylabel = "Power $yu"
+    isempty(ax.xlabel[]) && (ax.xlabel = "Frequency $xu")
+    isempty(ax.ylabel[]) && (ax.ylabel = "Power $yu")
     traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
 end
 
@@ -266,8 +274,8 @@ function traces!(ax, S::MultivariateTimeSeries; kwargs...)
     xu = xu == NoUnits ? "" : "($xu)"
     cu = cu == NoUnits ? "" : "($cu)"
     yu = yu == NoUnits ? "" : "($yu)"
-    ax.xlabel = "Time $xu"
-    ax.ylabel = "Value $yu"
+    isempty(ax.xlabel[]) && (ax.xlabel = "Time $xu")
+    isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
     traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
 end
 

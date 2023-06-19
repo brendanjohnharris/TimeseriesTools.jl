@@ -12,13 +12,13 @@ MakieCore.@recipe(SpectrumPlot, x, y) do scene
     )
 end
 
-function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector,<:AbstractVector}})
+function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector,<:AbstractVector}}, kwargs...)
     x = p[:x]
     y = p[:y]
     # idxs = map((x, y)->(x .> 0) .& (y .> 0), x, y)
     # _x = map((x, i)->x[i], x, idxs)
     # _y = map((y, i)->y[i], y, idxs)
-    MakieCore.lines!(p, x, y; color=p[:color])
+    MakieCore.lines!(p, x, y; color=p[:color], kwargs...)
     p
 end
 
