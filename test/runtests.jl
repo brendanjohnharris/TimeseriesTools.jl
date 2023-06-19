@@ -161,7 +161,7 @@ end
     S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S)
+    @test_nowarn plot!(ax, S, linewidth=1)
     @test_nowarn save("./powerspectrum.png", f)
 end
 
@@ -183,7 +183,7 @@ end
     S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S)
+    @test_nowarn plot!(ax, S, linewidth=1)
     @test_nowarn save("./powerspectrum_dark.png", f)
 end
 
@@ -293,4 +293,21 @@ end
     ax = Axis(f[1, 1], xscale=log10, yscale=log10)
     # x, y, z = collect.(ustrip.(decompose(S)))
     @test_nowarn traces!(ax, S; colormap=:turbo)
+end
+
+
+
+@testset "Spectrum plot" begin
+    using CairoMakie, TimeseriesTools, Unitful
+    import TimeseriesTools.TimeSeries # or TS
+
+    t = 0.005:0.005:1e4
+    x = colorednoise(t, u"s")*u"V"
+    X = cat(Var(1:2), x, x.+1.0*u"V", dims=2)
+
+    # Calculate the power spectrum
+    S = _powerspectrum(x, 0.0005)[2:end, :]
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1], xscale=log10, yscale=log10)
+    @test_nowarn spectrumplot!(ax, S, linewidth=2)
 end
