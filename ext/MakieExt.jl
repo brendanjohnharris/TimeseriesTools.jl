@@ -38,7 +38,7 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothing, quantile=0.25, kwargs...)
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothing, percentile=0.25, kwargs...)
     uf = frequnit(x)
     ux = unit(x)
     f, _, x = decompose(x)
@@ -46,8 +46,8 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
     x = ustrip.(x) |> collect
     xmin = minimum(x, dims=2) |> vec
     xmed = median(x, dims=2) |> vec
-    σₗ = mapslices(x->quantile(x, quantile), x, dims=2) |> vec
-    σᵤ = mapslices(x->quantile(x, 1-quantile), x, dims=2) |> vec
+    σₗ = mapslices(x->quantile(x, percentile), x, dims=2) |> vec
+    σᵤ = mapslices(x->quantile(x, 1-percentile), x, dims=2) |> vec
     idxs = (f .> 0) .& (xmin .> 0)
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing));
     ax.xscale = log10
