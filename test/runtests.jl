@@ -155,14 +155,26 @@ end
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
-    save("./timeseries.png", f)
+    save("./timeseries.png", f; px_per_unit=3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S, linewidth=1)
-    @test_nowarn save("./powerspectrum.png", f)
+    @test_nowarn save("./powerspectrum.png", f; px_per_unit=3)
+
+    # Shadows
+    x = loadtimeseries("./test_timeseries.csv")
+
+    f = Figure(; resolution=(500, 480))
+    ax = Axis3(f[1, 1])
+    trajectory!(ax, collect.(eachcol(x))...; colormap=:turbo, linewidth=0.1)
+    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
+    ax.azimuth = ax.azimuth[] + 0.25
+    ax.elevation = ax.elevation[] + 0.25
+    shadows!(ax, collect.(eachcol(x))...; color=(:slategray, 0.5), linewidth=0.05)
+    save("./shadows.png", f; px_per_unit=3)
 end
 
 @testset "Readme_dark" begin
@@ -177,14 +189,26 @@ end
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
-    save("./timeseries_dark.png", f)
+    save("./timeseries_dark.png", f; px_per_unit=3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S, linewidth=1)
-    @test_nowarn save("./powerspectrum_dark.png", f)
+    @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit=3)
+
+    # Shadows
+    x = loadtimeseries("./test_timeseries.csv")
+
+    f = Figure(; resolution=(500, 480))
+    ax = Axis3(f[1, 1])
+    trajectory!(ax, collect.(eachcol(x))...; colormap=:turbo, linewidth=0.1)
+    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
+    ax.azimuth = ax.azimuth[] + 0.25
+    ax.elevation = ax.elevation[] + 0.25
+    shadows!(ax, collect.(eachcol(x))...; color=(:white, 0.5), linewidth=0.05)
+    save("./shadows_dark.png", f; px_per_unit=3)
 end
 
 @testset "Unit Power" begin
@@ -294,8 +318,6 @@ end
     # x, y, z = collect.(ustrip.(decompose(S)))
     @test_nowarn traces!(ax, S; colormap=:turbo)
 end
-
-
 
 @testset "Spectrum plot" begin
     using CairoMakie, TimeseriesTools, Unitful

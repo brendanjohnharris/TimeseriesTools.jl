@@ -14,6 +14,9 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 - 📊 Spectral analysis and visualization
 - 🌈 Beautiful plotting using [Makie](https://github.com/MakieOrg/Makie.jl)
 
+![Example Shadow Plot](test/shadows_dark.png#gh-dark-mode-only)
+![Example Shadow Plot](test/shadows.png#gh-light-mode-only)
+
 ## Installation
 
 To install TimeseriesTools.jl, simply run the following command in your Julia REPL:
@@ -37,9 +40,9 @@ S = powerspectrum(x, 0.001)
 p = plot(S)
 ```
 
-![Example Time Series Plot](test/timeseries_dark.png#gh-dark-mode-only)
+![Example Time-series Plot](test/timeseries_dark.png#gh-dark-mode-only)
 ![Example Spectrum Plot](test/powerspectrum_dark.png#gh-dark-mode-only)
-![Example Time Series Plot](test/timeseries.png#gh-light-mode-only)
+![Example Time-series Plot](test/timeseries.png#gh-light-mode-only)
 ![Example Spectrum Plot](test/powerspectrum.png#gh-light-mode-only)
 
 Note that an instance of the most basic type of this package, the `AbstractTimeSeries`, can be generated with:
@@ -54,6 +57,6 @@ Please see the documentation for further functionality.
 
 TimeseriesTools.jl builds upon the excellent [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl) package for handling dimensions and indexing in time-series data.
 
-_Don't blame me for this readme, blame gpt-4 🤖_
+_README courtesy of GPT_ 🤖
 
 Happy analyzing! 🚀
