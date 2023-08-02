@@ -25,6 +25,7 @@ include("Types.jl")
 include("Utils.jl")
 include("Spectra.jl")
 include("Unitful.jl")
+include("Dates.jl")
 include("MakieCore.jl")
 include("IO.jl")
 
