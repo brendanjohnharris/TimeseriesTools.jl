@@ -222,7 +222,7 @@ end
 function Makie.plot!(plot::Traces)
     # ! Convert_arguments doesn't work for some reason?
     if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
-        x = lift(x->times(x), plot.input_args[1])
+        x = lift(x->x.dims[1].val.data, plot.input_args[1])
         y = lift(x->x.dims[2].val.data, plot.input_args[1])
         z = lift(x->x.data, plot.input_args[1])
     else
@@ -305,7 +305,7 @@ end
 function Makie.plot!(plot::StackedTraces)
     # ! Convert_arguments doesn't work for some reason?
     if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
-        x = lift(x->times(x), plot.input_args[1])
+        x = lift(x->x.dims[1].val.data, plot.input_args[1])
         y = lift(x->x.dims[2].val.data, plot.input_args[1])
         z = lift(x->x.data, plot.input_args[1])
     else

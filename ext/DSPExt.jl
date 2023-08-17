@@ -73,6 +73,7 @@ end
 function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, AbstractVector{<:UnivariateTimeSeries}}, P=[hilbert(x) .|> angle for x in X]; tol=0.05)
     a = deepcopy(X)
     ap = deepcopy(P)
+    aa = []
 
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
     for i in eachindex(a)
@@ -89,18 +90,17 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, Abs
         xp = ap[i-1]
         yp = ap[i]
 
-        idxs = 0 .< (yp .- xp[end]) .< tol
+        idxs = -tol .< (yp .- xp[end]) .< tol
         idx = findfirst(idxs)
         if isnothing(idx)
             _, ix = findmin(abs.(yp .- xp[end]))
             ss = (yp .- xp[end])
-            @warn "No matching phases found. b is of length $(length(b[1])). The final phase of a is $(xp[end]). The extrema of phases in b is $(extrema(yp)). The smallest difference in phase is $(ss[ix]), at index $ix."
-            a[i] = typeof(y)()
+            @warn "No matching phases found. y is of length $(length(y)). The final phase of x is $(xp[end]). The extrema of phases in y is $(extrema(yp)). The smallest difference in phase is $(ss[ix]), at index $ix."
         else
-            a[i] = y[idx:end]
+            push!(aa, y[idx:end])
         end
     end
-    reduce(stitch, a)
+    reduce(stitch, aa)
 end
 
 function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, AbstractVector{<:UnivariateTimeSeries}}, pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
