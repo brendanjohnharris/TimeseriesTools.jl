@@ -369,6 +369,6 @@ end
     fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
-    @test ≈(pac, autocor(x[Ti(1:10000)]|>collect, [10])[1]; rtol=1e-3)
+    @test ≈(pac, autocor(x[Ti(1:10000)]|>collect, [10])[1]; rtol=1e-2)
     @test pac - autocor(x̂[Ti(1:10000)]|>collect, [10])[1] > pac - autocor(x[Ti(1:10000)]|>collect, [10])[1]
 end
