@@ -1,7 +1,7 @@
 name = "TimeseriesTools"
 uuid = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -24,6 +24,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [weakdeps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 
 [compat]
 DimensionalData = "0.19 - 0.24"
@@ -38,4 +39,5 @@ Normalization = "0.4, 0.5"
 Reexport = "1"
 Requires = "1"
 Unitful = "1"
+DSP = "0.6, 0.7"
 julia = "1.9"

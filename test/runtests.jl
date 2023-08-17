@@ -2,6 +2,7 @@ using Unitful
 import Unitful.unit
 using FFTW
 using CairoMakie
+using DSP
 using TimeseriesTools
 import TimeseriesTools.TimeSeries
 using TimeseriesSurrogates
@@ -9,6 +10,7 @@ using Test
 using Documenter
 using ImageMagick
 using Foresight
+using StatsBase
 
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
@@ -332,4 +334,41 @@ end
     f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1], xscale=log10, yscale=log10)
     @test_nowarn spectrumplot!(ax, S, linewidth=2)
+end
+
+
+@testset "DSPExt" begin
+    using DSP
+    using TimeseriesTools
+    import TimeseriesTools.TimeSeries # or TS
+
+    N = 100000
+    dt = 0.005
+    t = dt:dt:10
+    x = [0.00.*colorednoise(t).+sin.(2*t.+2*randn()) for _ in 1:200]
+    y = hcat(Var(1:200), x...)
+    x̂ = TimeSeries(dt:dt:sum(length.(x))*dt, vcat(collect.(x)...))
+    x = phasestitch(x)
+
+    @test_nowarn stackedtraces(y[Var(1:10)], spacing=:even, linewidth=5, offset=1.3; axis=(;xlabel="Time"))
+    @test_nowarn plot(x[Ti(1:10000)])
+    plot(x̂[Ti(1500:length(t)*5)])
+
+    # And a power spectrumof a 'perfect' signal
+    _t = dt:dt:dt*N
+    p = TimeSeries(_t, sin.(2*_t))
+    S′ = powerspectrum(p, dt*4)
+    @test_nowarn spectrumplot(S′)
+
+    # Power spectrum of the concatenated time series
+    Ŝ = powerspectrum(x̂[1:N], dt*4)
+    @test_nowarn spectrumplot(Ŝ)
+
+    # Power spectrum of the phasestitched time series
+    S = powerspectrum(x[1:N], dt*4)
+    fax = @test_nowarn spectrumplot(S)
+
+    pac = autocor(p, [10])[1]
+    @test ≈(pac, autocor(x[Ti(1:10000)]|>collect, [10])[1]; rtol=1e-3)
+    @test pac - autocor(x̂[Ti(1:10000)]|>collect, [10])[1] > pac - autocor(x[Ti(1:10000)]|>collect, [10])[1]
 end

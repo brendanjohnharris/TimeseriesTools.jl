@@ -4,7 +4,7 @@ import MakieCore.plot!
 import MakieCore.plot
 
 import ..Makie
-import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme, Figure, Axis
+import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme, Figure, Axis, AbstractPlot
 using TimeseriesTools
 using Statistics
 using TimeseriesTools.Normalization
@@ -220,7 +220,14 @@ end
 end
 
 function Makie.plot!(plot::Traces)
-    x, y, z = plot.input_args
+    # ! Convert_arguments doesn't work for some reason?
+    if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
+        x = lift(x->times(x), plot.input_args[1])
+        y = lift(x->x.dims[2].val.data, plot.input_args[1])
+        z = lift(x->x.data, plot.input_args[1])
+    else
+        x, y, z = plot.input_args
+    end
     colormap = plot.colormap
     normalize = plot.normalize[]
     z = lift(z) do z
@@ -254,7 +261,11 @@ function Makie.plot!(plot::Traces)
 end
 
 Makie.convert_arguments(P::Traces, x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
+Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
+Makie.convert_single_argument(x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
 Makie.convert_arguments(P::Traces, x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
+Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
+Makie.convert_single_argument(x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
 
 
 function traces!(ax, S::MultivariateSpectrum; kwargs...)
@@ -285,60 +296,75 @@ end
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
     Theme(
-        offset = false,
-        normalize = true,
+        offset = 1,
+        normalize = false,
+        spacing = :close
     )
 end
 
 function Makie.plot!(plot::StackedTraces)
-    x, _y, z = plot.input_args
+    # ! Convert_arguments doesn't work for some reason?
+    if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
+        x = lift(x->times(x), plot.input_args[1])
+        y = lift(x->x.dims[2].val.data, plot.input_args[1])
+        z = lift(x->x.data, plot.input_args[1])
+    else
+        x, y, z = plot.input_args
+    end
     offset = plot.offset
-    normalize = plot.normalize
-
-    # z = lift(normalize, z) do normalize, z
-    #     if normalize == true
-
-    # z = lift(offset, normlize, z) do offset, z
-    #     if offset != false
-    #         z = z .- minimum.(eachcol(z))'
-    #         if offset === :normalize # Each trace takes up 1 unit of y space
-    #             z = z./(maximum.(eachcol(z))' .- minimum.(eachcol(z))')
-    #             y = 1:length(_y)
-    #         else # Each
-    #             y = zeros(length(_y))
-    #             for i in 2:size(X, Dim{:channel})
-    #                 c[i] =  c[i-1] + maximum(X[:, i-1] .- X[:, i]) + offset * mean(X)
-    #             end
-    #     end
-    #     z
-    # end
-
-    # if isnothing(offset)
-
-    #     c = 1:size(X, Dim{:channel})
-    # else
-    #     c = zeros(size(X, Dim{:channel}))
-    #     for i in 2:size(X, Dim{:channel})
-    #         c[i] =  c[i-1] + maximum(X[:, i-1] .- X[:, i]) + offset * mean(X)
-    #     end
-    # end
-    # data = [X[:, i] .+ c[i] for i ∈ 1:size(X, 2)]
-    # Makie.lines!.((ax,), (dims(X, Ti)|>collect,), data|>collect; kwargs...)
-    # hlines!(ax, c)
-    # ax.yticks = (mean.(data), string.(channels))
-    ax.yticklabelrotation = 0 # π/2
-    ax.xlabel="time (s)"
-    ax.ylabel="channel"
-    ax.yticklabelsvisible=true
-    ax.yticksvisible=false
-    if stimulus isa DataFrame
-        stimulusvlines!(ax, X, stimulus; stimcolor)
+    normalize = plot.normalize[]
+    spacing = plot.spacing
+    z = lift(z) do z
+        (normalize == true) && (normalize = Normalization.MinMax)
+        if normalize != false && normalize <: Normalization.AbstractNormalization
+            N = fit(normalize, z; dims=1)
+            z = Normalization.normalize(z, N)
+        end
+        z
     end
 
-
-    lines!(plot, _z[]...; plot.attributes..., color=colors)
-
+    z = lift(offset, spacing, z) do offset, spacing, z
+        if offset == false
+            offset = 0
+        end
+        c = zeros(size(z, 2))
+        if spacing === :even
+            space = maximum([maximum(z[:, i-1] .- z[:, i]) for i in 2:size(z, 2)])
+        end
+        for i in 2:size(z, 2)
+            if spacing === :close
+                space = maximum(z[:, i-1] .- z[:, i])
+            end
+            c[i] =  c[i-1] + space * offset
+        end
+        z .+ c'
+    end
+    plot.attributes.normalize[] = false
+    traces!(plot, x, y, z; plot.attributes...)
     plot
+end
+
+
+function stackedtraces!(ax, S::MultivariateSpectrum; kwargs...)
+    x, y, z = decompose(S)
+    xu, cu, yu = (x, y, z) .|> eltype .|> unit
+    xu = xu == NoUnits ? "" : "($xu)"
+    cu = cu == NoUnits ? "" : "($cu)"
+    yu = yu == NoUnits ? "" : "($yu)"
+    isempty(ax.xlabel[]) && (ax.xlabel = "Frequency $xu")
+    isempty(ax.ylabel[]) && (ax.ylabel = "Power $yu")
+    stackedtraces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+end
+
+function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
+    x, y, z = decompose(S)
+    xu, cu, yu = (x, y, z) .|> eltype .|> unit
+    xu = xu == NoUnits ? "" : "($xu)"
+    cu = cu == NoUnits ? "" : "($cu)"
+    yu = yu == NoUnits ? "" : "($yu)"
+    isempty(ax.xlabel[]) && (ax.xlabel = "Time $xu")
+    isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
+    stackedtraces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
 end
 
 

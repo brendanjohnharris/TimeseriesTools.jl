@@ -4,7 +4,8 @@ export  AbstractTimeSeries, AbstractTS,
         RegularTimeSeries, RegularTS,
         IrregularTimeSeries, IrregularTS,
         TimeIndex, RegularIndex, RegularTimeIndex,
-        TimeSeries, Timeseries, TS, Var
+        TimeSeries, Timeseries, TS, Var,
+        stitch
 
 """
     TimeIndex
@@ -117,3 +118,12 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; kw
     x′ = cat(x.data, getfield.(args, [:data])...; kwargs...)
     return DimArray(x′, (dims(x)..., D); refdims=refdims(x), name=name(x), metadata=metadata(x))
 end
+
+UnivariateRegular = typeintersect(UnivariateTimeSeries, RegularTimeSeries)
+function stitch(x::UnivariateRegular, y::UnivariateRegular)
+    dt = samplingperiod(x)
+    @assert dt == samplingperiod(y)
+    z = vcat(x.data, y.data)
+    z = TimeSeries(dt:dt:dt*size(z, 1), z)
+end
+stitch(x::AbstractVector, y::AbstractVector) = vcat(x, y)
