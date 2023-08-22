@@ -185,8 +185,8 @@ function buffer(x::UnivariateTimeSeries, n, p=0, discard=true)
     y
 end
 function buffer(x::MultivariateTimeSeries, n, p=0, discard=true)
-    y = [@view x[i:min(i+n-1, end)] for i in 1:n-p:length(x)]
-    if discard && length(y[end]) < n
+    y = [@view x[i:min(i+n-1, end), :] for i in 1:n-p:size(x, 1)]
+    if discard && size(y[end], 1) < n
         pop!(y)
     end
     y
