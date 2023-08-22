@@ -62,7 +62,7 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
     _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=true, kwargs..., color)
     Makie.translate!(_p, 0, 0, -1.0)
-    ax
+    p
 end
 
 spectrumplot(x::AbstractSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))

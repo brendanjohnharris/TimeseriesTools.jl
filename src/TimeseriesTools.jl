@@ -33,7 +33,7 @@ include("MakieCore.jl")
 include("IO.jl")
 
 bandpass(x::AbstractTimeSeries) = x
-phasestitch() = nothing
+function phasestitch end
 export phasestitch, bandpass
 
 

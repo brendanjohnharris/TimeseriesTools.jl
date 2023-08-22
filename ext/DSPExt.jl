@@ -71,15 +71,17 @@ function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, pass; kwa
 end
 
 function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, AbstractVector{<:UnivariateTimeSeries}}, P=[hilbert(x) .|> angle for x in X]; tol=0.05)
-    a = deepcopy(X)
-    ap = deepcopy(P)
+    _a = deepcopy(X)
+    _ap = deepcopy(P)
+    a = []
+    ap = []
     aa = []
 
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
-    for i in eachindex(a)
-        c = floor(Int, length(a[i])/10)
-        a[i] = a[i][c:end-c]
-        ap[i] = ap[i][c:end-c]
+    for i in eachindex(_a)
+        c = floor(Int, length(_a[i])/10)
+        push!(a, _a[i][c:end-c])
+        push!(ap, _ap[i][c:end-c])
     end
 
 

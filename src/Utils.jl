@@ -2,7 +2,7 @@ import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 import Normalization: NormUnion, AbstractNormalization
 
-export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames, describedim, describedims, describename
+export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames, describedim, describedims, describename, interlace, _buffer, buffer
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -165,4 +165,22 @@ function describename(x::AbstractDimArray)
         isnothing(units) && (n = n*" ($units)")
     end
     n
+end
+
+function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
+    ts = vcat(times(x), times(y))
+    idxs = sortperm(ts)
+    ts = ts[idxs]
+    data = vcat(x.data, y.data)
+    data = data[idxs]
+    return TimeSeries(ts, data)
+end
+
+
+function buffer(x::AbstractTimeSeries, n, p=0, discard=true)
+    y = [@view x[i:min(i+n-1, end)] for i in 1:n-p:length(x)]
+    if discard && length(y[end]) < n
+        pop!(y)
+    end
+    y
 end

@@ -372,3 +372,25 @@ end
     @test ≈(pac, autocor(x[Ti(1:10000)]|>collect, [10])[1]; rtol=1e-2)
     @test pac - autocor(x̂[Ti(1:10000)]|>collect, [10])[1] > pac - autocor(x[Ti(1:10000)]|>collect, [10])[1]
 end
+
+@testset "Interlace" begin
+    x = TimeSeries(0:0.1:1, randn(11))
+    y = TimeSeries(0.05:0.1:1, randn(10))
+    z = @test_nowarn interlace(x, y)
+    @test all(collect(times(z)) .== 0.0:0.05:1.0)
+end
+
+@testset "Buffer" begin
+    N = 10
+    x = TimeSeries(0:0.1:10, randn(101))
+    y = @test_nowarn buffer(x, 10)
+    @test length(y) == N
+    @test y[1] == x[1:length(x)÷N]
+    @test cat(y..., dims=Ti) == x[1:(length(x)÷N)*N]
+
+    y = @test_nowarn buffer(x, 10, 0, false)
+    @test cat(y..., dims=Ti) == x
+
+    y = @test_nowarn buffer(x, 10, N÷2)
+    @test length(y) == 2*N
+end
