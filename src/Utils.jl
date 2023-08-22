@@ -177,7 +177,14 @@ function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
 end
 
 
-function buffer(x::AbstractTimeSeries, n, p=0, discard=true)
+function buffer(x::UnivariateTimeSeries, n, p=0, discard=true)
+    y = [@view x[i:min(i+n-1, end)] for i in 1:n-p:length(x)]
+    if discard && length(y[end]) < n
+        pop!(y)
+    end
+    y
+end
+function buffer(x::MultivariateTimeSeries, n, p=0, discard=true)
     y = [@view x[i:min(i+n-1, end)] for i in 1:n-p:length(x)]
     if discard && length(y[end]) < n
         pop!(y)
