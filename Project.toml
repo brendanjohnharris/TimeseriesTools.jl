@@ -26,6 +26,10 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 
+[extras]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+
 [compat]
 DimensionalData = "0.19 - 0.24"
 FFTW = "1"
@@ -35,6 +39,7 @@ IntervalSets = "0.7"
 JSON = "0.20, 0.21"
 LaTeXStrings = "1"
 MakieCore = "0.4 - 0.6"
+Makie = "0.19, 0.20"
 Normalization = "0.4, 0.5"
 Reexport = "1"
 Requires = "1"
