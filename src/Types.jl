@@ -1,39 +1,39 @@
-export  AbstractTimeSeries, AbstractTS,
-        UnivariateTimeSeries, UnivariateTS,
-        MultivariateTimeSeries, MultivariateTS,
-        RegularTimeSeries, RegularTS,
-        IrregularTimeSeries, IrregularTS,
-        TimeIndex, RegularIndex, RegularTimeIndex,
-        TimeSeries, Timeseries, TS, Var,
-        stitch
+export AbstractTimeSeries, AbstractTS,
+    UnivariateTimeSeries, UnivariateTS,
+    MultivariateTimeSeries, MultivariateTS,
+    RegularTimeSeries, RegularTS,
+    IrregularTimeSeries, IrregularTS,
+    TimeIndex, RegularIndex, RegularTimeIndex,
+    TimeSeries, Timeseries, TS, Var,
+    stitch
 
 """
     TimeIndex
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-TimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim}
+TimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
 
 A type alias for an [AbstractDimArray](https://rafaqz.github.io/DimensionalData.jl/stable/api/#DimensionalData.AbstractDimArray) with a time index.
 """
-AbstractTimeSeries = AbstractTS = AbstractDimArray{T, N, <:TimeIndex, B} where {T, N, B}
+AbstractTimeSeries = AbstractTS = AbstractDimArray{T,N,<:TimeIndex,B} where {T,N,B}
 
 """
     UnivariateTimeSeries{T}
 
 A type alias for a time series with one variable (a vector with only a `Ti` dimension).
 """
-UnivariateTimeSeries = UnivariateTS = AbstractTimeSeries{T, 1} where T
+UnivariateTimeSeries = UnivariateTS = AbstractTimeSeries{T,1} where {T}
 
 """
     MultivariateTimeSeries{T}
 
 A type alias for a multivariate time series (A matrix, with a first `Ti` dimension and an arbitrary second dimension).
 """
-MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T, 2} where T
+MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T,2} where {T}
 
 abstract type VariableDim{T} <: DimensionalData.IndependentDim{T} end
 DimensionalData.@dim Var VariableDim "Var"
@@ -50,21 +50,21 @@ Var
 
 A type alias for a regularly sampled dimension, wrapping an `AbstractRange`.
 """
-RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R} where {T, R<:AbstractRange}
+RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,R} where {T,R<:AbstractRange}
 
 """
     RegularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-RegularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim{<:RegularIndex}}
+RegularTimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.TimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
 
 A type alias for a regularly sampled time series.
 """
-RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex, B} where {T, N, B}
+RegularTimeSeries = RegularTS = AbstractDimArray{T,N,<:RegularTimeIndex,B} where {T,N,B}
 
 """
     IrregularTimeSeries
@@ -105,6 +105,7 @@ julia> mts isa Union{MultivariateTimeSeries, RegularTimeSeries}
 ```
 """
 TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
+TimeSeries(t, v::Dimension, x; kwargs...) = DimArray(x, (Ti(t), v); kwargs...)
 
 TS = Timeseries = TimeSeries
 
