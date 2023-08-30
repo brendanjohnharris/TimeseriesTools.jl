@@ -105,7 +105,7 @@ julia> mts isa Union{MultivariateTimeSeries, RegularTimeSeries}
 ```
 """
 TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
-TimeSeries(t, v::Dimension, x; kwargs...) = DimArray(x, (Ti(t), v); kwargs...)
+TimeSeries(t, v::DimensionalData.Dimension, x; kwargs...) = DimArray(x, (Ti(t), v); kwargs...)
 
 TS = Timeseries = TimeSeries
 
@@ -117,7 +117,9 @@ Concatenate the arrays given in `args...`, and give the resulting extra axis dim
 """
 function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; kwargs...)
     x′ = cat(x.data, getfield.(args, [:data])...; kwargs...)
-    return DimArray(x′, (dims(x)..., D); refdims=refdims(x), name=name(x), metadata=metadata(x))
+    y = DimArray(x′, (dims(x)..., D); refdims=refdims(x), name=name(x), metadata=metadata(x))
+    ts = times(y)
+    set(y, Ti => ts .- minimum(ts))
 end
 
 UnivariateRegular = typeintersect(UnivariateTimeSeries, RegularTimeSeries)

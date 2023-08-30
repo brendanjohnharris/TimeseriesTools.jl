@@ -25,7 +25,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
     f = ustrip.(f) |> collect
     x = ustrip.(x) |> collect
     idxs = (f .> 0) .& (x .> 0)
-    ax.limits = ((minimum(f[idxs]), nothing), (minimum(x[idxs]), nothing));
+    ax.limits = ((minimum(f[idxs]), nothing), (minimum(x[idxs]), nothing))
     ax.xscale = log10
     ax.yscale = log10
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
@@ -46,10 +46,10 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
     x = ustrip.(x) |> collect
     xmin = minimum(x, dims=2) |> vec
     xmed = median(x, dims=2) |> vec
-    σₗ = mapslices(x->quantile(x, percentile), x, dims=2) |> vec
-    σᵤ = mapslices(x->quantile(x, 1-percentile), x, dims=2) |> vec
+    σₗ = mapslices(x -> quantile(x, percentile), x, dims=2) |> vec
+    σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims=2) |> vec
     idxs = (f .> 0) .& (xmin .> 0)
-    ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing));
+    ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing))
     ax.xscale = log10
     ax.yscale = log10
     if isempty(ax.xlabel[])
@@ -65,7 +65,7 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
     p
 end
 
-spectrumplot(x::AbstractSpectrum; kwargs...) = (f=Figure(); ax=Axis(f[1, 1]); p=spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+spectrumplot(x::AbstractSpectrum; kwargs...) = (f = Figure(); ax = Axis(f[1, 1]); p = spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
 Makie.plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
 Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
 
@@ -88,7 +88,7 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     end
     p
 end
-Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Makie.Figure(); ax=Makie.Axis(f[1, 1]); p=plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
+Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f = Makie.Figure(); ax = Makie.Axis(f[1, 1]); p = plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
 
 
 
@@ -150,20 +150,20 @@ Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f=Makie.Figure(); ax=Makie.Axi
 # ? -------------------------- Colored trajectory -------------------------- ? #
 @recipe(Trajectory, x, y, z) do scene
     Theme(
-        colormode = :velocity,
+        colormode=:velocity,
     )
 end
 
 function Makie.plot!(plot::Trajectory)
     x = lift((args...) -> [y for y in args], plot.input_args...)
-    f = x->isfinite.(x)
+    f = x -> isfinite.(x)
     i = @lift reduce(.&, f.($(x)))
     z = @lift [y[$(i)] for y ∈ $(x)]
 
     colormode = plot.colormode[]
     if colormode === :velocity
         dx = @lift [y[2:end] .- y[1:end-1] for y ∈ $(z)]
-        sqr = x->x.^2
+        sqr = x -> x .^ 2
         colors = @lift sqrt.(sum(sqr.($(dx))))
     elseif colormode === :time
         colors = @lift 1:length($(z)[1])
@@ -212,19 +212,17 @@ end
 # ? ------------------------------- # Traces ------------------------------- ? #
 @recipe(Traces) do scene
     Theme(
-        colormap = nothing,
-        normalize = false, # Can be any normalization type from Normalizations.jl
-        colorrange = nothing,
-
-    )
+        colormap=nothing,
+        normalize=false, # Can be any normalization type from Normalizations.jl
+        colorrange=nothing,)
 end
 
 function Makie.plot!(plot::Traces)
     # ! Convert_arguments doesn't work for some reason?
     if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
-        x = lift(x->x.dims[1].val.data, plot.input_args[1])
-        y = lift(x->x.dims[2].val.data, plot.input_args[1])
-        z = lift(x->x.data, plot.input_args[1])
+        x = lift(x -> x.dims[1].val.data, plot.input_args[1])
+        y = lift(x -> x.dims[2].val.data, plot.input_args[1])
+        z = lift(x -> x.data, plot.input_args[1])
     else
         x, y, z = plot.input_args
     end
@@ -246,8 +244,8 @@ function Makie.plot!(plot::Traces)
         if isnothing(plot.colorrange[])
             plot.colorrange = @lift (minimum($(y)), maximum($(y)))
         end
-        _y = lift((x, r)->(x.-r[1])./(r[2] - r[1]), y, plot.colorrange)
-        colormap = lift((c, i)->[c[Float64(_i)] for _i in i], colormap, _y)
+        _y = lift((x, r) -> (x .- r[1]) ./ (r[2] - r[1]), y, plot.colorrange)
+        colormap = lift((c, i) -> [c[Float64(_i)] for _i in i], colormap, _y)
     end
 
     for (i, _z) in enumerate(eachcol(z[]))
@@ -296,18 +294,18 @@ end
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
     Theme(
-        offset = 1,
-        normalize = false,
-        spacing = :close
+        offset=1,
+        normalize=false,
+        spacing=:close
     )
 end
 
 function Makie.plot!(plot::StackedTraces)
     # ! Convert_arguments doesn't work for some reason?
     if length(plot.input_args) == 1 && plot.input_args[1][] isa AbstractDimArray
-        x = lift(x->x.dims[1].val.data, plot.input_args[1])
-        y = lift(x->x.dims[2].val.data, plot.input_args[1])
-        z = lift(x->x.data, plot.input_args[1])
+        x = lift(x -> x.dims[1].val.data, plot.input_args[1])
+        y = lift(x -> x.dims[2].val.data, plot.input_args[1])
+        z = lift(x -> x.data, plot.input_args[1])
     else
         x, y, z = plot.input_args
     end
@@ -335,7 +333,7 @@ function Makie.plot!(plot::StackedTraces)
             if spacing === :close
                 space = maximum(z[:, i-1] .- z[:, i])
             end
-            c[i] =  c[i-1] + space * offset
+            c[i] = c[i-1] + space * offset
         end
         z .+ c'
     end
