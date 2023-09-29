@@ -158,7 +158,7 @@ julia> unit(ts) == u"V"
 ```
 """
 unit(x::Union{<:AbstractTimeSeries,AbstractSpectrum}) = x |> eltype |> unit
-unit(x::Union{<:AbstractTimeSeries{<:Any},AbstractSpectrum{<:Any}}) = NoUnits
+unit(x::Union{<:AbstractTimeSeries{Any},AbstractSpectrum{Any}}) = NoUnits
 
 function FFTW.rfft(x::AbstractVector{<:Quantity}) # 🐶
     # Assume this is a discrete Fourier transform, to time indices/units
