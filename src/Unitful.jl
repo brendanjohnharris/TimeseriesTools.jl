@@ -59,6 +59,12 @@ UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency},
                       AbstractRange{<:Unitful.Frequency}, Tuple{<:Unitful.Frequency}}
 UnitfulFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
                          } where {A <: DimensionalData.Dimension{<:UnitfulFIndex}}
+
+"""
+    UnitfulSpectrum{T,N,B}
+
+A type representing spectra with unitful frequency units.
+"""
 UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
 function unitfultimeseries(x::AbstractTimeSeries, u::Unitful.Units)

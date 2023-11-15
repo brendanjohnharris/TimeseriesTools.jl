@@ -2,7 +2,8 @@ import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 import Normalization: NormUnion, AbstractNormalization
 
-export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames, describedim, describedims, describename, interlace, _buffer, buffer
+export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
+       describedim, describedims, describename, interlace, _buffer, buffer
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -56,7 +57,7 @@ julia> rts = TimeSeries(t, x);
 julia> samplingrate(rts) == 1
 ```
 """
-samplingrate(x::RegularTimeSeries) = 1/step(x)
+samplingrate(x::RegularTimeSeries) = 1 / step(x)
 
 """
     samplingperiod(x::RegularTimeSeries)
@@ -86,7 +87,7 @@ julia> ts = TimeSeries(t, x);
 julia> TimeseriesTools.duration(ts) == 99
 ```
 """
-duration(x::AbstractTimeSeries) = (last∘times)(x) - (first∘times)(x)
+duration(x::AbstractTimeSeries) = (last ∘ times)(x) - (first ∘ times)(x)
 
 """
     IntervalSets.Interval(x::AbstractTimeSeries)
@@ -102,7 +103,7 @@ julia> ts = TimeSeries(t, x);
 julia> IntervalSets.Interval(ts) == (1..100)
 ```
 """
-IntervalSets.Interval(x::AbstractTimeSeries) = (first∘times)(x)..(last∘times)(x)
+IntervalSets.Interval(x::AbstractTimeSeries) = (first ∘ times)(x) .. (last ∘ times)(x)
 
 # function 𝑝(x::RegularTimeSeries)
 #     dur = duration(x)
@@ -113,19 +114,21 @@ IntervalSets.Interval(x::AbstractTimeSeries) = (first∘times)(x)..(last∘times
 #         return sum(x.^2)/(dur*u"s")
 #     end
 # end
-𝑝(x::RegularTimeSeries) = sum(x.^2)/duration(x)
+𝑝(x::RegularTimeSeries) = sum(x .^ 2) / duration(x)
 mutable struct UnitPower{T} <: AbstractNormalization{T}
-    dims
+    dims::Any
     p::NTuple{1, AbstractArray{T}}
     𝑝::NTuple{1, Function}
     𝑓::Function
     𝑓⁻¹::Function
- end;
-UnitPower{T}(; dims = nothing,
-                     p = (Vector{T}(),),
-                     𝑝 = (𝑝,),
-                     𝑓 = (x, 𝑃) -> x .= x./sqrt.(𝑃),
-                     𝑓⁻¹ = (y, 𝑃) -> y .= y.*sqrt.(𝑃)) where T = UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
+end;
+function UnitPower{T}(; dims = nothing,
+                      p = (Vector{T}(),),
+                      𝑝 = (𝑝,),
+                      𝑓 = (x, 𝑃) -> x .= x ./ sqrt.(𝑃),
+                      𝑓⁻¹ = (y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
+    UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
+end
 UnitPower(; kwargs...) = UnitPower{Nothing}(; kwargs...);
 
 dimname(d::DimensionalData.Dimension) = name(d) |> string
@@ -144,7 +147,7 @@ function describedim(d::DimensionalData.Dimension)
         n = name(d)
     end
     units = d |> eltype |> unit
-    isnothing(units) && (n = n*" ($units)")
+    isnothing(units) && (n = n * " ($units)")
     n
 end
 
@@ -162,7 +165,7 @@ function describename(x::AbstractDimArray)
     n isa DimensionalData.NoName && (n = "")
     if ~isnothing(n)
         units = x |> eltype |> unit
-        isnothing(units) && (n = n*" ($units)")
+        isnothing(units) && (n = n * " ($units)")
     end
     n
 end
@@ -176,16 +179,15 @@ function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
     return TimeSeries(ts, data)
 end
 
-
-function buffer(x::UnivariateTimeSeries, n, p=0, discard=true)
-    y = [@view x[i:min(i+n-1, end)] for i in 1:n-p:length(x)]
+function buffer(x::UnivariateTimeSeries, n, p = 0, discard = true)
+    y = [@view x[i:min(i + n - 1, end)] for i in 1:(n - p):length(x)]
     if discard && length(y[end]) < n
         pop!(y)
     end
     y
 end
-function buffer(x::MultivariateTimeSeries, n, p=0, discard=true)
-    y = [@view x[i:min(i+n-1, end), :] for i in 1:n-p:size(x, 1)]
+function buffer(x::MultivariateTimeSeries, n, p = 0, discard = true)
+    y = [@view x[i:min(i + n - 1, end), :] for i in 1:(n - p):size(x, 1)]
     if discard && size(y[end], 1) < n
         pop!(y)
     end
