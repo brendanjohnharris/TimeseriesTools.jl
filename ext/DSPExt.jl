@@ -9,16 +9,21 @@ hilbert(X::AbstractTimeSeries) = set(X, hilbert(X.data))
 
 bandpass(pass; kwargs...) = x -> bandpass(x, pass; kwargs...)
 
-function bandpass(x::AbstractArray, fs::Number, pass::Union{NTuple{2}, AbstractVector{<:Number}}; designmethod=DSP.Butterworth(4))
+function bandpass(x::AbstractArray, fs::Number, pass::Union{Tuple{A,B},AbstractVector{<:Number}}; designmethod=DSP.Butterworth(4)) where {A,B}
     DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
 end
 
-function bandpass(x::AbstractTimeSeries, fs::Number, pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
+function bandpass(x::AbstractTimeSeries, fs::Number, pass::Union{NTuple{2},AbstractVector{<:Number}}; kwargs...)
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
 
 bandpass(x::AbstractTimeSeries, pass; kwargs...) = bandpass(x, 1, pass; kwargs...) # Assume 1 Hz
 bandpass(x::RegularTimeSeries, pass; kwargs...) = bandpass(x, samplingrate(x), pass; kwargs...)
+
+TimeseriesTools.isoamplitude(x::AbstractVector) = sin.(hilbert(x) .|> angle)
+TimeseriesTools.isoamplitude(x::AbstractArray; dims=1) = mapslices(TimeseriesTools.isoamplitude, x; dims)
+
+
 
 phasewrap(ϕ::Number) = mod(ϕ + π, 2π) - π
 
@@ -35,10 +40,10 @@ function _phasestitch(a::Tuple, b::Tuple; tol=0.05) # a = (LFP1, PHI1)
     # yp = yp[c:end]
 
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
-    c = floor(Int, length(xp)/10)
+    c = floor(Int, length(xp) / 10)
     x = x[1:end-c]
     xp = xp[1:end-c]
-    c = floor(Int, length(yp)/10)
+    c = floor(Int, length(yp) / 10)
     y = y[c:end]
     yp = yp[c:end]
 
@@ -70,7 +75,7 @@ function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, pass; kwa
     return _phasestitch((a, pha), (b, phb); kwargs...)
 end
 
-function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, AbstractVector{<:UnivariateTimeSeries}}, P=[hilbert(x) .|> angle for x in X]; tol=0.05)
+function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},AbstractVector{<:UnivariateTimeSeries}}, P=[hilbert(x) .|> angle for x in X]; tol=0.05)
     _a = deepcopy(X)
     _ap = deepcopy(P)
     a = []
@@ -79,7 +84,7 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, Abs
 
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
     for i in eachindex(_a)
-        c = floor(Int, length(_a[i])/10)
+        c = floor(Int, length(_a[i]) / 10)
         push!(a, _a[i][c:end-c])
         push!(ap, _ap[i][c:end-c])
     end
@@ -105,7 +110,7 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, Abs
     reduce(stitch, aa)
 end
 
-function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries}, AbstractVector{<:UnivariateTimeSeries}}, pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
+function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},AbstractVector{<:UnivariateTimeSeries}}, pass::Union{NTuple{2},AbstractVector{<:Number}}; kwargs...)
     a = bandpass.(X, [pass])
     P = [hilbert(x) .|> angle for x in a] # Bandpass for phases only
     phasestitch(X, P; kwargs...)

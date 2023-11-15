@@ -4,7 +4,8 @@ import MakieCore.plot!
 import MakieCore.plot
 
 import ..Makie
-import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift, Observable, @recipe, Theme, Figure, Axis, AbstractPlot
+import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
+                Observable, @recipe, Theme, Figure, Axis, AbstractPlot
 using TimeseriesTools
 using Statistics
 using TimeseriesTools.Normalization
@@ -29,7 +30,8 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; kwargs...)
     ax.xscale = log10
     ax.yscale = log10
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
-    ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+    ux == NoUnits ? (ax.ylabel = "Spectral density") :
+    (ax.ylabel = "Spectral density ($ux)")
     p = spectrumplot!(ax, f[idxs], x[idxs]; kwargs...)
     p
 end
@@ -38,16 +40,17 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothing, percentile=0.25, kwargs...)
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor = nothing,
+                       percentile = 0.25, kwargs...)
     uf = frequnit(x)
     ux = unit(x)
     f, _, x = decompose(x)
     f = ustrip.(f) |> collect
     x = ustrip.(x) |> collect
-    xmin = minimum(x, dims=2) |> vec
-    xmed = median(x, dims=2) |> vec
-    σₗ = mapslices(x -> quantile(x, percentile), x, dims=2) |> vec
-    σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims=2) |> vec
+    xmin = minimum(x, dims = 2) |> vec
+    xmed = median(x, dims = 2) |> vec
+    σₗ = mapslices(x -> quantile(x, percentile), x, dims = 2) |> vec
+    σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims = 2) |> vec
     idxs = (f .> 0) .& (xmin .> 0)
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing))
     ax.xscale = log10
@@ -56,22 +59,26 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor=nothin
         uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
     end
     if isempty(ax.ylabel[])
-        ux == NoUnits ? (ax.ylabel = "Spectral density") : (ax.ylabel = "Spectral density ($ux)")
+        ux == NoUnits ? (ax.ylabel = "Spectral density") :
+        (ax.ylabel = "Spectral density ($ux)")
     end
     p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
-    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=true, kwargs..., color)
+    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency = true, kwargs..., color)
     Makie.translate!(_p, 0, 0, -1.0)
     p
 end
 
-spectrumplot(x::AbstractSpectrum; kwargs...) = (f = Figure(); ax = Axis(f[1, 1]); p = spectrumplot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
-Makie.plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
+function spectrumplot(x::AbstractSpectrum; kwargs...)
+    (f = Figure();
+     ax = Axis(f[1, 1]);
+     p = spectrumplot!(ax, x; kwargs...);
+     Makie.FigureAxisPlot(f,
+                          ax,
+                          p))
+end
+Makie.plot!(ax::Axis, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
 Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
-
-
-
-
 
 function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ut = timeunit(x)
@@ -88,10 +95,14 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     end
     p
 end
-Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f = Makie.Figure(); ax = Makie.Axis(f[1, 1]); p = plot!(ax, x; kwargs...); Makie.FigureAxisPlot(f, ax, p))
-
-
-
+function Makie.plot(x::UnivariateTimeSeries; kwargs...)
+    (f = Makie.Figure();
+     ax = Makie.Axis(f[1, 1]);
+     p = plot!(ax, x; kwargs...);
+     Makie.FigureAxisPlot(f,
+                          ax,
+                          p))
+end
 
 """
     spectrumplot!(ax::Axis, x::AbstractVector, y::AbstractVector)
@@ -105,8 +116,6 @@ Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f = Makie.Figure(); ax = Makie
 #     spectrumplot!(p, x, y)
 #     p
 # end
-
-
 
 # """
 #     plotLFPspectra(X::UnivariateTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
@@ -145,24 +154,20 @@ Makie.plot(x::UnivariateTimeSeries; kwargs...) = (f = Makie.Figure(); ax = Makie
 #     return fig
 # end
 
-
-
 # ? -------------------------- Colored trajectory -------------------------- ? #
 @recipe(Trajectory, x, y, z) do scene
-    Theme(
-        colormode=:velocity,
-    )
+    Theme(colormode = :velocity)
 end
 
 function Makie.plot!(plot::Trajectory)
     x = lift((args...) -> [y for y in args], plot.input_args...)
     f = x -> isfinite.(x)
     i = @lift reduce(.&, f.($(x)))
-    z = @lift [y[$(i)] for y ∈ $(x)]
+    z = @lift [y[$(i)] for y in $(x)]
 
     colormode = plot.colormode[]
     if colormode === :velocity
-        dx = @lift [y[2:end] .- y[1:end-1] for y ∈ $(z)]
+        dx = @lift [y[2:end] .- y[1:(end - 1)] for y in $(z)]
         sqr = x -> x .^ 2
         colors = @lift sqrt.(sum(sqr.($(dx))))
     elseif colormode === :time
@@ -170,14 +175,14 @@ function Makie.plot!(plot::Trajectory)
     elseif !isnothing(colormode) && colormode != :none
         error("Not a supported `colormode`")
     end
-    _z = @lift [y[1:end-1] for y in $(z)]
-    lines!(plot, _z[]...; plot.attributes..., color=colors)
+    _z = @lift [y[1:(end - 1)] for y in $(z)]
+    lines!(plot, _z[]...; plot.attributes..., color = colors)
 
     plot
 end
 
 # ? -------------------------- Trajectory shadows -------------------------- ? #
-function shadows!(ax, x, y, z; shadowmode=:projection, swapshadows=false, kwargs...)
+function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kwargs...)
     (x isa Observable) || (x = Observable(x))
     (y isa Observable) || (y = Observable(y))
     (z isa Observable) || (z = Observable(z))
@@ -211,10 +216,9 @@ end
 
 # ? ------------------------------- # Traces ------------------------------- ? #
 @recipe(Traces) do scene
-    Theme(
-        colormap=nothing,
-        normalize=false, # Can be any normalization type from Normalizations.jl
-        colorrange=nothing,)
+    Theme(colormap = nothing,
+          normalize = false, # Can be any normalization type from Normalizations.jl
+          colorrange = nothing)
 end
 
 function Makie.plot!(plot::Traces)
@@ -231,7 +235,7 @@ function Makie.plot!(plot::Traces)
     z = lift(z) do z
         (normalize == true) && (normalize = Normalization.MinMax)
         if normalize != false && normalize <: Normalization.AbstractNormalization
-            N = fit(normalize, z; dims=1)
+            N = fit(normalize, z; dims = 1)
             z = Normalization.normalize(z, N)
         end
         z
@@ -252,19 +256,30 @@ function Makie.plot!(plot::Traces)
         if isnothing(colormap[])
             lines!(plot, x, _z; plot.attributes...)
         else
-            lines!(plot, x, _z; plot.attributes..., color=colormap[][i])
+            lines!(plot, x, _z; plot.attributes..., color = colormap[][i])
         end
     end
     plot
 end
 
-Makie.convert_arguments(P::Traces, x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
-Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
-Makie.convert_single_argument(x::MultivariateSpectrum) = Makie.convert_arguments(P, decompose(x)...)
-Makie.convert_arguments(P::Traces, x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
-Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
-Makie.convert_single_argument(x::MultivariateTimeSeries) = Makie.convert_arguments(P, decompose(x)...)
-
+function Makie.convert_arguments(P::Traces, x::MultivariateSpectrum)
+    Makie.convert_arguments(P, decompose(x)...)
+end
+function Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateSpectrum)
+    Makie.convert_arguments(P, decompose(x)...)
+end
+function Makie.convert_single_argument(x::MultivariateSpectrum)
+    Makie.convert_arguments(P, decompose(x)...)
+end
+function Makie.convert_arguments(P::Traces, x::MultivariateTimeSeries)
+    Makie.convert_arguments(P, decompose(x)...)
+end
+function Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateTimeSeries)
+    Makie.convert_arguments(P, decompose(x)...)
+end
+function Makie.convert_single_argument(x::MultivariateTimeSeries)
+    Makie.convert_arguments(P, decompose(x)...)
+end
 
 function traces!(ax, S::MultivariateSpectrum; kwargs...)
     x, y, z = decompose(S)
@@ -288,16 +303,11 @@ function traces!(ax, S::MultivariateTimeSeries; kwargs...)
     traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
 end
 
-
-
-
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
-    Theme(
-        offset=1,
-        normalize=false,
-        spacing=:close
-    )
+    Theme(offset = 1,
+          normalize = false,
+          spacing = :close)
 end
 
 function Makie.plot!(plot::StackedTraces)
@@ -315,7 +325,7 @@ function Makie.plot!(plot::StackedTraces)
     z = lift(z) do z
         (normalize == true) && (normalize = Normalization.MinMax)
         if normalize != false && normalize <: Normalization.AbstractNormalization
-            N = fit(normalize, z; dims=1)
+            N = fit(normalize, z; dims = 1)
             z = Normalization.normalize(z, N)
         end
         z
@@ -327,13 +337,13 @@ function Makie.plot!(plot::StackedTraces)
         end
         c = zeros(size(z, 2))
         if spacing === :even
-            space = maximum([maximum(z[:, i-1] .- z[:, i]) for i in 2:size(z, 2)])
+            space = maximum([maximum(z[:, i - 1] .- z[:, i]) for i in 2:size(z, 2)])
         end
         for i in 2:size(z, 2)
             if spacing === :close
-                space = maximum(z[:, i-1] .- z[:, i])
+                space = maximum(z[:, i - 1] .- z[:, i])
             end
-            c[i] = c[i-1] + space * offset
+            c[i] = c[i - 1] + space * offset
         end
         z .+ c'
     end
@@ -341,7 +351,6 @@ function Makie.plot!(plot::StackedTraces)
     traces!(plot, x, y, z; plot.attributes...)
     plot
 end
-
 
 function stackedtraces!(ax, S::MultivariateSpectrum; kwargs...)
     x, y, z = decompose(S)
@@ -364,6 +373,5 @@ function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
     isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
     stackedtraces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
 end
-
 
 # end # module

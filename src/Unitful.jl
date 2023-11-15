@@ -28,15 +28,16 @@ TimeseriesTools.convertconst(c::Number, u::Unitful.Quantity) = (c)unit(u)
 
 A type alias for a union of `AbstractArray`, `AbstractRange`, and `Tuple` types with `Unitful.Time` elements.
 """
-UnitfulIndex = UnitfulTIndex = Union{AbstractArray{<:Unitful.Time},AbstractRange{<:Unitful.Time},Tuple{<:Unitful.Time}}
-
+UnitfulIndex = UnitfulTIndex = Union{AbstractArray{<:Unitful.Time},
+                                     AbstractRange{<:Unitful.Time}, Tuple{<:Unitful.Time}}
 
 """
     UnitfulTimeIndex
 
 A type alias for a tuple of dimensions, where the first dimension is of type `DimensionalData.Dimension{<:UnitfulIndex}`.
 """
-UnitfulTimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulIndex}}
+UnitfulTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                         } where {A <: DimensionalData.Dimension{<:UnitfulIndex}}
 
 """
     UnitfulTimeSeries{T, N, B}
@@ -52,19 +53,21 @@ julia> uts = TimeSeries(t, x);
 julia> uts isa UnitfulTimeSeries
 ```
 """
-UnitfulTimeSeries = AbstractDimArray{T,N,<:UnitfulTimeIndex,B} where {T,N,B}
+UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B}
 
-UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency},AbstractRange{<:Unitful.Frequency},Tuple{<:Unitful.Frequency}}
-UnitfulFreqIndex = Tuple{A,Vararg{DimensionalData.Dimension}} where {A<:DimensionalData.Dimension{<:UnitfulFIndex}}
-UnitfulSpectrum = AbstractDimArray{T,N,<:UnitfulFreqIndex,B} where {T,N,B}
-
+UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency},
+                      AbstractRange{<:Unitful.Frequency}, Tuple{<:Unitful.Frequency}}
+UnitfulFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                         } where {A <: DimensionalData.Dimension{<:UnitfulFIndex}}
+UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
 function unitfultimeseries(x::AbstractTimeSeries, u::Unitful.Units)
     t = x |> times
     t = timeunit(x) == NoUnits ? t : ustrip(t)
     t = t * u
     ds = dims(x)
-    return DimArray(x.data, (Ti(t), ds[2:end]...); metadata=DimensionalData.metadata(x), name=DimensionalData.name(x), refdims=DimensionalData.refdims(x))
+    return DimArray(x.data, (Ti(t), ds[2:end]...); metadata = DimensionalData.metadata(x),
+                    name = DimensionalData.name(x), refdims = DimensionalData.refdims(x))
 end
 
 function unitfultimeseries(x::AbstractTimeSeries)
@@ -157,8 +160,8 @@ julia> ts = TimeSeries(t, x, u"ms")*u"V";
 julia> unit(ts) == u"V"
 ```
 """
-unit(x::Union{<:AbstractTimeSeries,AbstractSpectrum}) = x |> eltype |> unit
-unit(x::Union{<:AbstractTimeSeries{Any},AbstractSpectrum{Any}}) = NoUnits
+unit(x::Union{<:AbstractTimeSeries, AbstractSpectrum}) = x |> eltype |> unit
+unit(x::Union{<:AbstractTimeSeries{Any}, AbstractSpectrum{Any}}) = NoUnits
 
 function FFTW.rfft(x::AbstractVector{<:Quantity}) # 🐶
     # Assume this is a discrete Fourier transform, to time indices/units
@@ -177,11 +180,11 @@ function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity}) # 🐕
     ℱ = (ℱ) * (a * t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end
 
-
 # Extend Normalization.jl to uniful DimArrays
 function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
     DimensionalData.modify(x -> normalize(x, T; kwargs...), X)
 end
-function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity}; kwargs...)
+function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity};
+                     kwargs...)
     error("Denormalization of unitful arrays currently not supported")
 end

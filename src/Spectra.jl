@@ -1,14 +1,13 @@
 using FFTW
 using Statistics
 
-export  FrequencyDim, Freq, freqs,
-        AbstractSpectrum, RegularSpectrum, UnivariateSpectrum, MultivariateSpectrum,
-        spectrum, energyspectrum, powerspectrum,
-        _energyspectrum, _powerspectrum,
-        FreqIndex, RegularFreqIndex,
-        colorednoise
-
-
+export FrequencyDim, Freq, freqs,
+       AbstractSpectrum, RegularSpectrum, UnivariateSpectrum, MultivariateSpectrum,
+       spectrum, energyspectrum, powerspectrum,
+       _energyspectrum, _powerspectrum,
+       FreqIndex, RegularFreqIndex,
+       colorednoise,
+       spikefft
 abstract type FrequencyDim{T} <: DimensionalData.IndependentDim{T} end
 
 """
@@ -23,7 +22,7 @@ DimensionalData.@dim Freq FrequencyDim "Freq"
 
 A type alias for a tuple of dimensions, where the first dimension is of type `FrequencyDim`.
 """
-FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:Freq}
+FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
 
 """
     AbstractSpectrum{T, N, B}
@@ -33,13 +32,13 @@ A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](
 AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
 freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
 
-
 """
     RegularFreqIndex
 
 A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
 """
-RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A<:FrequencyDim{<:RegularIndex}}
+RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                         } where {A <: FrequencyDim{<:RegularIndex}}
 
 """
     RegularSpectrum{T, N, B}
@@ -53,42 +52,54 @@ RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
 
 A type alias for a univariate spectrum.
 """
-UnivariateSpectrum = AbstractSpectrum{T, 1} where T
+UnivariateSpectrum = AbstractSpectrum{T, 1} where {T}
 """
     MultivariateSpectrum{T} = AbstractSpectrum{T, 2} where T
 
 A type alias for a multivariate spectrum.
 """
-MultivariateSpectrum = AbstractSpectrum{T, 2} where T
+MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 
 """
-    _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
+    Spectrum(f, x)
 
-Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
+Constructs a univariate time series with frequencies `f` and data `x`.
 """
-function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
-    fs = samplingrate(x)
+Spectrum(f, x; kwargs...) = DimArray(x, (Freq(f),); kwargs...)
+
+"""
+    Spectrum(f, v, x)
+
+Constructs a multivariate spectrum with frequencies `f`, variables `v`, and data `x`.
+"""
+Spectrum(f, v, x; kwargs...) = DimArray(x, (Freq(f), Var(v)); kwargs...)
+function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (Freq(f), v); kwargs...)
+end
+
+function _energyspectrum(x::AbstractVector, fs::Number,
+                         f_min::Number = fs / min(length(x) ÷ 4, 1000); kwargs...)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
     if f_min == 0
         f_min = validfreqs[2]
-        nfft = floor(Int, n/2)*2
+        nfft = floor(Int, n / 2) * 2
     else
-        nfft = ceil(Int, ustrip(fs)/ustrip(f_min))
+        nfft = ceil(Int, ustrip(fs) / ustrip(f_min))
     end
     if ustrip(f_min) < ustrip(validfreqs[2])
         error("Cannot resolve an `f_min` of $f_min")
     end
 
     isodd(nfft) && (nfft += 1)
-    window = nfft÷2
-    overlap = window÷2
+    window = nfft ÷ 2
+    overlap = window ÷ 2
     hann_window = 0.5 .- 0.5 .* cos.(2 * π * (0:(nfft - 1)) / (nfft - 1))
     n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
 
     # Get the type of the spectrum
     u = unit(eltype(x)) * unit(eltype(dims(x, Ti)))
-    S̄ = zeros(nfft ÷ 2 + 1, n_segments)*u^2
+    S̄ = zeros(nfft ÷ 2 + 1, n_segments) * u^2
     for i in 1:n_segments
         start_idx = (i - 1) * (nfft - overlap) + 1
         end_idx = start_idx + nfft - 1
@@ -96,21 +107,31 @@ function _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(
 
         y = rfft(segment) / nfft
         y |> eltype |> unit == NoUnits && (y = y * u)
-        S̄[:, i] .= (abs.(y).^2) / sum(hann_window.^2)
+        S̄[:, i] .= (abs.(y) .^ 2) / sum(hann_window .^ 2)
     end
 
-
     # Calculate the frequencies
-    freqs = range(convertconst(0, fs), stop=fs/2, length=size(S̄, 1))
+    freqs = range(convertconst(0, fs), stop = fs / 2, length = size(S̄, 1))
     df = step(freqs)
 
     # Normalize the mean energy spectrum to obey Parseval's theorem
-    meanS̄ = mean(S̄, dims=2)
-    S̄ = S̄ ./ ustrip((sum(meanS̄) - 0.5.*meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
-    S̄ = 0.5 * S̄ .* ustrip(sum(x.^2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
-
-    return DimArray(S̄, (Freq(freqs), Dim{:window}(1:n_segments)); kwargs...)
+    meanS̄ = mean(S̄, dims = 2)
+    S̄ = S̄ ./ ustrip((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
+    S̄ = 0.5 * S̄ .* ustrip(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
+    Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
+
+"""
+    _energyspectrum(x::RegularTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000))
+
+Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
+"""
+function _energyspectrum(x::typeintersect(RegularTimeSeries, UnivariateTimeSeries),
+                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
+                         kwargs...)
+    return _energyspectrum(x, samplingrate(x), f_min; kwargs...)
+end
+
 """
     _energyspectrum(x::RegularTimeSeries, f_min=0)
 
@@ -132,7 +153,10 @@ julia> S = _energyspectrum(ts);
 julia> S isa MultivariateSpectrum
 ```
 """
-_energyspectrum(x::typeintersect(MultivariateTS, RegularTS), args...; kwargs...) = cat([_energyspectrum(_x, args...; kwargs...) for _x in eachslice(x, dims=2)]..., dims=dims(x, 2))
+function _energyspectrum(x::MultivariateTS, args...; kwargs...)
+    cat([_energyspectrum(_x, args...; kwargs...)
+         for _x in eachslice(x, dims = 2)]..., dims = dims(x, 2))
+end
 
 """
     energyspectrum(x::RegularTimeSeries, f_min=0; kwargs...)
@@ -141,7 +165,10 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 `f_min` determines the minimum frequency that will be resolved in the spectrum.
 See [`_energyspectrum`](@ref).
 """
-energyspectrum(x::RegularTimeSeries, args...; kwargs...) = dropdims(mean(_energyspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+function energyspectrum(x, args...; kwargs...)
+    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
+end
 
 """
     _powerspectrum(x::AbstractTimeSeries, f_min=samplingrate(x)/min(length(x)÷4, 1000); kwargs...)
@@ -160,7 +187,10 @@ end
 
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
-powerspectrum(x::AbstractTimeSeries, args...; kwargs...) = dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window}); dims=Dim{:window})
+function powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
+    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
+end
 
 spectrum = powerspectrum
 
@@ -184,13 +214,51 @@ julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
 julia> pink_noise isa RegularTimeSeries
 ```
 """
-function colorednoise(ts::AbstractRange, args...; α=2.0)
+function colorednoise(ts::AbstractRange, args...; α = 2.0)
     f = rfftfreq(length(ts), step(ts))
-    x̂ = sqrt.(1.0./f.^α).*exp.(2π.*rand(length(f))*im)
+    x̂ = sqrt.(1.0 ./ f .^ α) .* exp.(2π .* rand(length(f)) * im)
     x̂[1] = 0
-    x = irfft(x̂, 2*length(f)-2)
-    dt = length(ts)*step(f)
-    t = range(dt, length(x)*dt, length=length(x))
+    x = irfft(x̂, 2 * length(f) - 2)
+    dt = length(ts) * step(f)
+    t = range(dt, length(x) * dt, length = length(x))
     @assert all(t .== ts)
     TimeSeries(t, x, args...)
+end
+
+function spikefft(t::AbstractVector)
+    # AN EFFICIENT METHOD FOR THE FOURIER  TRANSFORM OF A NEURONAL  SPIKE  TRAIN
+    # Schild 1982
+    t .-= minimum(t)
+    T = maximum(t)
+    W(f) = (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
+end
+
+spikefft(fs, t::AbstractVector) = spikefft(t).(fs)
+
+function spikefft(fs, t::SpikeTrain)
+    isempty(findfirst(t)) && error("Spike train contains no spikes")
+    F = spikefft(times(t[t]))
+    return Spectrum(fs, F.(fs))
+end
+
+function _energyspectrum(x::SpikeTrain{1}, frange::AbstractRange; kwargs...)
+    t = times(x[x])
+    n = length(t)
+    df = step(frange)
+    isodd(length(frange)) && (frange = frange[1:(end - 1)])
+    nfft = length(frange)
+
+    u = unit(eltype(x)) * unit(eltype(t))
+
+    S̄ = abs.(spikefft(frange, t)) .^ 2
+
+    # Normalize the energy spectrum to obey Parseval's theorem
+    S̄ = S̄ ./ ustrip((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
+    # display(2 * sum(S̄[2:end]) + S̄[1])
+    S̄ = S̄ .* ustrip(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
+    Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
+end
+
+function _energyspectrum(x::SpikeTrain{1}, frange::Tuple; kwargs...)
+    _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
 end
