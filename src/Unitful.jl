@@ -155,7 +155,7 @@ frequnit(x::AbstractSpectrum) = dimunit(x, Freq)
 """
     unit(x::AbstractArray)
 
-Returns the units associated with the elements of an [`UnitfulTimeSeries``](@ref) or [`UnitfulSpectrum`](@ref).
+Returns the units associated with the elements of an [`UnitfulTimeSeries`](@ref) or [`UnitfulSpectrum`](@ref).
 
 ## Examples
 ```@example 1

@@ -1,8 +1,4 @@
 ```@meta
-DocTestSetup = quote
-    using Unitful
-    using TimeseriesTools
-end
 CurrentModule = TimeseriesTools
 ```
 

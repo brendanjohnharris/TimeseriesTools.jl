@@ -77,7 +77,7 @@ samplingperiod(x::RegularTimeSeries) = step(x)
 """
     duration(x::AbstractTimeSeries)
 
-Returns the duration of the [@ref](AbstractTimeSeries) `x`.
+Returns the duration of the [`AbstractTimeSeries`](@ref) `x`.
 
 ## Examples
 ```@example 1
