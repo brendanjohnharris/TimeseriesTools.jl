@@ -7,7 +7,7 @@ export FrequencyDim, Freq, freqs,
        _energyspectrum, _powerspectrum,
        FreqIndex, RegularFreqIndex,
        colorednoise,
-       spikefft
+       spikefft, sttc
 abstract type FrequencyDim{T} <: DimensionalData.IndependentDim{T} end
 
 """
@@ -241,7 +241,7 @@ function spikefft(fs, t::SpikeTrain)
     return Spectrum(fs, F.(fs))
 end
 
-function _energyspectrum(x::SpikeTrain{1}, frange::AbstractRange; kwargs...)
+function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange; kwargs...)
     t = times(x[x])
     n = length(t)
     df = step(frange)
@@ -259,6 +259,79 @@ function _energyspectrum(x::SpikeTrain{1}, frange::AbstractRange; kwargs...)
     Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 
-function _energyspectrum(x::SpikeTrain{1}, frange::Tuple; kwargs...)
+function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)
     _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
 end
+"""
+    sttc(a, b; Δt = 0.025)
+
+The spike-time tiling coefficient, a measure of correlation between spike trains [1].
+
+# Arguments
+- `a::Vector{<:Real}`: A sorted vector of spike times.
+- `b::Vector{<:Real}`: A second sorted vector of spike times .
+- `Δt::Real=0.025`: The time window for calculating the STTC.
+
+# Returns
+- `sttc::Real`: The STTC value.
+
+# References
+    [1] [Cutts & Eglen 2014](https://doi.org/10.1523%2FJNEUROSCI.2767-14.2014)
+"""
+function sttc(a, b; Δt = 0.025)
+    if !issorted(a) || !issorted(b)
+        error("Spike trains must be sorted")
+    end
+
+    Ta = 0
+    ext = 0
+    for _a in a
+        Ta += min(_a + Δt - ext, 2 * Δt) # If the window overlaps the previous window, add the remainder. Otherwise, add the full window
+        ext = _a + Δt
+        # Assume the first and last spikes with their overhanging windows are negligible
+    end
+    Ta = Ta / (last(a) - first(a) + 2 * Δt)
+    Tb = 0
+    ext = 0
+    for _b in b
+        Tb += min(_b + Δt - ext, 2 * Δt)
+        ext = _b + Δt
+    end
+    Tb = Tb / (last(b) - first(b) + 2 * Δt)
+
+    i = 1 # Keep track of which spikes are behind us
+    Na = 0
+    for _a in a
+        while _a > b[i] + Δt && i < length(b)
+            i += 1
+        end
+        if b[i] - Δt < _a ≤ b[i] + Δt
+            Na += 1
+        end
+    end
+    i = 1
+    Nb = 0
+    for _b in b
+        while _b > a[i] + Δt && i < length(a)
+            i += 1
+        end
+        if a[i] - Δt < _b ≤ a[i] + Δt
+            Nb += 1
+        end
+    end
+    Pa = Na / length(a)
+    Pb = Nb / length(b)
+    return 0.5 * ((Pa - Tb) / (1 - Pa * Tb) + (Pb - Ta) / (1 - Pb * Ta))
+end
+
+function sttc(a::UnivariateTimeSeries, b::UnivariateTimeSeries; kwargs...)
+    sttc(times(a), times(b); kwargs...)
+end
+
+# function kernelcorrelation(a, b, σ = 0.025; kernel = :gaussian)
+#     # Treat each spike as a little gaussian, then calculate the correlation integral between the two spike trains
+#     # This has the form ∫f₁g₁ + f₂g₂ + f₁g₂ + f₂g₁ ⋯ dt, since each function is a sum of identical gaussians (fᵢ and gᵢ).
+#     # Each term in the integral is the correlation between two gaussians, which
+
+#     # First, get a difference in the centres of each gaussian
+# end

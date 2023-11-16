@@ -423,3 +423,37 @@ end
     P = @test_nowarn powerspectrum(T, fs)
     @test P[:, 1] == p
 end
+
+@testset "Spike-time tiling coefficient" begin
+    using IntervalSets
+    using Distributions
+    ts = 0:0.01:100
+    t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
+    t = findall(t .> 0) ./ 100 # Should have a period of 1 second
+    t = TimeSeries(t, trues(length(t)))
+    Δt = 0.025
+    c = @test_nowarn sttc(t, t .+ 0.02; Δt)
+
+    t1 = rand(0 .. 10, 200)
+    η = 8000.0
+    t2 = t1 .+ η .* randn(length(t1)) * Δt
+    sort!.([t1, t2])
+    @test_nowarn sttc(t1, t2; Δt)
+
+    # Positive semi-definite? Not quite, but almost.
+    η = 1
+    t1 = findall(rand(Poisson(0.01), 100000) .> 0) ./ 1000
+    t2 = findall(rand(Poisson(0.05), 100000) .> 0) ./ 1000
+    t3 = vcat(t1 .* η .* randn(length(t1)) * Δt, t2 .* η .* randn(length(t2)) * Δt)
+    t4 = vcat(t2 .* η .* randn(length(t2)) * Δt, t1 .* η .* randn(length(t1)) * Δt)
+    t5 = vcat(t1 .* η .* randn(length(t1)) * Δt, t1 .* η .* randn(length(t1)) * Δt)
+    t6 = vcat(t2 .* η .* randn(length(t2)) * Δt, t2 .* η .* randn(length(t2)) * Δt)
+    sort!.([t3, t4, t5, t6])
+
+    ts = [t1, t2, t3, t4, t5, t6]
+
+    is = Iterators.product(ts, ts)
+    Λ = [sttc(i...) for i in is]
+    λ = eigvals(Λ)
+    @test λ[1].≈0 atol=1e-2
+end
