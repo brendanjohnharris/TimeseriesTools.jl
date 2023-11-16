@@ -7,7 +7,7 @@ export AbstractTimeSeries, AbstractTS,
        IrregularIndex, IrregularTimeIndex,
        TimeSeries, Timeseries, TS, Var,
        stitch,
-       IrregularBinaryTimeSeries, SpikeTrain
+       IrregularBinaryTimeSeries, SpikeTrain, spiketrain
 
 """
     TimeIndex
@@ -109,6 +109,10 @@ A type alias for a time series of bits.
 """
 const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex, B
                                                                   } where {T <: Bool, N, B}
+
+function spiketrain(x)
+    TimeSeries(x, trues(length(x)))
+end
 
 """
     TimeSeries(t, x)

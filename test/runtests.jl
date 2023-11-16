@@ -426,6 +426,7 @@ end
 
 @testset "Spike-time tiling coefficient" begin
     using IntervalSets
+    using LinearAlgebra
     using Distributions
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
