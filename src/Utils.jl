@@ -1,9 +1,11 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
+import DimensionalData: print_array, _print_array_ctx
 import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
-       describedim, describedims, describename, interlace, _buffer, buffer
+       describedim, describedims, describename, interlace, _buffer, buffer, window,
+       delayembed, convolve
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -13,6 +15,39 @@ end
 Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 # Allow dims to be passed directly to selectors
 [:($(S)(D::Dimension) = $(S)(D.val.data)) for S in Selectors] .|> eval
+
+describate(x) = "$(size(x)) $(typeof(x).name.name)"
+function print_array(io::IO, mime, A::AbstractDimArray{T, 0}) where {T <: AbstractArray}
+    print(_print_array_ctx(io, T), "\n", describate.(A[]))
+end
+function print_array(io::IO, mime, A::AbstractDimArray{T, 1}) where {T <: AbstractArray}
+    Base.print_matrix(_print_array_ctx(io, T), describate.(A))
+end
+function print_array(io::IO, mime, A::AbstractDimArray{T, 2}) where {T <: AbstractArray}
+    Base.print_matrix(_print_array_ctx(io, T), describate.(A))
+end
+function print_array(io::IO, mime, A::AbstractDimArray{T, 3}) where {T <: AbstractArray}
+    i3 = firstindex(A, 3)
+    frame = view(parent(A), :, :, i3)
+    println(io, "[:, :, $i3]")
+    _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
+    nremaining = size(A, 3) - 1
+    nremaining > 0 &&
+        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+end
+function print_array(io::IO, mime, A::AbstractDimArray{T, N}) where {T <: AbstractArray, N}
+    o = ntuple(x -> firstindex(A, x + 2), N - 2)
+    frame = view(A, :, :, o...)
+    onestring = join(o, ", ")
+    println(io, "[:, :, $(onestring)]")
+    _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
+    nremaining = prod(size(A, d) for d in 3:N) - 1
+    nremaining > 0 &&
+        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+end
+function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
+    _print_array_ctx(io, T)
+end
 
 """
     times(x::AbstractTimeSeries)
@@ -179,17 +214,69 @@ function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
     return TimeSeries(ts, data)
 end
 
-function buffer(x::UnivariateTimeSeries, n, p = 0, discard = true)
-    y = [@view x[i:min(i + n - 1, end)] for i in 1:(n - p):length(x)]
-    if discard && length(y[end]) < n
+function _buffer(x, n::Integer, p::Integer = 0; discard::Bool = true)
+    y = [@views x[i:min(i + n - 1, end)] for i in 1:(n - p):length(x)]
+    while discard && length(y[end]) < n
         pop!(y)
     end
     y
 end
-function buffer(x::MultivariateTimeSeries, n, p = 0, discard = true)
-    y = [@view x[i:min(i + n - 1, end), :] for i in 1:(n - p):size(x, 1)]
-    if discard && size(y[end], 1) < n
+function _buffer(x::AbstractMatrix, n::Integer, p::Integer = 0; discard::Bool = true)
+    y = [@views x[i:min(i + n - 1, end), :] for i in 1:(n - p):size(x, 1)]
+    while discard && size(y[end], 1) < n
         pop!(y)
     end
     y
+end
+buffer(x::AbstractVector, args...; kwargs...) = _buffer(x, args...; kwargs...)
+function buffer(x::RegularTimeSeries, args...; kwargs...)
+    y = _buffer(x, args...; kwargs...)
+    t = _buffer(times(x), args...; kwargs...) .|> mean
+    # For a regular time series, the buffer centres are regular
+    ts = range(first(t), last(t), length(y))
+    y = TimeSeries(ts, y)
+end
+window(x, n, p = n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
+
+function _delayembed(x::AbstractVector, n, τ, p = 1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
+    y = window(x, n * τ, p; kwargs...)
+    y = map(y) do _y
+        @view _y[1:τ:end]
+    end
+end
+delayembed(x::AbstractVector, args...; kwargs...) = _delayembed(x, args...; kwargs...)
+function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
+    y = _delayembed(x, n, τ, p, args...; kwargs...)
+    ts = last.(times.(y))  # Time of the head of the vector
+    dt = step(x) * p
+    ts = ts[1]:dt:(ts[1] + dt * (length(y) - 1))
+    δt = τ * p * step(x)
+    delays = (-(δt * (n - 1))):δt:0
+    y = set.(y, [Ti => Dim{:delay}(delays)])
+    y = cat(Ti(ts), y..., dims = Ti)
+end
+
+normal(p) = x -> (1 / (p * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ p^2)
+function convolve(t::SpikeTrain; kernel::Function, range = 0.0)
+    @assert all(t .== true)
+    fs = [(x -> kernel(x .- _t)) for _t in times(t)]
+    isempty(fs) && return x -> 0.0
+    if range > 0
+        function f(x)
+            inrange = [abs(x - b) < range for b in times(t)] # Only consider spikes that are within a reasonable time of one another; the others should be negligible if the kernel decays
+            _x = [g(x) for (i, g) in enumerate(fs) if inrange[i]]
+            isempty(_x) && return x -> 0.0
+            sum(_x)
+        end
+    else
+        function h(x)
+            _x = [g(x) for g in fs]
+            isempty(_x) && return 0.0
+            sum(_x)
+        end
+    end
+end
+
+function convolve(t::SpikeTrain, p; kernel::Function = normal, kwargs...)
+    convolve(t; kernel = kernel(p), kwargs...)
 end
