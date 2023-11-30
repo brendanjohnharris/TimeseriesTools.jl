@@ -156,13 +156,35 @@ convertconst(a, _) = a
 """
     Base.cat(D::DimensionalData.Dimension, args...; kwargs...)
 Concatenate the arrays given in `args...`, and give the resulting extra axis dimensions `D`.
+Note that unlike `Base.cat` without the first `Dim` argument, this increments all existing dimensions greater than `dims` by one (so N n×n arrays concatenated at `dims=1` will result in an N×n×n array).
 """
-function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; kwargs...)
-    x′ = cat(x.data, getfield.(args, [:data])...; kwargs...)
-    y = DimArray(x′, (dims(x)..., D); refdims = refdims(x), name = name(x),
+function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; dims,
+                  kwargs...)
+    if !all([size(x)] .== size.(args))
+        error("Input arrays must have the same dimensionality and size")
+    end
+    if !(dims isa Integer)
+        idx = dims(x) isa dims ? 1 : findfirst(isa.(dims(x), [dims]))
+        isnothing(idx) && error("Dimension $dims not found in input array")
+        dims = first(idx)
+    end
+    function rf(x)
+        r = size(x) |> collect
+        insert!(r, dims, 1)
+        reshape(x, r...)
+    end
+    _x = rf(x.data)
+    _args = rf.(getfield.(args, [:data]))
+    x′ = cat(_x, _args...; dims, kwargs...)
+    ds = Vector{Any}([DimensionalData.dims(x)...])
+    insert!(ds, dims, D)
+    y = DimArray(x′, (ds...,); refdims = refdims(x), name = name(x),
                  metadata = metadata(x))
-    ts = times(y)
-    set(y, Ti => ts .- minimum(ts))
+    # if hasdim(y, Ti)
+    #     ts = times(y)
+    #     y = set(y, Ti => ts .- minimum(ts))
+    # end
+    return y
 end
 
 const UnivariateRegular = typeintersect(UnivariateTimeSeries, RegularTimeSeries)

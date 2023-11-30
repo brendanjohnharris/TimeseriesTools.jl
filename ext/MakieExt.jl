@@ -5,7 +5,10 @@ import MakieCore.plot
 
 import ..Makie
 import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
-                Observable, @recipe, Theme, Figure, Axis, AbstractPlot
+                Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
+                ScatterLines, Hexbin, Stem
+PointLike = Union{Scatter, Lines, ScatterLines, Hexbin, Stem}
+
 using TimeseriesTools
 using Statistics
 using TimeseriesTools.Normalization
@@ -277,8 +280,15 @@ end
 function Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateTimeSeries)
     Makie.convert_arguments(P, decompose(x)...)
 end
-function Makie.convert_single_argument(x::MultivariateTimeSeries)
-    Makie.convert_arguments(P, decompose(x)...)
+# function Makie.convert_single_argument(x::MultivariateTimeSeries)
+#     Makie.convert_arguments(P, decompose(x)...)
+# end
+function Makie.convert_arguments(P::Type{<:PointLike}, x::MultivariateTimeSeries)
+    if size(x, 2) < 4
+        Makie.convert_arguments(P, (x |> eachcol |> collect .|> collect)...)
+    else
+        Makie.convert_arguments(P, decompose(x)...)
+    end
 end
 
 function traces!(ax, S::MultivariateSpectrum; kwargs...)

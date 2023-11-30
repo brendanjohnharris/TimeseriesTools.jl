@@ -226,7 +226,7 @@ function colorednoise(ts::AbstractRange, args...; α = 2.0)
 end
 
 function spikefft(t::AbstractVector)
-    # AN EFFICIENT METHOD FOR THE FOURIER  TRANSFORM OF A NEURONAL  SPIKE  TRAIN
+    # AN EFFICIENT METHOD FOR THE FOURIER TRANSFORM OF A NEURONAL  SPIKE  TRAIN
     # Schild 1982
     t .-= minimum(t)
     T = maximum(t)

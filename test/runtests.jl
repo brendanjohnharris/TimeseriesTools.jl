@@ -379,17 +379,30 @@ end
 
 @testset "Buffer" begin
     N = 10
-    x = TimeSeries(0:0.1:10, randn(101))
+    x = TimeSeries(0.1:0.1:10, randn(100))
     y = @test_nowarn buffer(x, 10)
     @test length(y) == N
     @test y[1] == x[1:(length(x) ÷ N)]
     @test cat(y..., dims = Ti) == x[1:((length(x) ÷ N) * N)]
 
-    y = @test_nowarn buffer(x, 10, 0, false)
+    y = @test_nowarn buffer(x, 10, 0; discard = false)
     @test cat(y..., dims = Ti) == x
 
     y = @test_nowarn buffer(x, 10, N ÷ 2)
-    @test length(y) == 2 * N
+    @test length(y) == 2 * N - 1
+
+    x = TimeSeries(0:0.1:10, 1:10, randn(101, 10))
+    y = buffer(x, 10)
+    @test length(y) == 10
+
+    x = TimeSeries(0.1:0.1:10, randn(100))
+    y = @test_nowarn window(x, 2, 1)
+    y = @test_nowarn delayembed(x, 2, 1, 1)
+    @test all(length.(y) .== 2)
+    y = @test_nowarn delayembed(x, 2, 1, 2)
+    @test length(y) == length(x) ÷ 2
+    y = @test_nowarn delayembed(x, 2, 2, 1)
+    @test all(samplingperiod.(y) .== 2 * samplingperiod(x))
 end
 
 @testset "Spike FFT" begin
