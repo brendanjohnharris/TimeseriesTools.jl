@@ -56,7 +56,7 @@ end
 @testset "Spectra" begin
     # Define a test time series
     fs = 1000
-    t = range(0, stop = 1, length = fs + 1)
+    t = range(0, stop=1, length=fs + 1)
     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
     ts = x = TimeseriesTools.TimeSeries(t, x)
     f_min = fs / 100
@@ -68,7 +68,7 @@ end
 
     freqs = dims(Pxx, Freq)
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-    @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+    @test collect(freqs[peaks]) ≈ [50.0, 100.0] rtol = 1e-2
 
     X = hcat(ts, ts)
     mts = DimArray(X, (Ti(t), Var(:)))
@@ -80,7 +80,7 @@ end
         Pxx = Pxx_mts[:, i]
         freqs = dims(Pxx, Freq)
         peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-        @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+        @test collect(freqs[peaks]) ≈ [50.0, 100.0] rtol = 1e-2
     end
 end
 
@@ -102,7 +102,7 @@ end
 end
 
 @testset "Twice unitful" begin
-    ts = ((-100 + 0.01):0.0005:100) * u"s"
+    ts = ((-100+0.01):0.0005:100) * u"s"
     f = rfftfreq(length(ts), 1 / step(ts))
     x = 4.2u"V" .* sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V" .* sin.(2 * π * 100u"Hz" * ts)
     x = TimeSeries(ts, x)
@@ -118,16 +118,16 @@ end
     peakfs = f[peaks]
     peakamps = P[peaks]
     @test all(round.(ustrip.(peakfs)) .∈ ([50, 100],))
-    @test first(peakamps) / last(peakamps)≈4.2 / 3.1 rtol=1e-1
+    @test first(peakamps) / last(peakamps) ≈ 4.2 / 3.1 rtol = 1e-1
 
     x = exp.(-ustrip.(ts) .^ 2)
     x = TimeSeries(ts, x * u"V")
     ℱ = sqrt(π) .* exp.(-π^2 .* ustrip.(f) .^ 2)
     _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
     S = energyspectrum(x, 0.0)
-    @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, Freq)) rtol=0.05
+    @test sum(_S) .* step(f) ≈ sum(S) .* step(dims(S, Freq)) rtol = 0.05
 
-    lines(ustrip.(f), ustrip.(_S), axis = (; limits = ((0, 1), (0, 4))))
+    lines(ustrip.(f), ustrip.(_S), axis=(; limits=((0, 1), (0, 4))))
     plot!(collect(ustrip.(dims(S, Freq))), collect(ustrip.(S)))
     current_figure()
 end
@@ -150,29 +150,29 @@ end
     x = colorednoise(t, u"s") * u"V"
 
     # Plot the time series
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
-    save("./timeseries.png", f; px_per_unit = 3)
+    save("./timeseries.png", f; px_per_unit=3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S, linewidth = 1)
-    @test_nowarn save("./powerspectrum.png", f; px_per_unit = 3)
+    @test_nowarn plot!(ax, S, linewidth=1)
+    @test_nowarn save("./powerspectrum.png", f; px_per_unit=3)
 
     # Shadows
     x = loadtimeseries("./test_timeseries.csv")
 
-    f = Figure(; resolution = (500, 480))
+    f = Figure(; resolution=(500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
+    trajectory!(ax, collect.(eachcol(x))...; colormap=:turbo, linewidth=0.1)
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth = ax.azimuth[] + 0.25
     ax.elevation = ax.elevation[] + 0.25
-    shadows!(ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05)
-    save("./shadows.png", f; px_per_unit = 3)
+    shadows!(ax, collect.(eachcol(x))...; color=(:slategray, 0.5), linewidth=0.05)
+    save("./shadows.png", f; px_per_unit=3)
 end
 
 @testset "Readme_dark" begin
@@ -184,29 +184,29 @@ end
     x = colorednoise(t, u"s") * u"V"
 
     # Plot the time series
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
-    save("./timeseries_dark.png", f; px_per_unit = 3)
+    save("./timeseries_dark.png", f; px_per_unit=3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; resolution=(720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S, linewidth = 1)
-    @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit = 3)
+    @test_nowarn plot!(ax, S, linewidth=1)
+    @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit=3)
 
     # Shadows
     x = loadtimeseries("./test_timeseries.csv")
 
-    f = Figure(; resolution = (500, 480))
+    f = Figure(; resolution=(500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
+    trajectory!(ax, collect.(eachcol(x))...; colormap=:turbo, linewidth=0.1)
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth = ax.azimuth[] + 0.25
     ax.elevation = ax.elevation[] + 0.25
-    shadows!(ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05)
-    save("./shadows_dark.png", f; px_per_unit = 3)
+    shadows!(ax, collect.(eachcol(x))...; color=(:white, 0.5), linewidth=0.05)
+    save("./shadows_dark.png", f; px_per_unit=3)
 end
 
 @testset "Unit Power" begin
@@ -230,17 +230,17 @@ end
     @test ustrip(sum(Y .^ 2) / duration(Y)) ≈ 1
     @test !isnothing(T.p)
     @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                         T)
+        T)
     X = @test_nowarn normalize(X, T)
     @test X == Y
     Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                             T)
+        T)
     # @test all(Y .≈ _X)
 end
 
 @testset "IO" begin
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-                   name = "name")
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata=Dict(:a => :test),
+        name="name")
 
     f = tempname() * ".jld2"
     savetimeseries(f, x)
@@ -258,7 +258,7 @@ end
     @test refdims(_x) == ()
     @test all(x .≈ _x)
 
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test))
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata=Dict(:a => :test))
     savetimeseries(f, x)
     _x = loadtimeseries(f)
     display(_x)
@@ -266,23 +266,23 @@ end
 
     # Currently not the greatest way of handling non-serializable metadata
     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
-                   metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
+        metadata=Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
     @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
-                                                                                                      x)
+        x)
     _x = loadtimeseries(f)
     @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
     @test x ≈ _x
 
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name=TimeSeries) # Something that can't be serialized
     @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-                                                                                                  x)
+        x)
     _x = loadtimeseries(f)
     @test name(_x) == DimensionalData.NoName()
     @test x ≈ _x
 
     x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
     @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-                                                                                                  x)
+        x)
     _x = loadtimeseries(f)
     display(_x)
     @test x ≈ _x
@@ -292,8 +292,8 @@ end
     _x = loadtimeseries(f)
     @test x ≈ _x
 
-    x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-                   name = "name") * u"V"
+    x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata=Dict(:a => :test),
+        name="name") * u"V"
 
     f = tempname() * ".jld2"
     savetimeseries(f, x)
@@ -307,14 +307,14 @@ end
 
     t = 0.005:0.005:1e4
     x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims=2)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]
-    f = Figure(; resolution = (720, 480))
-    ax = Axis(f[1, 1], xscale = log10, yscale = log10)
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1], xscale=log10, yscale=log10)
     # x, y, z = collect.(ustrip.(decompose(S)))
-    @test_nowarn traces!(ax, S; colormap = :turbo)
+    @test_nowarn traces!(ax, S; colormap=:turbo)
 end
 
 @testset "Spectrum plot" begin
@@ -323,13 +323,13 @@ end
 
     t = 0.005:0.005:1e4
     x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims=2)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]
-    f = Figure(; resolution = (720, 480))
-    ax = Axis(f[1, 1], xscale = log10, yscale = log10)
-    @test_nowarn spectrumplot!(ax, S, linewidth = 2)
+    f = Figure(; resolution=(720, 480))
+    ax = Axis(f[1, 1], xscale=log10, yscale=log10)
+    @test_nowarn spectrumplot!(ax, S, linewidth=2)
 end
 
 @testset "DSPExt" begin
@@ -342,16 +342,16 @@ end
     t = dt:dt:10
     x = [0.00 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
     y = hcat(Var(1:200), x...)
-    x̂ = TimeSeries(dt:dt:(sum(length.(x)) * dt), vcat(collect.(x)...))
+    x̂ = TimeSeries(dt:dt:(sum(length.(x))*dt), vcat(collect.(x)...))
     x = phasestitch(x)
 
-    @test_nowarn stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5, offset = 1.3;
-                               axis = (; xlabel = "Time"))
+    @test_nowarn stackedtraces(y[Var(1:10)], spacing=:even, linewidth=5, offset=1.3;
+        axis=(; xlabel="Time"))
     @test_nowarn plot(x[Ti(1:10000)])
-    plot(x̂[Ti(1500:(length(t) * 5))])
+    plot(x̂[Ti(1500:(length(t)*5))])
 
     # And a power spectrumof a 'perfect' signal
-    _t = dt:dt:(dt * N)
+    _t = dt:dt:(dt*N)
     p = TimeSeries(_t, sin.(2 * _t))
     S′ = powerspectrum(p, dt * 4)
     @test_nowarn spectrumplot(S′)
@@ -365,7 +365,7 @@ end
     fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
-    @test ≈(pac, autocor(x[Ti(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
+    @test ≈(pac, autocor(x[Ti(1:10000)] |> collect, [10])[1]; rtol=1e-2)
     @test pac - autocor(x̂[Ti(1:10000)] |> collect, [10])[1] >
           pac - autocor(x[Ti(1:10000)] |> collect, [10])[1]
 end
@@ -382,11 +382,11 @@ end
     x = TimeSeries(0.1:0.1:10, randn(100))
     y = @test_nowarn buffer(x, 10)
     @test length(y) == N
-    @test y[1] == x[1:(length(x) ÷ N)]
-    @test cat(y..., dims = Ti) == x[1:((length(x) ÷ N) * N)]
+    @test y[1] == x[1:(length(x)÷N)]
+    @test cat(y..., dims=Ti) == x[1:((length(x)÷N)*N)]
 
-    y = @test_nowarn buffer(x, 10, 0; discard = false)
-    @test cat(y..., dims = Ti) == x
+    y = @test_nowarn buffer(x, 10, 0; discard=false)
+    @test cat(y..., dims=Ti) == x
 
     y = @test_nowarn buffer(x, 10, N ÷ 2)
     @test length(y) == 2 * N - 1
@@ -397,17 +397,17 @@ end
 
     x = TimeSeries(0.1:0.1:10, randn(100))
     y = @test_nowarn window(x, 2, 1)
-    y = @test_nowarn delayembed(x, 2, 1, 1)
     @test all(length.(y) .== 2)
+    y = @test_nowarn delayembed(x, 2, 1, 1)
     y = @test_nowarn delayembed(x, 2, 1, 2)
-    @test length(y) == length(x) ÷ 2
+    @test length(y) == length(x)
+    @test samplingperiod(y) == 2 * samplingperiod(x)
     y = @test_nowarn delayembed(x, 2, 2, 1)
-    @test all(samplingperiod.(y) .== 2 * samplingperiod(x))
 end
 
 @testset "Spike FFT" begin
     ts = 0:0.01:100
-    t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
+    t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end-1)]
     t = findall(t .> 0) ./ 100 # Should have a period of 1 second
     t = TimeSeries(t, trues(length(t)))
     @test t isa SpikeTrain
@@ -426,8 +426,8 @@ end
     if false # Yep works, better, even
         f = Figure()
         ax = Axis(f[1, 1])
-        plot!(ax, pt, color = :crimson)
-        plot!(ax, p[p .> eps() * 100])
+        plot!(ax, pt, color=:crimson)
+        plot!(ax, p[p.>eps()*100])
         f
     end
 
@@ -442,7 +442,7 @@ end
     using LinearAlgebra
     using Distributions
     ts = 0:0.01:100
-    t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
+    t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end-1)]
     t = findall(t .> 0) ./ 100 # Should have a period of 1 second
     t = TimeSeries(t, trues(length(t)))
     Δt = 0.025
@@ -469,5 +469,5 @@ end
     is = Iterators.product(ts, ts)
     Λ = [sttc(i...) for i in is]
     λ = eigvals(Λ)
-    @test λ[1].≈0 atol=1e-2
+    @test λ[1] .≈ 0 atol = 1e-2
 end
