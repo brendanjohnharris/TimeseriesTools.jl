@@ -1,5 +1,6 @@
 module Operators
-export 𝐵, 𝐹, 𝛥
+using TimeseriesTools
+export 𝐵, 𝐹, 𝛥, ℒ!, 𝒯
 
 # ? Some basic time-series operators
 
@@ -14,13 +15,16 @@ export 𝐵, 𝐹, 𝛥
         𝐵!(x);
         x[1] = NaN)
 
-# Shift operator
-𝑇!(x) = circshift!(x, -1)
-𝑇²!(x) = circshift!(x, -2)
-𝑇³!(x) = circshift!(x, -3)
-𝑇⁴!(x) = circshift!(x, -4)
-𝑇⁵(x) = circshift!(x, -5)
-𝑇!(x, n) = circshift!(x, -n)
+# Lag operator
+ℒ!(x) = circshift!(x, -1)
+ℒ²!(x) = circshift!(x, -2)
+ℒ³!(x) = circshift!(x, -3)
+ℒ⁴!(x) = circshift!(x, -4)
+ℒ⁵!(x) = circshift!(x, -5)
+ℒ!(x, n) = circshift!(x, -n)
+
+# Shift operator (operates on time indices)
+𝒯(t) = x -> set(x, Ti(times(x) .+ t))
 
 # Difference operator
 𝛥!(x) = (x .= x .- 𝐵(x))

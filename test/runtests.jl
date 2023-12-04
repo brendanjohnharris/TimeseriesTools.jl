@@ -471,3 +471,54 @@ end
     λ = eigvals(Λ)
     @test λ[1] .≈ 0 atol = 1e-2
 end
+
+@testset "Spike-time overlap-integral covariance (stoic)" begin
+
+    x = randn(1000) |> sort
+    y = randn(1000) |> sort
+    σ = 0.25
+    Δt = σ * 10
+
+    # * Verify the integral of the product of two gaussians
+    G = TimeseriesTools.normal
+    t1 = 0.025
+    t2 = 0.0
+    f(x) = G(t1, σ)(x) * G(t2, σ)(x)
+    I1 = sum(f.(-1:0.001:1)) * 0.001
+    I2 = G(t1, sqrt(2) * σ)(t2)
+    @test I1 ≈ I2 rtol = 1e-6
+    # Aw yeah
+
+    D = @test_nowarn closeneighbours(x, y; Δt)
+    @test stoic(x, y; Δt, σ) ≈ 1.0 rtol = 1e-2
+
+    x = y
+    @test stoic(x, y; Δt, σ) == 1.0
+
+    x = rand(0 .. 100, 100) |> sort
+    y = rand(0 .. 100, 100) |> sort
+    σ = 100
+    Δt = σ * 10
+    @test stoic(x, y; Δt, σ) ≈ 1.0 rtol = 1e-2
+    σ = 0.001
+    Δt = σ * 10
+    @test stoic(x, y; σ) ≈ 0.0 atol = 1e-2
+
+    @test stoic([0.0], [0.0]; σ=1, normalize=false) ≈ 0.5 / sqrt(π)
+    @test stoic([0.0], [1.0]; σ=1, normalize=false) ≈ 1 / (2 * exp(1 / 4) * sqrt(π))
+    @test stoic([0.0, 10.0], [1.0, 10.0]; σ=1, normalize=false) ≈ 0.50179 rtol = 1e-4
+
+    # * Is it positive semi-definite?
+    x = [rand(0 .. 100, 100) |> sort for _ in 1:100]
+    [_x .= x[22] for _x in x[round.(Int, rand(1 .. length(x), 20))]]
+    [_x .= sort(x[22] .+ 0.01 .* randn(100))
+     for _x in x[round.(Int, rand(1 .. length(x), 20))]]
+    [_x .= sort(x[22] .+ 0.05 .* randn(100))
+     for _x in x[round.(Int, rand(1 .. length(x), 20))]]
+    ρ = @test_nowarn pairwise(stoic(; σ=0.01), x)
+    e = eigvals(ρ)
+    @test minimum(real.(e)) + 1e-10 > 0.0
+    @test all(isapprox.(imag.(e), 0.0; atol=1e-10))
+
+    # Benchmark against spike train length
+end

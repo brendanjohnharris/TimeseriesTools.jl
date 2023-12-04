@@ -1,43 +1,43 @@
 export AbstractTimeSeries, AbstractTS,
-    UnivariateTimeSeries, UnivariateTS,
-    MultivariateTimeSeries, MultivariateTS,
-    RegularTimeSeries, RegularTS,
-    IrregularTimeSeries, IrregularTS,
-    TimeIndex, RegularIndex, RegularTimeIndex,
-    IrregularIndex, IrregularTimeIndex,
-    TimeSeries, Timeseries, TS, Var,
-    stitch,
-    IrregularBinaryTimeSeries, SpikeTrain, spiketrain
+       UnivariateTimeSeries, UnivariateTS,
+       MultivariateTimeSeries, MultivariateTS,
+       RegularTimeSeries, RegularTS,
+       IrregularTimeSeries, IrregularTS,
+       TimeIndex, RegularIndex, RegularTimeIndex,
+       IrregularIndex, IrregularTimeIndex,
+       TimeSeries, Timeseries, TS, Var,
+       stitch,
+       IrregularBinaryTimeSeries, SpikeTrain, spiketrain
 
 """
     TimeIndex
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-const TimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}
-} where {A<:DimensionalData.TimeDim}
+const TimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                        } where {A <: DimensionalData.TimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
 
 A type alias for an [AbstractDimArray](https://rafaqz.github.io/DimensionalData.jl/stable/api/#DimensionalData.AbstractDimArray) with a time index.
 """
-const AbstractTimeSeries = AbstractTS = AbstractDimArray{T,N,<:TimeIndex,B
-} where {T,N,B}
+const AbstractTimeSeries = AbstractTS = AbstractDimArray{T, N, <:TimeIndex, B
+                                                         } where {T, N, B}
 
 """
     UnivariateTimeSeries{T}
 
 A type alias for a time series with one variable (a vector with only a `Ti` dimension).
 """
-const UnivariateTimeSeries = UnivariateTS = AbstractTimeSeries{T,1} where {T}
+const UnivariateTimeSeries = UnivariateTS = AbstractTimeSeries{T, 1} where {T}
 
 """
     MultivariateTimeSeries{T}
 
 A type alias for a multivariate time series (A matrix, with a first `Ti` dimension and an arbitrary second dimension).
 """
-const MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T,2} where {T}
+const MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T, 2} where {T}
 
 abstract type VariableDim{T} <: DimensionalData.IndependentDim{T} end
 DimensionalData.@dim Var VariableDim "Var"
@@ -54,61 +54,61 @@ Var
 
 A type alias for a regularly sampled dimension, wrapping an `AbstractRange`.
 """
-const RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,R
-} where {T,
-    R<:
-    AbstractRange}
+const RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R
+                                                                     } where {T,
+                                                                              R <:
+                                                                              AbstractRange}
 
 """
     RegularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const RegularTimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}
-} where {A<:DimensionalData.TimeDim{<:RegularIndex}}
+const RegularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                               } where {A <: DimensionalData.TimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
 
 A type alias for a regularly sampled time series.
 """
-const RegularTimeSeries = RegularTS = AbstractDimArray{T,N,<:RegularTimeIndex,B
-} where {T,N,B}
+const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex, B
+                                                       } where {T, N, B}
 
 """
     IrregularIndex
 
 A type alias for an irregularly sampled dimension, wrapping an `AbstractVector`.
 """
-const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,R
-} where {T,
-    R<:
-    AbstractVector
-}
+const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R
+                                                                       } where {T,
+                                                                                R <:
+                                                                                AbstractVector
+                                                                                }
 
 """
     IrregularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const IrregularTimeIndex = Tuple{A,Vararg{DimensionalData.Dimension}
-} where {A<:DimensionalData.TimeDim{<:IrregularIndex}}
+const IrregularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                                 } where {A <: DimensionalData.TimeDim{<:IrregularIndex}}
 
 """
     IrregularTimeSeries
 
 A type alias for a potentially irregularly sampled time series.
 """
-const IrregularTimeSeries = IrregularTS = AbstractDimArray{T,N,<:IrregularTimeIndex,B
-} where {T,N,B}
+const IrregularTimeSeries = IrregularTS = AbstractDimArray{T, N, <:IrregularTimeIndex, B
+                                                           } where {T, N, B}
 
 """
     BinaryTimeSeries
 
 A type alias for a time series of bits.
 """
-const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T,N,<:TimeIndex,B
-} where {T<:Bool,N,B}
+const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex, B
+                                                                  } where {T <: Bool, N, B}
 
 function spiketrain(x)
     TimeSeries(x, trues(length(x)))
@@ -159,7 +159,7 @@ Concatenate the arrays given in `args...`, and give the resulting extra axis dim
 Note that unlike `Base.cat` without the first `Dim` argument, this increments all existing dimensions greater than `dims` by one (so N n×n arrays concatenated at `dims=1` will result in an N×n×n array).
 """
 function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; dims,
-    kwargs...)
+                  kwargs...)
     if !all([size(x)] .== size.(args))
         error("Input arrays must have the same dimensionality and size")
     end
@@ -167,7 +167,8 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; di
         dims = typeof(dims).parameters[1]
     end
     if !(dims isa Integer) && !(dims isa Val)
-        idx = DimensionalData.dims(x) isa dims ? 1 : findfirst(isa.(DimensionalData.dims(x), [dims]))
+        idx = DimensionalData.dims(x) isa dims ? 1 :
+              findfirst(isa.(DimensionalData.dims(x), [dims]))
         isnothing(idx) && error("Dimension $dims not found in input array")
         dims = first(idx)
     end
@@ -181,8 +182,8 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, args...; di
     x′ = cat(_x, _args...; dims, kwargs...)
     ds = Vector{Any}([DimensionalData.dims(x)...])
     insert!(ds, dims, D)
-    y = DimArray(x′, (ds...,); refdims=refdims(x), name=name(x),
-        metadata=metadata(x))
+    y = DimArray(x′, (ds...,); refdims = refdims(x), name = name(x),
+                 metadata = metadata(x))
     # if hasdim(y, Ti)
     #     ts = times(y)
     #     y = set(y, Ti => ts .- minimum(ts))
@@ -209,14 +210,14 @@ function stitch(x::UnivariateRegular, y::UnivariateRegular)
     dt = samplingperiod(x)
     @assert dt == samplingperiod(y)
     z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt*size(z, 1)), z)
+    z = TimeSeries(dt:dt:(dt * size(z, 1)), z)
 end
 stitch(x::AbstractArray, y::AbstractArray) = vcat(x, y)
 function stitch(x::MultivariateRegular, y::MultivariateRegular)
     dt = samplingperiod(x)
     @assert dt == samplingperiod(y)
-    @assert(dims(x)[2:end] .== dims(y)[2:end])
+    @assert(dims(x)[2:end].==dims(y)[2:end])
     z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt*size(z, 1)), dims(x)[2:end]..., z)
+    z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
 end
 stitch(X, Y, args...) = reduce(stitch, (X, Y, args...))
