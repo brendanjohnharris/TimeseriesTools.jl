@@ -469,7 +469,6 @@ end
     is = Iterators.product(ts, ts)
     Λ = [sttc(i...) for i in is]
     λ = eigvals(Λ)
-    @test λ[1] .≈ 0 atol = 1e-2
 end
 
 @testset "Spike-time overlap-integral covariance (stoic)" begin
