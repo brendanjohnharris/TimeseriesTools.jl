@@ -149,7 +149,7 @@ function closeneighbours(x::AbstractVector{T}, y::AbstractVector{T};
     mapneighbours!(x, y, f!; kwargs...)
     lx = length(x)
     ly = length(y)
-    D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, ly, lx)
+    D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, lx, ly)
 end
 
 """
@@ -168,8 +168,6 @@ Compute the spike-train overlap-integral covariance between two spike trains, af
 The stoichiometry between spike trains `a` and `b`.
 """
 function stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10, normalize = true)
-    D = closeneighbours(a, b; Δt)
-    nnz(D) == 0 && return 0.0
     if normalize
         𝐸a = stoic(a, a; kpi, σ, Δt, normalize = false)
         𝐸b = stoic(b, b; kpi, σ, Δt, normalize = false)

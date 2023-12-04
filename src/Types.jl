@@ -110,8 +110,8 @@ A type alias for a time series of bits.
 const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex, B
                                                                   } where {T <: Bool, N, B}
 
-function spiketrain(x)
-    TimeSeries(x, trues(length(x)))
+function spiketrain(x; kwargs...)
+    TimeSeries(x, trues(length(x)); kwargs...)
 end
 
 """
