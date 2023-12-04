@@ -97,28 +97,10 @@ function sttc(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwargs
 end
 sttc(; kwargs...) = (x, y) -> sttc(x, y; kwargs...)
 
-"""
-    closeneighbours(x, y; Δt)
-
-Constructs a sparse matrix of distances between neighbouring spikes in two sorted spike trains.
-
-# Arguments
-- `x`: A sorted array representing the first spike train.
-- `y`: A sorted array representing the second spike train.
-- `Δt`: The maximum time difference allowed for two spikes to be considered neighbours.
-
-# Returns
-A sparse matrix `D` where `D[i, j]` represents the distance between the `i`-th spike in `x` and the `j`-th spike in `y`, for pairs of spikes within `Δt` of each other.
-"""
-function closeneighbours(x::AbstractVector{T}, y::AbstractVector{T}; Δt) where {T <: Real}
-    # * Construct a sparse matrix of distances within a cutoff
+function mapneighbours!(x, y, f!; Δt)
     if !issorted(x) || !issorted(y)
         error("Spike trains must be sorted")
     end
-    # * First get a list of neighbouring pairs
-    I = Vector{Int64}()
-    J = Vector{Int64}()
-    V = Vector{T}()
 
     # Iterate through the train with the smallest number of spikes, looking for neighbours
     c = length(y) > length(x)
@@ -135,14 +117,39 @@ function closeneighbours(x::AbstractVector{T}, y::AbstractVector{T}; Δt) where 
         end
         j = _j # Catch up
         while j ≤ lb && a[i] - Δt ≤ b[j] ≤ a[i] + Δt
-            push!(I, i)
-            push!(J, j)
-            push!(V, abs(a[i] - b[j]))
+            f!(a[i], b[j], i, j)
             j += 1
         end
     end
+end
 
-    D = c ? sparse(I, J, V, la, lb) : sparse(J, I, V, la, lb)
+"""
+    closeneighbours(x, y; Δt)
+
+Constructs a sparse matrix of distances between neighbouring spikes in two sorted spike trains.
+
+# Arguments
+- `x`: A sorted array representing the first spike train.
+- `y`: A sorted array representing the second spike train.
+- `Δt`: The maximum time difference allowed for two spikes to be considered neighbours.
+
+# Returns
+A sparse matrix `D` where `D[i, j]` represents the distance between the `i`-th spike in `x` and the `j`-th spike in `y`, for pairs of spikes within `Δt` of each other.
+"""
+function closeneighbours(x::AbstractVector{T}, y::AbstractVector{T};
+                         kwargs...) where {T <: Real}
+    I = Vector{Int64}()
+    J = Vector{Int64}()
+    V = Vector{T}()
+    function f!(a, b, i, j)
+        push!(V, abs(a - b))
+        push!(I, i)
+        push!(J, j)
+    end
+    mapneighbours!(x, y, f!; kwargs...)
+    lx = length(x)
+    ly = length(y)
+    D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, ly, lx)
 end
 
 """
@@ -170,7 +177,12 @@ function stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10, normalize = true)
         𝐸a = 1.0
         𝐸b = 1.0
     end
-    mapreduce(kpi(σ), +, D.nzval) ./ sqrt(𝐸a * 𝐸b)
+    𝐶 = [0.0]
+    function f!(a, b, i, j)
+        𝐶[1] = 𝐶[1] + kpi(σ)(abs(a - b))
+    end
+    mapneighbours!(a, b, f!; Δt)
+    𝐶[1] ./ sqrt(𝐸a * 𝐸b)
 end
 
 function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwargs...)
