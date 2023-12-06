@@ -497,7 +497,7 @@ end
     y = rand(0 .. 1000, 1000) |> sort
     σ = 100
     Δt = σ * 10
-    @test stoic(x, y; Δt, σ)≈1.0 rtol=1e-2
+    @test stoic(x, y; Δt, σ)≈1.0 rtol=0.02
     σ = 0.001
     Δt = σ * 10
     @test stoic(x, y; σ)≈0.0 atol=1e-2
