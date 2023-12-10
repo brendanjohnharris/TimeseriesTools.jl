@@ -37,7 +37,7 @@ decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = ((dims(x) .|> co
 function MakieCore.convert_arguments(P::MakieCore.PointBased, x::UnivariateTimeSeries)
     MakieCore.convert_arguments(P, decompose(x)...)
 end
-function MakieCore.convert_arguments(P::MakieCore.SurfaceLike, x::MultivariateTimeSeries)
+function MakieCore.convert_arguments(P::MakieCore.ImageLike, x::MultivariateTimeSeries)
     MakieCore.convert_arguments(P, decompose(x)...)
 end
 function MakieCore.convert_arguments(P::Type{<:MakieCore.Heatmap},
