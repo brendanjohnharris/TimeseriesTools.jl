@@ -8,6 +8,7 @@ import TimeseriesTools.TimeSeries
 using Test
 using Documenter
 using ImageMagick
+using BenchmarkTools
 using Foresight
 using StatsBase
 
@@ -519,4 +520,23 @@ end
     @test all(isapprox.(imag.(e), 0.0; atol = 1e-10))
 
     # Benchmark against spike train length
+end
+
+@testset "ContinuousWaveletsExt" begin
+    # Define a test time series
+    fs = 200
+    t = range(0, stop = 5, length = 1000 * fs + 1)
+    x = (0.8 .* sin.(2 * π * 40 * t) + 1.1 .* sin.(2 * π * 100 * t)) .^ 2
+    ts = x = TimeseriesTools.TimeSeries(t, x)
+    f_min = fs / 100
+    S = waveletspectrogram(x)
+    @test S isa RegularSpectrogram
+
+    # GPU test
+    if false
+        using CUDA
+        using BenchmarkTools
+        @benchmark waveletspectrogram(x)
+        @benchmark CUDA.@sync waveletspectrogram(CuArray(x))
+    end
 end

@@ -146,10 +146,10 @@ end
 #     𝑓 = P[1].freq # Should be pretty much the same for all columns?
 #     psd = hcat([p.power for p ∈ P]...)
 #     psd = psd./(sum(psd, dims=1).*(𝑓[2] - 𝑓[1]))
-#     psd = DimArray(psd, (Dim{:frequency}(𝑓), dims(X, :channel)))
+#     psd = DimArray(psd, (Freq(𝑓), dims(X, :channel)))
 #     fig = traces(𝑓, Array(psd); xlabel="𝑓 (Hz)", ylabel="Ŝ", title="Normalised power spectral density", smooth=1, yscale=log10, doaxis=false, domean=false, yminorgridvisible=false, kwargs...)
 #     if !isnothing(slope)
-#         _psd = psd[Dim{:frequency}(DD.Between(slope...))]
+#         _psd = psd[Freq(DD.Between(slope...))]
 #         c, r, f = powerlawfit(_psd)
 #         lines!(LinRange(slope..., 100), f(LinRange(slope..., 100)), color=slopecolor, linewidth=5)
 #         text!(L"$\alpha$= %$(round(r, sigdigits=2))", position=Point2f0(position), fontsize=40)

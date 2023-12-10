@@ -24,14 +24,14 @@ DimensionalData.@dim Freq FrequencyDim "Freq"
 
 A type alias for a tuple of dimensions, where the first dimension is of type `FrequencyDim`.
 """
-FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
+const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
 
 """
     AbstractSpectrum{T, N, B}
 
 A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](@ref)uency.
 """
-AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
+const AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
 freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
 
 """
@@ -39,28 +39,28 @@ freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
 
 A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
 """
-RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                         } where {A <: FrequencyDim{<:RegularIndex}}
+const RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
+                               } where {A <: FrequencyDim{<:RegularIndex}}
 
 """
     RegularSpectrum{T, N, B}
 
 A type alias for a spectrum with a regularly sampled frequency index.
 """
-RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
+const RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
 
 """
     UnivariateSpectrum{T} = AbstractSpectrum{T, 1} where T
 
 A type alias for a univariate spectrum.
 """
-UnivariateSpectrum = AbstractSpectrum{T, 1} where {T}
+const UnivariateSpectrum = AbstractSpectrum{T, 1} where {T}
 """
     MultivariateSpectrum{T} = AbstractSpectrum{T, 2} where T
 
 A type alias for a multivariate spectrum.
 """
-MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
+const MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 
 """
     Spectrum(f, x)

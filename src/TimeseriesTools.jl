@@ -29,6 +29,7 @@ include("Utils.jl")
 include("Operators.jl")
 include("SpikeTrains.jl")
 include("Spectra.jl")
+include("Spectrograms.jl")
 include("Unitful.jl")
 include("Dates.jl")
 include("MakieCore.jl")
@@ -40,5 +41,10 @@ function isoamplitude end
 function analyticamplitude end
 function analyticphase end
 export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude
+
+function _waveletfreqs end
+function _waveletspectrogram end
+function waveletspectrogram end
+export _waveletfreqs, _waveletspectrogram, waveletspectrogram
 
 end

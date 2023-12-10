@@ -1,6 +1,6 @@
 module Operators
 using TimeseriesTools
-export 𝐵, 𝐹, 𝛥, ℒ!, 𝒯
+export 𝐵, 𝐹, 𝛥, ℒ!, ℒ, 𝒯
 
 # ? Some basic time-series operators
 
@@ -22,6 +22,7 @@ export 𝐵, 𝐹, 𝛥, ℒ!, 𝒯
 ℒ⁴!(x) = circshift!(x, -4)
 ℒ⁵!(x) = circshift!(x, -5)
 ℒ!(x, n) = circshift!(x, -n)
+ℒ(x, n) = (y = deepcopy(x); ℒ!(y, n); y)
 
 # Shift operator (operates on time indices)
 𝒯(t) = x -> set(x, Ti(times(x) .+ t))
