@@ -4,7 +4,7 @@ using FFTW
 using CairoMakie
 using DSP
 using TimeseriesTools
-import TimeseriesTools.TimeSeries
+import TimeseriesTools: TimeSeries, name
 using Test
 using Documenter
 using ImageMagick

@@ -16,7 +16,6 @@ LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
 Normalization = "be38d6a3-8366-4a42-ad57-222272b5bbe7"
-ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -24,18 +23,19 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [weakdeps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ContinuousWavelets = "96eb917e-2868-4417-9cb6-27e7ff17528f"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [extensions]
 CUDAExt = ["CUDA", "ContinuousWavelets"]
 ContinuousWaveletsExt = ["ContinuousWavelets", "Mmap"]
 
 [compat]
+CUDA = "3, 4, 5"
 ContinuousWavelets = "1"
 DSP = "0.6, 0.7"
 DelimitedFiles = "1.9"
@@ -47,7 +47,7 @@ IntervalSets = "0.7"
 JSON = "0.20, 0.21"
 LaTeXStrings = "1"
 Makie = "0.19, 0.20"
-MakieCore = "0.4 - 0.6"
+MakieCore = "0.4, 0.5, 0.6, 0.7"
 Normalization = "0.4, 0.5"
 Reexport = "1"
 Requires = "1"
@@ -56,8 +56,7 @@ Unitful = "1"
 julia = "1.9"
 
 [extras]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-
