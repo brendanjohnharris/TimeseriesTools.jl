@@ -9,6 +9,7 @@ using Test
 using Documenter
 using ImageMagick
 using BenchmarkTools
+using ContinuousWavelets
 using Foresight
 using StatsBase
 
