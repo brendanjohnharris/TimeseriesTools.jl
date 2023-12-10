@@ -3,7 +3,6 @@ using ContinuousWavelets
 using Mmap
 using IntervalSets
 using DimensionalData
-using ProgressLogging
 using TimeseriesTools
 import TimeseriesTools: _waveletfreqs, _waveletspectrogram, waveletspectrogram
 
