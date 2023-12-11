@@ -152,14 +152,14 @@ end
     x = colorednoise(t, u"s") * u"V"
 
     # Plot the time series
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
     save("./timeseries.png", f; px_per_unit = 3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S, linewidth = 1)
     @test_nowarn save("./powerspectrum.png", f; px_per_unit = 3)
@@ -167,7 +167,7 @@ end
     # Shadows
     x = loadtimeseries("./test_timeseries.csv")
 
-    f = Figure(; resolution = (500, 480))
+    f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
     trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
@@ -186,14 +186,14 @@ end
     x = colorednoise(t, u"s") * u"V"
 
     # Plot the time series
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, x[1:10000])
     save("./timeseries_dark.png", f; px_per_unit = 3)
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0001)
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
     @test_nowarn plot!(ax, S, linewidth = 1)
     @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit = 3)
@@ -201,7 +201,7 @@ end
     # Shadows
     x = loadtimeseries("./test_timeseries.csv")
 
-    f = Figure(; resolution = (500, 480))
+    f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
     trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
@@ -313,7 +313,7 @@ end
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
     # x, y, z = collect.(ustrip.(decompose(S)))
     @test_nowarn traces!(ax, S; colormap = :turbo)
@@ -329,7 +329,7 @@ end
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]
-    f = Figure(; resolution = (720, 480))
+    f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
     @test_nowarn spectrumplot!(ax, S, linewidth = 2)
 end
