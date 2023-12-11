@@ -88,5 +88,11 @@ _waveletspectrogram(x, s::Symbol; kwargs...) = _waveletspectrogram(x, Val(s); kw
 function waveletspectrogram(x::RegularTimeSeries, args...; kwargs...)::RegularSpectrogram
     _waveletspectrogram(x, args...; kwargs...)
 end
+function waveletspectrogram(x::MultivariateTimeSeries, args...; kwargs...)
+    f = x -> waveletspectrogram(x)
+    cat(dims(x, 2), f.(eachslice(x; dims = 2))...; dims = 3)
+end
+
+# ! Add normalized energy spectra and power spectra for wavelet transform
 
 end # module

@@ -536,6 +536,10 @@ end
     S = waveletspectrogram(x)
     @test S isa RegularSpectrogram
 
+    # Multivariate
+    x = cat(Var(1:2), ts, ts .* randn(length(ts)))
+    @test waveletspectrogram(x)
+
     # GPU test
     if false
         using CUDA

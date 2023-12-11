@@ -16,6 +16,7 @@ end
 
 function cwt(Y::CuArray{T, N}, cWav::CWT, daughters, fftPlans = 1) where {N, T}
     @assert typeof(N) <: Integer
+    @debug "Computing cwt on the GPU"
     daughters isa CuArray || (daughters = CuArray(daughters))
     # vectors behave a bit strangely, so we reshape them
     if N == 1

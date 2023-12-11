@@ -74,6 +74,24 @@ function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries; kwargs...
     return _phasestitch((a, pha), (b, phb); kwargs...)
 end
 
+"""
+    phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, [pass]; kwargs...)
+
+Perform phase stitching on two univariate time series `a` and `b` using a specified frequency passband `pass`.
+The function applies a bandpass filter to both time series, computes the phase using the Hilbert transform, and then stitches the phases together.
+
+# Arguments
+- `a::UnivariateTimeSeries`: The first univariate time series.
+- `b::UnivariateTimeSeries`: The second univariate time series.
+- `pass`: The frequency passband for the bandpass filter.
+
+# Keyword Arguments
+- `kwargs...`: Additional keyword arguments to be passed to the `_phasestitch` function.
+
+# Returns
+- A tuple containing the stitched time series and the stitched phase.
+
+"""
 function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, pass; kwargs...)
     _a = bandpass(a, pass)
     _b = bandpass(b, pass)
@@ -82,6 +100,19 @@ function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, pass; kwa
     return _phasestitch((a, pha), (b, phb); kwargs...)
 end
 
+"""
+    phasestitch(X::Union{Tuple, AbstractVector}, [P]; tol = 0.05)
+
+The `phasestitch` function stitches together multiple univariate time series by matching their phases, discarding 1/th of initial and final samples to account for edge effecs.
+
+## Arguments
+- `X`: A tuple or vector of univariate time series.
+- `P`: Optional. The phase information of the time series. If not provided, it will be calculated using the Hilbert transform.
+- `tol`: Optional. The tolerance for matching phases. Default is 0.05.
+
+## Returns
+- A single univariate time series obtained by stitching together the input time series.
+"""
 function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
                                               AbstractVector{<:UnivariateTimeSeries}},
                                      P = [hilbert(x) .|> angle for x in X]; tol = 0.05)
