@@ -1,5 +1,8 @@
 using SparseArrays
-export spikefft, sttc, convolve, closeneighbours, stoic
+using Random
+using Distributions
+export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammarenewal!,
+       gammarenewal
 
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
 normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ σ^2)
@@ -190,3 +193,43 @@ function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwarg
     stoic(times(a), times(b); kwargs...)
 end
 stoic(; kwargs...) = (x, y) -> stoic(x, y; kwargs...)
+
+function pointprocess!(spikes, D::Distribution; rng = Random.default_rng())
+    N = length(spikes)
+    t = 0.0
+    isis = rand(rng, D, N)
+    for i in 1:N
+        t += isis[i]
+        spikes[i] = t
+    end
+end
+
+function gammarenewal!(spikes::AbstractVector, α, θ; kwargs...)
+    N = length(spikes)
+    D = Distributions.Gamma(α, θ)
+    pointprocess!(spikes, D; kwargs...)
+end
+
+"""
+    gammarenewal(N, α, θ)
+
+Generate a spike train with inter-spike intervals drawn from a Gamma process.
+
+# Arguments
+- `N`: Number of spikes to generate.
+- `α`: Shape parameter of the gamma distribution (equivalent to the mean ISI divided by the Fano factor).
+- `θ`: Scale parameter of the gamma distribution (equivalent to the Fano factor).
+
+# Returns
+- A [`SpikeTrain`](@ref) containing the generated spike times.
+"""
+function gammarenewal(N, args...; kwargs...)
+    spikes = zeros(Float64, N)
+    gammarenewal!(spikes, args...; kwargs...)
+    return spiketrain(spikes)
+end
+function gammarenewal(spikes::SpikeTrain, args...; kwargs...)
+    t = collect(times(spikes))
+    gammarenewal!(t, args...; kwargs...)
+    return SpikeTrain(t)
+end

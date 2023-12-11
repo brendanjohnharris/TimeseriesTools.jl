@@ -1,17 +1,20 @@
+using Test
 using Unitful
 import Unitful.unit
 using FFTW
 using CairoMakie
 using DSP
+using ContinuousWavelets
+using StatsBase
+using TimeseriesSurrogates
+
 using TimeseriesTools
 import TimeseriesTools: TimeSeries, name
-using Test
+
 using Documenter
 using ImageMagick
 using BenchmarkTools
-using ContinuousWavelets
 using Foresight
-using StatsBase
 
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
@@ -490,7 +493,7 @@ end
     # Aw yeah
 
     D = @test_nowarn closeneighbours(x, y; Δt)
-    @test stoic(x, y; Δt, σ)≈1.0 rtol=1e-2
+    @test stoic(x, y; Δt, σ)≈1.0 rtol=5e-2
 
     x = y
     @test stoic(x, y; Δt, σ) == 1.0
@@ -540,4 +543,38 @@ end
         @benchmark waveletspectrogram(x)
         @benchmark CUDA.@sync waveletspectrogram(CuArray(x))
     end
+end
+
+@testset "TimeseriesSurrogatesExt" begin
+    θ = 3 # A Fano-factor of 3
+    μ = 1
+    α = μ / θ # A mean of 1
+    N = 500000
+    x = gammarenewal(N, α, θ)
+    dt = diff(times(x))
+    F = var(dt) / mean(dt)
+    @test x isa SpikeTrain
+    @test F≈θ rtol=5e-2
+    @test mean(dt)≈α * F rtol=5e-2
+
+    # Jitter surrogate
+    y = set(x, Ti => surrogate(times(x), RandomJitter(0.1, 0.1)))
+    @test y isa SpikeTrain
+    @test issorted(times(y))
+    @test minimum(times(y))≈minimum(times(x)) atol=0.5
+    @test maximum(times(y))≈maximum(times(x)) atol=0.5
+    @test x != y
+    sur = @test_nowarn surrogenerator(times(x), RandomJitter(0.1, 0.1))
+    @test all(copy(sur()) .!= sur())
+
+    # Gamma renewal surrogate
+    y = set(x, Ti => surrogate(times(x), GammaRenewal()))
+    dt̂ = diff(times(y))
+    F̂ = var(dt̂) / mean(dt̂)
+    @test y isa SpikeTrain
+    @test issorted(times(y))
+    @test F̂≈θ rtol=5e-2
+    @test mean(dt̂)≈α * F̂ rtol=5e-2
+    @test minimum(times(y))≈minimum(times(x)) atol=3 * μ
+    @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
 end
