@@ -538,7 +538,7 @@ end
 
     # Multivariate
     x = cat(Var(1:2), ts, ts .* randn(length(ts)))
-    @test waveletspectrogram(x)
+    @test_nowarn waveletspectrogram(x)
 
     # GPU test
     if false
