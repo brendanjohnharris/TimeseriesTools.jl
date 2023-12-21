@@ -80,7 +80,8 @@ function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
 end
 
 function _energyspectrum(x::AbstractVector, fs::Number,
-                         f_min::Number = fs / min(length(x) ÷ 4, 1000); kwargs...)
+                         f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
+                         kwargs...)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
     if f_min == 0
@@ -94,22 +95,27 @@ function _energyspectrum(x::AbstractVector, fs::Number,
     end
 
     isodd(nfft) && (nfft += 1)
+    isodd(padding) && (padding += 1)
+    nfft = nfft - padding
     window = nfft ÷ 2
     overlap = window ÷ 2
     hann_window = 0.5 .- 0.5 .* cos.(2 * π * (0:(nfft - 1)) / (nfft - 1))
+    A = sum(hann_window .^ 2)
+    (nfft - overlap ≤ 0) && error("FFT padding is too high")
     n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
 
     # Get the type of the spectrum
     u = unit(eltype(x)) * unit(eltype(dims(x, Ti)))
-    S̄ = zeros(nfft ÷ 2 + 1, n_segments) * u^2
+    S̄ = zeros((nfft + padding) ÷ 2 + 1, n_segments) * u^2
     for i in 1:n_segments
         start_idx = (i - 1) * (nfft - overlap) + 1
         end_idx = start_idx + nfft - 1
         segment = x[start_idx:end_idx] .* hann_window
+        padding > 0 && (segment = [segment; zeros(padding)])
 
-        y = rfft(segment) / nfft
+        y = rfft(segment) / (nfft + padding)
         y |> eltype |> unit == NoUnits && (y = y * u)
-        S̄[:, i] .= (abs.(y) .^ 2) / sum(hann_window .^ 2)
+        S̄[:, i] .= (abs.(y) .^ 2) / A
     end
 
     # Calculate the frequencies
