@@ -43,7 +43,9 @@ function phasestitch end
 function isoamplitude end
 function analyticamplitude end
 function analyticphase end
-export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude
+function instantaneousfreq end
+export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude,
+       instantaneousfreq
 
 function _waveletfreqs end
 function _waveletspectrogram end

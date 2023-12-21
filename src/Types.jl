@@ -118,7 +118,7 @@ A type alias for a spike-train time series, which contains spike times in the ti
 SpikeTrain
 
 function spiketrain(x; kwargs...)
-    TimeSeries(x, trues(length(x)); kwargs...)
+    TimeSeries(sort(x), trues(length(x)); kwargs...)
 end
 
 """
@@ -155,6 +155,13 @@ TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
 function TimeSeries(t, v::DimensionalData.Dimension, x; kwargs...)
     DimArray(x, (Ti(t), v); kwargs...)
 end
+
+"""
+    TimeSeries(t, f::Function)
+
+Construct a time series by mapping a function `f` over the time points `t`.
+"""
+TimeSeries(t, f::Function; kwargs...) = TimeSeries(t, f.(t), kwargs...)
 
 const TS = Timeseries = TimeSeries
 
@@ -225,7 +232,7 @@ stitch(x::AbstractArray, y::AbstractArray) = vcat(x, y)
 function stitch(x::MultivariateRegular, y::MultivariateRegular)
     dt = samplingperiod(x)
     @assert dt == samplingperiod(y)
-    @assert(dims(x)[2:end].==dims(y)[2:end])
+    @assert all(dims(x)[2:end] .== dims(y)[2:end])
     z = vcat(x.data, y.data)
     z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
 end

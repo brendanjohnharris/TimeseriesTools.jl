@@ -529,7 +529,7 @@ end
 @testset "ContinuousWaveletsExt" begin
     # Define a test time series
     fs = 200
-    t = range(0, stop = 5, length = 1000 * fs + 1)
+    t = range(0, stop = 5, length = 100 * fs + 1)
     x = (0.8 .* sin.(2 * π * 40 * t) + 1.1 .* sin.(2 * π * 100 * t)) .^ 2
     ts = x = TimeseriesTools.TimeSeries(t, x)
     f_min = fs / 100
@@ -538,14 +538,17 @@ end
 
     # Multivariate
     x = cat(Var(1:2), ts, ts .* randn(length(ts)))
-    @test_nowarn waveletspectrogram(x)
+    S = @test_nowarn waveletspectrogram(x)
+    @test all(isa.(dims(S), (Ti, Freq, Var)))
 
     # GPU test
     if false
         using CUDA
         using BenchmarkTools
+        BenchmarkTools.DEFAULT_PARAMETERS.seconds = 60
         @benchmark waveletspectrogram(x)
-        @benchmark CUDA.@sync waveletspectrogram(CuArray(x))
+        x = CuArray(x)
+        @benchmark CUDA.@sync waveletspectrogram(x)
     end
 end
 
@@ -581,4 +584,26 @@ end
     @test mean(dt̂)≈α * F̂ rtol=5e-2
     @test minimum(times(y))≈minimum(times(x)) atol=3 * μ
     @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
+end
+
+@testset "Central differences" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+
+    dx = @test_nowarn centraldiff(x)
+    @test all(dx[2:(end - 1)] .== (x[3:end] - x[1:(end - 2)]) / 2)
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn centraldiff(X)
+    @test all(dX[2:(end - 1), :] .== (X[3:end, :] - X[1:(end - 2), :]) / 2)
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+
+    dX = @test_nowarn centralderiv(X)
+    @test all(dX[2:(end - 1), :] .==
+              ((X[3:end, :] - X[1:(end - 2), :]) / 2) ./ samplingperiod(X))
+
+    x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
+    𝑓 = instantaneousfreq(x)
+    @assert std(𝑓[2500:(end - 2500)]) < 0.0001
 end

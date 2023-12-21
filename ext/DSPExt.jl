@@ -3,14 +3,18 @@
 using TimeseriesTools
 import TimeseriesTools: bandpass, phasestitch
 import ..DSP
-import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt
+import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 
 hilbert(X::AbstractTimeSeries) = set(X, hilbert(X.data))
+
 analyticphase(x) = x |> hilbert .|> angle
 analyticamplitude(x) = x |> hilbert .|> abs
-
-bandpass(pass; kwargs...) = x -> bandpass(x, pass; kwargs...)
-
+function instantaneousfreq(x)
+    y = analyticphase(x)
+    unwrap!(y)
+    centralderiv!(y)
+    return y
+end
 function bandpass(x::AbstractArray, fs::Number,
                   pass::Union{Tuple{A, B}, AbstractVector{<:Number}};
                   designmethod = DSP.Butterworth(4)) where {A, B}

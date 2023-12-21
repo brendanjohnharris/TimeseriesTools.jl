@@ -5,7 +5,7 @@ import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
        describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed
+       delayembed, centraldiff!, centraldiff, centralderiv!, centralderiv
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -254,4 +254,85 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     delays = (-(δt * (n - 1))):δt:0
     y = set.(y, [Ti => Dim{:delay}(delays)])
     y = cat(Ti(ts), y..., dims = Dim{:delay})
+end
+
+function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives significant figures for rounding
+    ts = times(X)
+    stp = ts |> diff |> mean
+    err = ts |> diff |> std
+    if err > stp / 10.0^(-tol)
+        @warn "Time step is not approximately constant, skipping rectification"
+    else
+        stp = round(stp; digits = tol)
+        t0, t1 = round.(extrema(ts); digits = tol)
+        if zero
+            origts = t0:stp:(t1 + (10000 * stp))
+            t1 = t1 - t0
+            t0 = 0
+        end
+        ts = t0:stp:(t1 + (10000 * stp))
+        ts = ts[1:size(X, Ti)] # Should be ok?
+    end
+    @assert length(ts) == size(X, Ti)
+    X = set(X, Ti => ts)
+    if zero
+        X = rebuild(X; metadata = (:time => origts, pairs(metadata(X))...))
+    end
+    return X
+end
+
+function _centraldiff!(x)
+    a = x[2] # Save here, otherwise they get mutated before we use them
+    b = x[end - 1]
+    x[2:(end - 1)] .= (x[3:end] - x[1:(end - 2)]) / 2
+    x[[1, end]] .= [a - x[1], x[end] - b]
+    return nothing
+end
+
+"""
+    centraldiff!(x::RegularTimeSeries)
+
+Compute the central difference of a regular time series `x`, in-place.
+The first and last elements are set to the forward and backward difference, respectively.
+"""
+centraldiff!(x::UnivariateRegular) = _centraldiff!(x)
+function centraldiff!(x::typeintersect(MultivariateTimeSeries, RegularTimeSeries))
+    _centraldiff!(eachslice(x; dims = Ti))
+end
+
+"""
+    centraldiff(x::RegularTimeSeries)
+
+Compute the central difference of a regular time series `x`.
+The first and last elements are set to the forward and backward difference, respectively.
+See [`centraldiff!`](@ref).
+"""
+function centraldiff(x::AbstractTimeSeries)
+    y = deepcopy(x)
+    centraldiff!(y)
+    return y
+end
+
+"""
+    centralderiv!(x::RegularTimeSeries)
+
+Compute the central derivative of a regular time series `x`, in-place.
+See [`centraldiff!`](@ref).
+"""
+function centralderiv!(x::AbstractTimeSeries)
+    centraldiff!(x)
+    x ./= samplingperiod(x)
+    nothing
+end
+
+"""
+    centralderiv(x::RegularTimeSeries)
+
+Compute the central derivative of a regular time series `x`.
+See [`centraldiff`](@ref) and  [`centralderiv!`](@ref).
+"""
+function centralderiv(x::AbstractTimeSeries)
+    y = deepcopy(x)
+    centralderiv!(y)
+    return y
 end
