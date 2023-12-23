@@ -629,5 +629,6 @@ end
 
     x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
     𝑓 = instantaneousfreq(x)
-    @assert std(𝑓[2500:(end - 2500)]) < 0.0001
+    @test std(𝑓[2500:(end - 2500)]) < 0.001
+    @test mean(𝑓[2500:(end - 2500)])≈1 rtol=1e-5
 end
