@@ -233,23 +233,25 @@ function colorednoise(ts::AbstractRange, args...; α = 2.0)
     TimeSeries(t, x, args...)
 end
 
-function spikefft(t::AbstractVector)
+function spikefft(t::AbstractVector, ::Val{:schild})
     # AN EFFICIENT METHOD FOR THE FOURIER TRANSFORM OF A NEURONAL  SPIKE  TRAIN
     # Schild 1982
+    @debug "Calculating spike FFT using :schild method"
     t .-= minimum(t)
     T = maximum(t)
     W(f) = (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
 end
 
-spikefft(fs, t::AbstractVector) = spikefft(t).(fs)
+spikefft(fs, t::AbstractVector, method) = spikefft(t, method).(fs)
 
-function spikefft(fs, t::SpikeTrain)
+function spikefft(fs, t::SpikeTrain, method = :schild)
     isempty(findfirst(t)) && error("Spike train contains no spikes")
-    F = spikefft(times(t[t]))
+    F = spikefft(times(t[t]), Val(method))
     return Spectrum(fs, F.(fs))
 end
 
-function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange; kwargs...)
+function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
+                         method = stoic(; σ = 0.005), kwargs...)
     t = times(x[x])
     n = length(t)
     df = step(frange)
@@ -258,7 +260,16 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange; k
 
     u = unit(eltype(x)) * unit(eltype(t))
 
-    S̄ = abs.(spikefft(frange, t)) .^ 2
+    if method isa Function
+        # Find the autocovariance function and take the Fourier transform
+        τs = range(start = 0, stop = 1 / step(frange) / 2, length = nfft)
+        τs = [-reverse(τs[2:end]); τs]
+        ρ = [method(x, 𝒯(τ)(x)) for τ in τs]
+        S̄ = abs.(rfft(ρ))
+        @assert length(S̄) == nfft
+    else
+        S̄ = abs.(spikefft(frange, x[x], method)) .^ 2
+    end
 
     # Normalize the energy spectrum to obey Parseval's theorem
     S̄ = S̄ ./ ustrip((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half

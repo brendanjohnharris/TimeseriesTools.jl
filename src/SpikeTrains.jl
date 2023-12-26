@@ -158,7 +158,7 @@ end
 """
     stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10)
 
-Compute the spike-train overlap-integral covariance between two spike trains, after normalizing both convolutions to unit energy
+Compute the spike-train overlap-integral coefficient between two spike trains, after normalizing both convolutions to unit energy
 
 # Arguments
 - `a`: Spike train a.
@@ -166,9 +166,6 @@ Compute the spike-train overlap-integral covariance between two spike trains, af
 - `kpi`: Kernel product integral, a function of the distance between two spikes. Default is `npi`, the integral of two gaussians with equal variance at a given distance from each other.
 - `σ`: Width parameter of the kernel. For `npi`, this is the width of the unit-mass Gaussian kernels. Default is `0.025`.
 - `Δt`: Time window for considering spikes as close. Default is `σ * 10`.
-
-# Returns
-The stoichiometry between spike trains `a` and `b`.
 """
 function stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10, normalize = true)
     if normalize
@@ -194,9 +191,9 @@ function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwarg
 end
 stoic(; kwargs...) = (x, y) -> stoic(x, y; kwargs...)
 
-function pointprocess!(spikes, D::Distribution; rng = Random.default_rng())
+function pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
     N = length(spikes)
-    t = 0.0
+    t = deepcopy(t0)
     isis = rand(rng, D, N)
     for i in 1:N
         t += isis[i]
@@ -204,24 +201,44 @@ function pointprocess!(spikes, D::Distribution; rng = Random.default_rng())
     end
 end
 
-function gammarenewal!(spikes::AbstractVector, α, θ; kwargs...)
+"""
+    gammarenewal!(spikes, α, θ; t0 = randn() * α / θ, kwargs...)
+
+Generate a sequence of gamma-distributed renewal spikes.
+
+Arguments:
+- `spikes::AbstractVector`: The vector to store the generated spikes.
+- `α`: The shape parameter of the gamma distribution.
+- `θ`: The scale parameter of the gamma distribution.
+- `t0`: The initial time of the spike train. Defaults to a random value drawn from a normal
+  distribution with mean of 0 and standard deviation equal to the mean firing rate.
+- `kwargs...`: Additional keyword arguments to be passed to [`pointprocess!`](@ref).
+"""
+function gammarenewal!(spikes::AbstractVector, α, θ;
+                       t0 = randn(Random.default_rng()) * α * θ, kwargs...)
     N = length(spikes)
     D = Distributions.Gamma(α, θ)
-    pointprocess!(spikes, D; kwargs...)
+    pointprocess!(spikes, D; t0, kwargs...)
 end
 
 """
-    gammarenewal(N, α, θ)
+    gammarenewal(N, α, θ; t0)
 
 Generate a spike train with inter-spike intervals drawn from a Gamma process.
 
 # Arguments
 - `N`: Number of spikes to generate.
-- `α`: Shape parameter of the gamma distribution (equivalent to the mean ISI divided by the Fano factor).
+- `α`: Shape parameter of the gamma distribution (equivalent to the mean ISI divided by the
+ Fano factor).
 - `θ`: Scale parameter of the gamma distribution (equivalent to the Fano factor).
+- `t0`: The initial time of the spike train, prior to the first sampled spike. Defaults to a
+ random value drawn from a normal distribution with mean of 0 and standard deviation equal
+ to the mean firing rate.
 
 # Returns
 - A [`SpikeTrain`](@ref) containing the generated spike times.
+
+See also [`gammarenewal!`](@ref).
 """
 function gammarenewal(N, args...; kwargs...)
     spikes = zeros(Float64, N)
