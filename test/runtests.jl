@@ -7,6 +7,7 @@ using DSP
 using ContinuousWavelets
 using StatsBase
 using TimeseriesSurrogates
+using IntervalSets
 
 using TimeseriesTools
 import TimeseriesTools: TimeSeries, name
@@ -28,7 +29,9 @@ using Foresight
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-    @test x[At(dims(x, Ti)[1:10])] == x[1:10]
+    @test x[Ti(1 .. 10)] == x[1:10]
+    @test all(x[Ti(At(1:10))] .== x[1:10])
+    @test x[Ti(At(1:10))] != x[1:10]
 end
 
 @testset "Multivariate time series" begin
@@ -43,7 +46,7 @@ end
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-    @test x[At(dims(x, Ti)[1:10]), :] == x[1:10, :]
+    @test x[Ti(1 .. 10)] == x[1:10, :]
 end
 
 @testset "Makie" begin
@@ -126,7 +129,8 @@ end
     @test samplingrate(x) == 1 / step(ts)
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
-    @test x[At(dims(x, Ti)[1:10])] == x[1:10]
+    @test x[Ti(1u"s" .. 10u"s")] == x[1:10]
+    @test x[Ti = 1:10] == x[1:10]
     @test_nowarn spectrum(x, 0.1)
 end
 
@@ -443,27 +447,38 @@ end
 
     p = @test_nowarn spikefft(0:0.1:10, t)
     fs = (0.01, 50)
-    e = @test_nowarn energyspectrum(t, fs)
+    e = @test_nowarn energyspectrum(t, fs; method = :schild)
     @test (2 * sum(e[2:end]) + e[1]) * fs[1] ≈ sum(t)
-    p = @test_nowarn powerspectrum(t, fs)
+    p = @test_nowarn powerspectrum(t, fs; method = :schild)
 
     # Test this returns an identical result for spikes measured at regular intervals
     x = TimeSeries(ts, zeros(length(ts)))
-    x[Ti(At(times(t)))] .= 1.0
-    pt = spectrum(x, 0.01)
+    x[Ti(At(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
+    et = energyspectrum(x, 0.01)
+    @test (2 * sum(et[2:end]) + et[1]) * fs[1] ≈ sum(t)
 
-    if false # Yep works, better, even
-        f = Figure()
-        ax = Axis(f[1, 1])
-        plot!(ax, pt, color = :crimson)
-        plot!(ax, p[p .> eps() * 100])
-        f
-    end
+    # if false # Yep works, better, even
+    f = Figure()
+    ax = Axis(f[1, 1])
+    lines!(ax, pt, color = :crimson)
+    lines!(ax, e)
+    f
+    # end
 
     # Multivariate
     T = hcat(Var(1:4), t, t, t, t)
     P = @test_nowarn powerspectrum(T, fs)
     @test P[:, 1] == p
+
+    # * Autocovariance spectrum
+    p = energyspectrum(t, fs; method = stoic(; σ = 0.01))
+    @test (2 * sum(p[2:end]) + p[1]) * fs[1] ≈ sum(t)
+
+    f = Figure()
+    ax = Axis(f[1, 1])
+    lines!(ax, decompose(pt)..., color = :crimson)
+    lines!(ax, decompose(p)...)
+    f
 end
 
 @testset "Spike-time tiling coefficient" begin
@@ -500,7 +515,7 @@ end
     λ = eigvals(Λ)
 end
 
-@testset "Spike-time overlap-integral covariance (stoic)" begin
+@testset "Spike-time overlap-integral coefficient (stoic)" begin
     x = randn(1000) |> sort
     y = randn(1000) |> sort
     σ = 0.25
@@ -546,9 +561,73 @@ end
     e = eigvals(ρ)
     @test minimum(real.(e)) + 1e-10 > 0.0
     @test all(isapprox.(imag.(e), 0.0; atol = 1e-10))
-
-    # Benchmark against spike train length
 end
+
+@testset "Stoic spike-train length" begin
+    # * Set up independent gamma renewal processes and verify stoic scaling with length vs. kernel width
+    Ns = range(start = 100, step = 100, length = 100)
+    xs = [gammarenewal(N, 1, 1) for N in Ns]
+    ρ = @test_nowarn pairwise(stoic(; σ = 0.01), xs; symmetric = true)
+    @test mean(ρ[ρ .!= 1])≈0 atol=0.05
+    ρ[ρ .== 1] .= NaN
+
+    f = Figure()
+    ax = Axis(f[1, 1]; aspect = 1, xlabel = "N₁", ylabel = "N₂")
+    p = heatmap!(ax, Ns, Ns, ρ)
+    Colorbar(f[1, 2], p, label = "stoic")
+end
+@testset "Stoic spike-train fano" begin
+    # * Set up independent gamma renewal processes and verify stoic scaling with length vs. kernel width
+    θs = range(start = 0.1, step = 0.01, length = 150)
+    xs = [gammarenewal(10000, 1, θ) for θ in θs]
+    ρ = pairwise(stoic(; σ = 0.01), xs; symmetric = true)
+    ρ[ρ .== 1] .= NaN
+
+    f = Figure(size = (720, 360))
+    ax = Axis(f[1, 1]; aspect = 1, xlabel = "θ₁", ylabel = "θ₂")
+    p = heatmap!(ax, θs, θs, ρ)
+    Colorbar(f[1, 2], p, label = "stoic")
+    f
+
+    ρ2 = pairwise(sttc(; Δt = 0.03), xs; symmetric = true)
+    ρ2[ρ2 .== 1] .= NaN
+
+    ax = Axis(f[1, 3]; aspect = 1, xlabel = "θ₁", ylabel = "θ₂")
+    p = heatmap!(ax, θs, θs, abs.(ρ2))
+    Colorbar(f[1, 4], p, label = "|sttc|")
+
+    rowsize!(f.layout, 1, Relative(0.6))
+    f
+end
+
+# @testset "Stoic firing rate and fano factor" begin
+#     N = 5000
+
+#     fr = range(start = 0.1, stop = 500, length = 100) # 1 the mean ISI
+#     θs = range(start = 0.1, stop = 2, length = 100) # 1 the mean ISI
+#     αs = 1 ./ (fr .* θs)
+
+#     ps = Iterators.product(αs, θs)
+
+#     ρ = zeros(length(fr), length(θs))
+#     n = 50
+#     Threads.@threads for i in 1:n
+#         _ρ = map(ps) do (α, θ)
+#             x = gammarenewal(N, α, θ)
+#             y = gammarenewal(N, α, θ)
+#             # sttc(x, y; Δt = 0.025) |> abs
+#             stoic(x, y; σ = 0.01) |> abs
+#         end
+#         ρ .+= _ρ
+#     end
+#     ρ ./= n # Mean
+
+#     f = Figure()
+#     ax = Axis(f[1, 1]; aspect = 1, xlabel = "Mean firing rate", ylabel = "Fano factor")
+#     p = heatmap!(ax, fr, θs, ρ)
+#     Colorbar(f[1, 2], p, label = "stoic")
+#     f
+# end
 
 @testset "ContinuousWaveletsExt" begin
     # Define a test time series
