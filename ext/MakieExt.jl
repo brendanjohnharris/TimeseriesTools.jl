@@ -82,6 +82,8 @@ function spectrumplot(x::AbstractSpectrum; kwargs...)
 end
 Makie.plot!(ax::Axis, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
 Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
+Makie.plot!(ax::Axis, x::AbstractSpectrum{T,2}; kwargs...) where {T} = spectrumplot!(ax, x; kwargs...)
+Makie.plot(x::AbstractSpectrum{T,2}; kwargs...) where {T} = spectrumplot(x; kwargs...)
 
 function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ut = timeunit(x)
