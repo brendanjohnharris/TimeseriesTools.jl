@@ -97,8 +97,7 @@ function _energyspectrum(x::AbstractVector, fs::Number,
     isodd(nfft) && (nfft += 1)
     isodd(padding) && (padding += 1)
     nfft = nfft - padding
-    window = nfft ÷ 2
-    overlap = window ÷ 2
+    overlap = nfft ÷ 2
     hann_window = 0.5 .- 0.5 .* cos.(2 * π * (0:(nfft - 1)) / (nfft - 1))
     A = sum(hann_window .^ 2)
     (nfft - overlap ≤ 0) && error("FFT padding is too high")
@@ -107,11 +106,18 @@ function _energyspectrum(x::AbstractVector, fs::Number,
     # Get the type of the spectrum
     u = unit(eltype(x)) * unit(eltype(dims(x, Ti)))
     S̄ = zeros((nfft + padding) ÷ 2 + 1, n_segments) * u^2
+    @debug "Calculating spectrum for $n_segments segments of length $(nfft + padding)"
     for i in 1:n_segments
         start_idx = (i - 1) * (nfft - overlap) + 1
         end_idx = start_idx + nfft - 1
         segment = x[start_idx:end_idx] .* hann_window
-        padding > 0 && (segment = [segment; zeros(padding)])
+        if padding > 0
+            dt = samplingperiod(segment)
+            padts = range(start = minimum(times(segment)) + dt, step = dt,
+                          length = padding + length(segment))
+            segment = TimeSeries(padts,
+                                 [segment.data; zeros(padding) * unit(eltype(segment))])
+        end
 
         y = rfft(segment) / (nfft + padding)
         y |> eltype |> unit == NoUnits && (y = y * u)

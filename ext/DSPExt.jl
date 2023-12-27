@@ -1,6 +1,7 @@
 # module DSPExt
 
 using TimeseriesTools
+using ..Unitful
 import TimeseriesTools: bandpass, phasestitch
 import ..DSP
 import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
@@ -15,12 +16,23 @@ function instantaneousfreq(x)
     centralderiv!(y)
     return y
 end
-function bandpass(x::AbstractArray, fs::Number,
+function bandpass(x::AbstractArray, fs::Real,
                   pass::Union{Tuple{A, B}, AbstractVector{<:Number}};
                   designmethod = DSP.Butterworth(4)) where {A, B}
     DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
 end
+function bandpass(x::AbstractArray, fs::Quantity,
+                  pass::Union{Tuple{A, A}, AbstractVector{A}};
+                  designmethod = DSP.Butterworth(4)) where {A <: Quantity}
+    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustrip.(pass)...; fs = ustrip(fs)),
+                               designmethod), ustrip.(x)) * unit(eltype(x))
+end
 
+function bandpass(x::AbstractTimeSeries, fs::Quantity,
+                  pass::Union{Tuple{A, A}, AbstractVector{A}};
+                  kwargs...) where {A <: Quantity}
+    set(x, bandpass(x.data, fs, pass; kwargs...))
+end
 function bandpass(x::AbstractTimeSeries, fs::Number,
                   pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
     set(x, bandpass(x.data, fs, pass; kwargs...))
