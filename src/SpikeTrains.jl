@@ -191,6 +191,17 @@ function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwarg
 end
 stoic(; kwargs...) = (x, y) -> stoic(x, y; kwargs...)
 
+"""
+    pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
+
+Simulate a point process by sampling inter-spike intervals from a given distribution.
+
+## Arguments
+- `spikes`: An array to store the generated spike times.
+- `D::Distribution`: The distribution from which to sample inter-spike intervals.
+- `rng`: (optional) The random number generator to use. Defaults to `Random.default_rng()`.
+- `t0`: (optional) The initial time. Defaults to `0.0`.
+"""
 function pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
     N = length(spikes)
     t = deepcopy(t0)
