@@ -6,7 +6,7 @@ import MakieCore.plot
 import ..Makie
 import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
                 Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
-                ScatterLines, Hexbin, Stem, Plot
+                ScatterLines, Hexbin, Stem, Plot, scatter!, text!
 PointLike = Union{Scatter, Lines, ScatterLines, Hexbin, Stem}
 
 using TimeseriesTools
@@ -51,7 +51,8 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         pks = pks[promidxs]
         pks = TimeseriesTools.freqs(s)[pks]
         vals = s[Freq(At(pks))]
-        scatter!(ax, ustrip.(pks), collect(ustrip.(vals)), color = :black, markersize = 10,
+        scatter!(ax, ustrip.(pks), collect(ustrip.(vals)), color = :black,
+                 markersize = 10,
                  marker = :dtriangle)
         text!(ax, ustrip.(pks), collect(ustrip.(vals));
               text = string.(round.(eltype(pks), pks, sigdigits = 2)),
