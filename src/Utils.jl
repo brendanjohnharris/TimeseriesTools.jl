@@ -4,8 +4,8 @@ import DimensionalData: print_array, _print_array_ctx
 import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
-       describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed, centraldiff!, centraldiff, centralderiv!, centralderiv
+    describedim, describedims, describename, interlace, _buffer, buffer, window,
+    delayembed, centraldiff!, centraldiff, centralderiv!, centralderiv, rectifytime
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -17,25 +17,25 @@ Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 [:($(S)(D::Dimension) = $(S)(D.val.data)) for S in Selectors] .|> eval
 
 describate(x) = "$(size(x)) $(typeof(x).name.name)"
-function print_array(io::IO, mime, A::AbstractDimArray{T, 0}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractDimArray{T,0}) where {T<:AbstractArray}
     print(_print_array_ctx(io, T), "\n", describate.(A[]))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 1}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractDimArray{T,1}) where {T<:AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), describate.(A))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 2}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractDimArray{T,2}) where {T<:AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), describate.(A))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 3}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractDimArray{T,3}) where {T<:AbstractArray}
     i3 = firstindex(A, 3)
     frame = view(parent(A), :, :, i3)
     println(io, "[:, :, $i3]")
     _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
     nremaining = size(A, 3) - 1
     nremaining > 0 &&
-        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+        printstyled(io, "\n[and $nremaining more slices...]"; color=:light_black)
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, N}) where {T <: AbstractArray, N}
+function print_array(io::IO, mime, A::AbstractDimArray{T,N}) where {T<:AbstractArray,N}
     o = ntuple(x -> firstindex(A, x + 2), N - 2)
     frame = view(A, :, :, o...)
     onestring = join(o, ", ")
@@ -43,9 +43,9 @@ function print_array(io::IO, mime, A::AbstractDimArray{T, N}) where {T <: Abstra
     _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
     nremaining = prod(size(A, d) for d in 3:N) - 1
     nremaining > 0 &&
-        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+        printstyled(io, "\n[and $nremaining more slices...]"; color=:light_black)
 end
-function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
+function print_array(io::IO, mime, A::SpikeTrain{Bool,1})
     _print_array_ctx(io, Bool)
 end
 
@@ -152,16 +152,16 @@ IntervalSets.Interval(x::AbstractTimeSeries) = (first ∘ times)(x) .. (last ∘
 𝑝(x::RegularTimeSeries) = sum(x .^ 2) / duration(x)
 mutable struct UnitPower{T} <: AbstractNormalization{T}
     dims::Any
-    p::NTuple{1, AbstractArray{T}}
-    𝑝::NTuple{1, Function}
+    p::NTuple{1,AbstractArray{T}}
+    𝑝::NTuple{1,Function}
     𝑓::Function
     𝑓⁻¹::Function
 end;
-function UnitPower{T}(; dims = nothing,
-                      p = (Vector{T}(),),
-                      𝑝 = (𝑝,),
-                      𝑓 = (x, 𝑃) -> x .= x ./ sqrt.(𝑃),
-                      𝑓⁻¹ = (y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
+function UnitPower{T}(; dims=nothing,
+    p=(Vector{T}(),),
+    𝑝=(𝑝,),
+    𝑓=(x, 𝑃) -> x .= x ./ sqrt.(𝑃),
+    𝑓⁻¹=(y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
     UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
 end
 UnitPower(; kwargs...) = UnitPower{Nothing}(; kwargs...);
@@ -214,15 +214,15 @@ function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
     return TimeSeries(ts, data)
 end
 
-function _buffer(x, n::Integer, p::Integer = 0; discard::Bool = true)
-    y = [@views x[i:min(i + n - 1, end)] for i in 1:(n - p):length(x)]
+function _buffer(x, n::Integer, p::Integer=0; discard::Bool=true)
+    y = [@views x[i:min(i + n - 1, end)] for i in 1:(n-p):length(x)]
     while discard && length(y[end]) < n
         pop!(y)
     end
     y
 end
-function _buffer(x::AbstractMatrix, n::Integer, p::Integer = 0; discard::Bool = true)
-    y = [@views x[i:min(i + n - 1, end), :] for i in 1:(n - p):size(x, 1)]
+function _buffer(x::AbstractMatrix, n::Integer, p::Integer=0; discard::Bool=true)
+    y = [@views x[i:min(i + n - 1, end), :] for i in 1:(n-p):size(x, 1)]
     while discard && size(y[end], 1) < n
         pop!(y)
     end
@@ -236,55 +236,73 @@ function buffer(x::RegularTimeSeries, args...; kwargs...)
     ts = range(first(t), last(t), length(y))
     y = TimeSeries(ts, y)
 end
-window(x, n, p = n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
+window(x, n, p=n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
 
-function _delayembed(x::AbstractVector, n, τ, p = 1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
+function _delayembed(x::AbstractVector, n, τ, p=1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
     y = window(x, n * τ, p; kwargs...)
     y = map(y) do _y
         @view _y[1:τ:end]
     end
 end
 delayembed(x::AbstractVector, args...; kwargs...) = _delayembed(x, args...; kwargs...)
-function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
+function delayembed(x::UnivariateRegular, n, τ, p=1, args...; kwargs...)
     y = _delayembed(x, n, τ, p, args...; kwargs...)
     ts = last.(times.(y))  # Time of the head of the vector
     dt = step(x) * p
-    ts = ts[1]:dt:(ts[1] + dt * (length(y) - 1))
+    ts = ts[1]:dt:(ts[1]+dt*(length(y)-1))
     δt = τ * p * step(x)
     delays = (-(δt * (n - 1))):δt:0
     y = set.(y, [Ti => Dim{:delay}(delays)])
-    y = cat(Ti(ts), y..., dims = Dim{:delay})
+    y = cat(Ti(ts), y..., dims=Dim{:delay})
 end
 
-function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives significant figures for rounding
+"""
+    rectifytime(X::IrregularTimeSeries; tol = 6, zero = false)
+
+Rectifies the time values of an [`IrregularTimeSeries`](@ref). Checks if the time step of
+the input time series is approximately constant. If it is, the function rounds the time step
+and constructs a [`RegularTimeSeries`](@ref) with range time indices. If the time step is
+not approximately constant, a warning is issued and the rectification is skipped.
+
+# Arguments
+- `X::IrregularTimeSeries`: The input time series.
+- `tol::Int`: The number of significant figures for rounding the time step. Default is 6.
+- `zero::Bool`: If `true`, the rectified time values will start from zero. Default is
+  `false`.
+"""
+function rectifytime(X::IrregularTimeSeries; tol=6, zero=false) # tol gives significant figures for rounding
     ts = times(X)
     stp = ts |> diff |> mean
     err = ts |> diff |> std
     if err > stp / 10.0^(-tol)
         @warn "Time step is not approximately constant, skipping rectification"
     else
-        stp = round(stp; digits = tol)
-        t0, t1 = round.(extrema(ts); digits = tol)
+        stp = round(stp; digits=tol)
+        t0, t1 = round.(extrema(ts); digits=tol)
         if zero
-            origts = t0:stp:(t1 + (10000 * stp))
+            origts = t0:stp:(t1+(10000*stp))
             t1 = t1 - t0
             t0 = 0
         end
-        ts = t0:stp:(t1 + (10000 * stp))
+        ts = t0:stp:(t1+(10000*stp))
         ts = ts[1:size(X, Ti)] # Should be ok?
     end
     @assert length(ts) == size(X, Ti)
     X = set(X, Ti => ts)
     if zero
-        X = rebuild(X; metadata = (:time => origts, pairs(metadata(X))...))
+        X = rebuild(X; metadata=(:time => origts, pairs(metadata(X))...))
     end
     return X
 end
 
+function rectifytime(X::AbstractTimeSeries, Y...; kwargs...)
+    error("`rectifytime` for multiple inputs is yet to be defined")
+end
+
 function _centraldiff!(x)
     a = x[2] # Save here, otherwise they get mutated before we use them
-    b = x[end - 1]
-    x[2:(end - 1)] .= (x[3:end] - x[1:(end - 2)]) / 2
+    b = x[end-1]
+    x[2:(end-1)] .= (x[3:end] - x[1:(end-2)]) / 2
     x[[1, end]] .= [a - x[1], x[end] - b]
     return nothing
 end
@@ -297,7 +315,7 @@ The first and last elements are set to the forward and backward difference, resp
 """
 centraldiff!(x::UnivariateRegular) = _centraldiff!(x)
 function centraldiff!(x::typeintersect(MultivariateTimeSeries, RegularTimeSeries))
-    _centraldiff!(eachslice(x; dims = Ti))
+    _centraldiff!(eachslice(x; dims=Ti))
 end
 
 """

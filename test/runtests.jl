@@ -8,6 +8,7 @@ using ContinuousWavelets
 using StatsBase
 using TimeseriesSurrogates
 using IntervalSets
+using DifferentialEquations
 
 using TimeseriesTools
 import TimeseriesTools: TimeSeries, name
@@ -728,4 +729,15 @@ end
     𝑓 = instantaneousfreq(x)
     @test std(𝑓[2500:(end - 2500)]) < 0.001
     @test mean(𝑓[2500:(end - 2500)])≈1 rtol=1e-5
+end
+
+@testset "DiffEqBaseExt" begin
+    using DifferentialEquations
+    f(u, p, t) = 1.01 * u
+    u0 = 1 / 2
+    tspan = (0.0, 1.0)
+    prob = ODEProblem(f, u0, tspan, saveat = 0.1)
+    sol = solve(prob)
+
+    x = TimeSeries(sol)
 end

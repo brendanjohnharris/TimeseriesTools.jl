@@ -51,12 +51,14 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         pks = pks[promidxs]
         pks = TimeseriesTools.freqs(s)[pks]
         vals = s[Freq(At(pks))]
-        scatter!(ax, ustrip.(pks), collect(ustrip.(vals)), color = :black,
+        scatter!(ax, ustrip.(pks), collect(ustrip.(vals)),
+                 color = Makie.current_default_theme().textcolor,
                  markersize = 10,
                  marker = :dtriangle)
         text!(ax, ustrip.(pks), collect(ustrip.(vals));
-              text = string.(round.(eltype(pks), pks, sigdigits = 2)),
-              align = (:center, :bottom), color = :black, rotation = 0, fontsize = 12,
+              text = string.(round.(pks; digits = 3)),
+              align = (:center, :bottom), color = Makie.current_default_theme().textcolor,
+              rotation = 0, fontsize = 12,
               offset = (0, 3))
     end
     p
@@ -66,7 +68,8 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor = nothing,
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
+                       bandcolor = nothing,
                        percentile = 0.25, kwargs...)
     uf = frequnit(x)
     ux = unit(x)
@@ -88,17 +91,17 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; bandcolor = noth
         ux == NoUnits ? (ax.ylabel = "Spectral density") :
         (ax.ylabel = "Spectral density ($ux)")
     end
-    p = spectrumplot!(ax, f[idxs], xmed[idxs]; kwargs...)
+    p = spectrumplot!(ax, DimArray(xmed[idxs], (Freq(f[idxs]))); peaks, kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
     _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency = true, kwargs..., color)
     Makie.translate!(_p, 0, 0, -1.0)
     p
 end
 
-function spectrumplot(x::AbstractSpectrum; kwargs...)
+function spectrumplot(x::AbstractSpectrum; peaks = false, kwargs...)
     (f = Figure();
      ax = Axis(f[1, 1]);
-     p = spectrumplot!(ax, x; kwargs...);
+     p = spectrumplot!(ax, x; peaks, kwargs...);
      Makie.FigureAxisPlot(f,
                           ax,
                           p))

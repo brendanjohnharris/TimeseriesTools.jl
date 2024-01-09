@@ -8,7 +8,8 @@ export dimname, decompose, spectrumplot!, spectrumplot
 
 MakieCore.@recipe(SpectrumPlot, x, y) do scene
     MakieCore.Theme(;
-                    color = :cornflowerblue)
+                    color = :cornflowerblue,
+                    peaks = false)
 end
 
 function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector, <:AbstractVector}})
