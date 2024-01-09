@@ -14,34 +14,36 @@ function instantaneousfreq(x)
     y = analyticphase(x)
     unwrap!(y)
     centralderiv!(y)
-    return y
+    return y ./ (2π)
 end
-function bandpass(x::AbstractArray, fs::Real,
-                  pass::Union{Tuple{A, B}, AbstractVector{<:Number}};
-                  designmethod = DSP.Butterworth(4)) where {A, B}
+function bandpass(x::AbstractArray, fs::A,
+                  pass::AbstractVector{B};
+                  designmethod = DSP.Butterworth(4)) where {A <: Real, B <: Real}
     DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
 end
-function bandpass(x::AbstractArray, fs::Quantity,
-                  pass::Union{Tuple{A, A}, AbstractVector{A}};
-                  designmethod = DSP.Butterworth(4)) where {A <: Quantity}
+function bandpass(x::AbstractArray, fs::A,
+                  pass::AbstractVector{B};
+                  designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
     DSP.filtfilt(digitalfilter(DSP.Bandpass(ustrip.(pass)...; fs = ustrip(fs)),
                                designmethod), ustrip.(x)) * unit(eltype(x))
 end
 
-function bandpass(x::AbstractTimeSeries, fs::Quantity,
-                  pass::Union{Tuple{A, A}, AbstractVector{A}};
-                  kwargs...) where {A <: Quantity}
+function bandpass(x::AbstractTimeSeries, fs::A,
+                  pass::AbstractVector{B};
+                  kwargs...) where {A <: Quantity, B <: Quantity}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
-function bandpass(x::AbstractTimeSeries, fs::Number,
-                  pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
+function bandpass(x::AbstractTimeSeries, fs::A,
+                  pass::AbstractVector{B}; kwargs...) where {A <: Real, B <: Real}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
 
-bandpass(x::AbstractTimeSeries, pass; kwargs...) = bandpass(x, 1, pass; kwargs...) # Assume 1 Hz
-function bandpass(x::RegularTimeSeries, pass; kwargs...)
+function bandpass(x::RegularTimeSeries, pass::AbstractVector; kwargs...)
     bandpass(x, samplingrate(x), pass; kwargs...)
 end
+
+bandpass(x, pass::NTuple{2}) = bandpass(x, collect(pass))
+bandpass(x, fs, pass::NTuple{2}) = bandpass(x, fs, collect(pass))
 
 TimeseriesTools.isoamplitude(x::AbstractVector) = sin.(hilbert(x) .|> angle)
 function TimeseriesTools.isoamplitude(x::AbstractArray; dims = 1)
