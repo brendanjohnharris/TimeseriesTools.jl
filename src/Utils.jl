@@ -295,8 +295,8 @@ function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives 
     return X
 end
 
-function rectifytime(X::AbstractTimeSeries, Y...; kwargs...)
-    error("`rectifytime` for multiple inputs is yet to be defined")
+function rectifytime(X::AbstractVector{<:AbstractTimeSeries}; kwargs...)
+    # Generate some common time indices as close as possible to the rectified times of each element of the input vector
 end
 
 function _centraldiff!(x)
