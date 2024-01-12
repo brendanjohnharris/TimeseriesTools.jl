@@ -256,6 +256,26 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = cat(Ti(ts), y..., dims = Dim{:delay})
 end
 
+function rectifytime(ts::Ti; tol = 6, zero = false)
+    ts = collect(ts)
+    origts = ts
+    stp = ts |> diff |> mean
+    err = ts |> diff |> std
+    if err > stp / 10.0^(-tol)
+        @warn "Time step is not approximately constant, skipping rectification"
+    else
+        stp = round(stp; digits = tol)
+        t0, t1 = round.(extrema(ts); digits = tol)
+        if zero
+            origts = t0:stp:(t1 + (10000 * stp))
+            t1 = t1 - t0
+            t0 = 0
+        end
+        ts = t0:stp:(t1 + (10000 * stp))
+    end
+    return ts, origts
+end
+
 """
     rectifytime(X::IrregularTimeSeries; tol = 6, zero = false)
 
@@ -271,22 +291,8 @@ not approximately constant, a warning is issued and the rectification is skipped
   `false`.
 """
 function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives significant figures for rounding
-    ts = times(X)
-    stp = ts |> diff |> mean
-    err = ts |> diff |> std
-    if err > stp / 10.0^(-tol)
-        @warn "Time step is not approximately constant, skipping rectification"
-    else
-        stp = round(stp; digits = tol)
-        t0, t1 = round.(extrema(ts); digits = tol)
-        if zero
-            origts = t0:stp:(t1 + (10000 * stp))
-            t1 = t1 - t0
-            t0 = 0
-        end
-        ts = t0:stp:(t1 + (10000 * stp))
-        ts = ts[1:size(X, Ti)] # Should be ok?
-    end
+    ts, origts = rectifytime(Ti(times(X)); tol, zero)
+    ts = ts[1:size(X, Ti)] # Should be ok?
     @assert length(ts) == size(X, Ti)
     X = set(X, Ti => ts)
     if zero
@@ -295,8 +301,21 @@ function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives 
     return X
 end
 
-function rectifytime(X::AbstractVector{<:AbstractTimeSeries}; kwargs...)
+function rectifytime(X::AbstractVector; tol = 6, zero = false)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
+    ts = times.(X)
+    mint = maximum(minimum.(ts)) - exp10(tol) .. minimum(maximum.(ts)) + exp10(tol)
+    X = [x[Ti(mint)] for x in X]
+    X = [x[1:minimum(size.(X, 1))] for x in X]
+    ts = mean(times.(X))
+    ts, origts = rectifytime(Ti(ts); tol, zero)
+    ts = ts[1:size(X[1], Ti)] # Should be ok?
+    if any([any(ts .- times(x) .> std(ts) / 10.0^(-tol)) for x in X])
+        @error "Cannot find common times within tolerance"
+    end
+
+    X = [set(x, Ti => ts) for x in X]
+    return X
 end
 
 function _centraldiff!(x)
