@@ -55,8 +55,13 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
                  color = Makie.current_default_theme().textcolor,
                  markersize = 10,
                  marker = :dtriangle)
+        if eltype(pks) <: Quantity
+            txt = string.(round.(eltype(pks), pks; digits = 3))
+        else
+            txt = string.(round.(pks; digits = 3))
+        end
         text!(ax, ustrip.(pks), collect(ustrip.(vals));
-              text = string.(round.(pks; digits = 3)),
+              text = txt,
               align = (:center, :bottom), color = Makie.current_default_theme().textcolor,
               rotation = 0, fontsize = 12,
               offset = (0, 3))
@@ -128,6 +133,8 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     end
     p
 end
+
+Makie.plot!(x::UnivariateTimeSeries; kwargs...) = Makie.plot!(current_axis(), x; kwargs...)
 function Makie.plot(x::UnivariateTimeSeries; kwargs...)
     (f = Makie.Figure();
      ax = Makie.Axis(f[1, 1]);

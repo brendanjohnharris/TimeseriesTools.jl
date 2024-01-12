@@ -2,6 +2,7 @@
 
 using TimeseriesTools
 using ..Unitful
+using ..IntervalSets
 import TimeseriesTools: bandpass, phasestitch
 import ..DSP
 import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
@@ -16,6 +17,8 @@ function instantaneousfreq(x)
     centralderiv!(y)
     return y ./ (2π)
 end
+
+## Bandpass filters
 function bandpass(x::AbstractArray, fs::A,
                   pass::AbstractVector{B};
                   designmethod = DSP.Butterworth(4)) where {A <: Real, B <: Real}
@@ -44,7 +47,59 @@ end
 
 bandpass(x, pass::NTuple{2}) = bandpass(x, collect(pass))
 bandpass(x, fs, pass::NTuple{2}) = bandpass(x, fs, collect(pass))
+bandpass(x, pass::AbstractInterval) = bandpass(x, extrema(pass))
+bandpass(x, fs, pass::AbstractInterval) = bandpass(x, fs, extrema(pass))
 
+## Other filters
+function highpass(x::AbstractArray, fs::Real,
+                  pass::Real;
+                  designmethod = DSP.Butterworth(4))
+    DSP.filtfilt(digitalfilter(DSP.Highpass(pass; fs), designmethod), x)
+end
+function highpass(x::AbstractArray, fs::Real,
+                  pass::Real;
+                  designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
+    DSP.filtfilt(digitalfilter(DSP.Highpass(ustrip(pass); fs = ustrip(fs)),
+                               designmethod), ustrip.(x)) * unit(eltype(x))
+end
+function highpass(x::AbstractTimeSeries, fs::Quantity,
+                  pass::Quantity;
+                  kwargs...)
+    set(x, highpass(x.data, fs, pass; kwargs...))
+end
+function highpass(x::AbstractTimeSeries, fs::Real,
+                  pass::Real; kwargs...)
+    set(x, highpass(x.data, fs, pass; kwargs...))
+end
+function highpass(x::RegularTimeSeries, pass::Number; kwargs...)
+    highpass(x, samplingrate(x), pass; kwargs...)
+end
+
+function lowpass(x::AbstractArray, fs::Real,
+                 pass::Real;
+                 designmethod = DSP.Butterworth(4))
+    DSP.filtfilt(digitalfilter(DSP.Lowpass(pass; fs), designmethod), x)
+end
+function lowpass(x::AbstractArray, fs::Real,
+                 pass::Real;
+                 designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
+    DSP.filtfilt(digitalfilter(DSP.Lowpass(ustrip(pass); fs = ustrip(fs)),
+                               designmethod), ustrip.(x)) * unit(eltype(x))
+end
+function lowpass(x::AbstractTimeSeries, fs::Quantity,
+                 pass::Quantity;
+                 kwargs...)
+    set(x, lowpass(x.data, fs, pass; kwargs...))
+end
+function lowpass(x::AbstractTimeSeries, fs::Real,
+                 pass::Real; kwargs...)
+    set(x, lowpass(x.data, fs, pass; kwargs...))
+end
+function lowpass(x::RegularTimeSeries, pass::Number; kwargs...)
+    lowpass(x, samplingrate(x), pass; kwargs...)
+end
+
+## Other utilities
 TimeseriesTools.isoamplitude(x::AbstractVector) = sin.(hilbert(x) .|> angle)
 function TimeseriesTools.isoamplitude(x::AbstractArray; dims = 1)
     mapslices(TimeseriesTools.isoamplitude, x; dims)

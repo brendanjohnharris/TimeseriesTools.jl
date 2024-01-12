@@ -39,6 +39,8 @@ include("MakieCore.jl")
 include("IO.jl")
 
 bandpass(x::AbstractTimeSeries) = x
+highpass(x::AbstractTimeSeries) = x
+lowpass(x::AbstractTimeSeries) = x
 function phasestitch end
 function isoamplitude end
 function analyticamplitude end
@@ -46,7 +48,7 @@ function analyticphase end
 function instantaneousfreq end
 instantfreq = instantaneousfreq
 export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude,
-       instantaneousfreq, instantfreq
+       instantaneousfreq, instantfreq, highpass, lowpass
 
 function _waveletfreqs end
 function _waveletspectrogram end
