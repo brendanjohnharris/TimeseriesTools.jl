@@ -5,7 +5,10 @@ import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
        describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed, centraldiff!, centraldiff, centralderiv!, centralderiv, rectifytime
+       delayembed, circmean,
+       centraldiff!, centraldiff, centralderiv!, centralderiv,
+       rightdiff!, rightdiff, rightderiv!, rightderiv,
+       rectify, phasegrad, addrefdim, addmetadata
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -77,7 +80,7 @@ julia> rts = TimeSeries(t, x);
 julia> step(rts) == 1
 ```
 """
-Base.step(x::RegularTimeSeries) = x |> times |> step
+Base.step(x::RegularTimeSeries; dims = Ti) = DimensionalData.dims(x, dims).val.data |> step
 
 """
     samplingrate(x::RegularTimeSeries)
@@ -92,7 +95,7 @@ julia> rts = TimeSeries(t, x);
 julia> samplingrate(rts) == 1
 ```
 """
-samplingrate(x::RegularTimeSeries) = 1 / step(x)
+samplingrate(x::RegularTimeSeries; kwargs...) = 1 / step(x; kwargs...)
 
 """
     samplingperiod(x::RegularTimeSeries)
@@ -107,7 +110,7 @@ julia> rts = TimeSeries(t, x);
 julia> samplingperiod(rts) == 1
 ```
 """
-samplingperiod(x::RegularTimeSeries) = step(x)
+samplingperiod(x::RegularTimeSeries; kwargs...) = step(x; kwargs...)
 
 """
     duration(x::AbstractTimeSeries)
@@ -256,13 +259,13 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = cat(Ti(ts), y..., dims = Dim{:delay})
 end
 
-function rectifytime(ts::Ti; tol = 6, zero = false)
+function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false)
     ts = collect(ts)
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
     if err > stp / 10.0^(-tol)
-        @warn "Time step is not approximately constant, skipping rectification"
+        @warn "Step is not approximately constant, skipping rectification"
     else
         stp = round(stp; digits = tol)
         t0, t1 = round.(extrema(ts); digits = tol)
@@ -274,6 +277,23 @@ function rectifytime(ts::Ti; tol = 6, zero = false)
         ts = t0:stp:(t1 + (10000 * stp))
     end
     return ts, origts
+end
+rectifytime(ts::Ti; kwargs...) = rectify(ts; kwargs...)
+
+function rectify(X::AbstractDimArray; dims, tol = 6, zero = false) # tol gives significant figures for rounding
+    if !(dims isa Tuple || dims isa AbstractVector)
+        dims = [dims]
+    end
+    for dim in dims
+        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero)
+        ts = ts[1:size(X, dim)] # Should be ok?
+        @assert length(ts) == size(X, dim)
+        X = set(X, dim => ts)
+        if zero
+            X = rebuild(X; metadata = (Symbol(dim) => origts, pairs(metadata(X))...))
+        end
+    end
+    return X
 end
 
 """
@@ -290,16 +310,7 @@ not approximately constant, a warning is issued and the rectification is skipped
 - `zero::Bool`: If `true`, the rectified time values will start from zero. Default is
   `false`.
 """
-function rectifytime(X::IrregularTimeSeries; tol = 6, zero = false) # tol gives significant figures for rounding
-    ts, origts = rectifytime(Ti(times(X)); tol, zero)
-    ts = ts[1:size(X, Ti)] # Should be ok?
-    @assert length(ts) == size(X, Ti)
-    X = set(X, Ti => ts)
-    if zero
-        X = rebuild(X; metadata = (:time => origts, pairs(metadata(X))...))
-    end
-    return X
-end
+rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = Ti, kwargs...)
 
 function rectifytime(X::AbstractVector; tol = 6, zero = false)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
@@ -318,47 +329,62 @@ function rectifytime(X::AbstractVector; tol = 6, zero = false)
     return X
 end
 
-function _centraldiff!(x)
-    a = x[2] # Save here, otherwise they get mutated before we use them
-    b = x[end - 1]
-    x[2:(end - 1)] .= (x[3:end] - x[1:(end - 2)]) / 2
-    x[[1, end]] .= [a - x[1], x[end] - b]
+phasegrad(x::Real, y::Real) = mod(x - y + π, 2π) - π # +pi - pi because we want the difference mapped from -pi to +pi, so we can represent negative changes.
+phasegrad(x, y) = phasegrad.(x, y)
+phasegrad(x::Complex, y::Complex) = phasegrad(angle(x), angle(y))
+
+function _centraldiff!(x; grad = -, dims = nothing) # Dims unused
+    # a = x[2] # Save here, otherwise they get mutated before we use them
+    # b = x[end - 1]
+    if grad == -
+        x[2:(end - 1)] .= grad(x[3:end], x[1:(end - 2)]) / 2
+    else # For a non-euclidean metric, we need to calculate both sides individually
+        x[2:(end - 1)] .= (grad(x[3:end], x[2:(end - 1)]) +
+                           grad(x[2:(end - 1)], x[1:(end - 2)])) / 2
+    end
+    # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
+    x[[1, end]] .= [copy(x[2]), copy(x[end - 1])]
     return nothing
 end
 
 """
-    centraldiff!(x::RegularTimeSeries)
+    centraldiff!(x::RegularTimeSeries; dims=Ti, grad=-)
 
 Compute the central difference of a regular time series `x`, in-place.
 The first and last elements are set to the forward and backward difference, respectively.
+The dimension to perform differencing over can be specified as `dims`, and the differencing function can be specified as `grad` (defaulting to the euclidean distance, `-`)
 """
-centraldiff!(x::UnivariateRegular) = _centraldiff!(x)
-function centraldiff!(x::typeintersect(MultivariateTimeSeries, RegularTimeSeries))
-    _centraldiff!(eachslice(x; dims = Ti))
+centraldiff!(x::UnivariateRegular; kwargs...) = _centraldiff!(x; kwargs...)
+function centraldiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
+    _centraldiff!(eachslice(x; dims); kwargs...)
 end
 
 """
-    centraldiff(x::RegularTimeSeries)
+    centraldiff(x::RegularTimeSeries; dims=Ti, grad=-)
 
 Compute the central difference of a regular time series `x`.
 The first and last elements are set to the forward and backward difference, respectively.
+The dimension to perform differencing over can be specified as `dims`, and the differencing function can be specified as `grad` (defaulting to the euclidean distance, `-`)
 See [`centraldiff!`](@ref).
 """
-function centraldiff(x::AbstractTimeSeries)
+function centraldiff(x::AbstractTimeSeries; kwargs...)
     y = deepcopy(x)
-    centraldiff!(y)
+    centraldiff!(y; kwargs...)
     return y
 end
 
 """
-    centralderiv!(x::RegularTimeSeries)
+    centralderiv!(x::RegularTimeSeries; kwargs...)
 
 Compute the central derivative of a regular time series `x`, in-place.
-See [`centraldiff!`](@ref).
+See [`centraldiff!`](@ref) for available keyword arguments.
 """
-function centralderiv!(x::AbstractTimeSeries)
-    centraldiff!(x)
-    x ./= samplingperiod(x)
+function centralderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
+    if dims isa Tuple || dims isa AbstractVector
+        error("Only one dimension can be specified for central derivatives.")
+    end
+    centraldiff!(x; dims, kwargs...)
+    x ./= samplingperiod(x; dims)
     nothing
 end
 
@@ -366,13 +392,98 @@ end
     centralderiv(x::RegularTimeSeries)
 
 Compute the central derivative of a regular time series `x`.
-See [`centraldiff`](@ref) and  [`centralderiv!`](@ref).
+See [`centraldiff`](@ref) for available keyword arguments.
+Also c.f. [`centralderiv!`](@ref).
 """
-function centralderiv(x::AbstractTimeSeries)
+function centralderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
     y = deepcopy(x)
-    centralderiv!(y)
+    centralderiv!(y; dims, kwargs...)
+    return y
+end
+
+function _rightdiff!(x; grad = -, dims = nothing) # Dims unused
+    x[1:(end - 1)] .= grad(x[2:end], x[1:(end - 1)])
+    # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
+    x[[end]] .= [copy(x[end - 1])]
+    return nothing
+end
+
+rightdiff!(x::UnivariateRegular; kwargs...) = _rightdiff!(x; kwargs...)
+function rightdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
+    _rightdiff!(eachslice(x; dims); kwargs...)
+end
+function rightdiff(x::AbstractTimeSeries; kwargs...)
+    y = deepcopy(x)
+    rightdiff!(y; kwargs...)
+    return y
+end
+function rightderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
+    if dims isa Tuple || dims isa AbstractVector
+        error("Only one dimension can be specified for right derivatives.")
+    end
+    rightdiff!(x; dims, kwargs...)
+    x ./= samplingperiod(x; dims)
+    nothing
+end
+
+function rightderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
+    y = deepcopy(x)
+    rightderiv!(y; dims, kwargs...)
+    return y
+end
+
+function _leftdiff!(x; grad = -, dims = nothing) # Dims unused
+    x[2:end] .= grad(x[2:end], x[1:(end - 1)])
+    # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
+    x[[1]] .= [copy(x[2])]
+    return nothing
+end
+
+leftdiff!(x::UnivariateRegular; kwargs...) = _leftdiff!(x; kwargs...)
+function leftdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
+    _leftdiff!(eachslice(x; dims); kwargs...)
+end
+function leftdiff(x::AbstractTimeSeries; kwargs...)
+    y = deepcopy(x)
+    leftdiff!(y; kwargs...)
+    return y
+end
+function leftderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
+    if dims isa Tuple || dims isa AbstractVector
+        error("Only one dimension can be specified for left derivatives.")
+    end
+    leftdiff!(x; dims, kwargs...)
+    x ./= samplingperiod(x; dims)
+    nothing
+end
+
+function leftderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
+    y = deepcopy(x)
+    leftderiv!(y; dims, kwargs...)
     return y
 end
 
 Base.abs(x::AbstractTimeSeries) = Base.abs.(x)
 Base.angle(x::AbstractTimeSeries) = Base.angle.(x)
+circmean(x; kwargs...) = atan.(sum(sin.(x); kwargs...), sum(cos.(x); kwargs...))
+
+## Add refdims to a DimArray
+function addrefdim(X::AbstractDimArray, dim::DimensionalData.Dimension)
+    rebuild(X; dims = dims(X),
+            metadata = DimensionalData.metadata(X),
+            name = DimensionalData.name(X),
+            refdims = (DimensionalData.refdims(X)..., dim))
+end
+
+function addmetadata(X::AbstractDimArray; kwargs...)
+    p = DimensionalData.metadata(X)
+    p = p isa DimensionalData.Metadata ? pairs(p.val) : pairs(p)
+    if any(keys(kwargs) .∈ [keys(p)])
+        @warn "Metadata already contains one of the keys, overwriting $(collect(pairs(kwargs))[keys(kwargs) .∈ [keys(p)]])"
+    end
+    md = DimensionalData.Metadata(p..., kwargs...)
+    rebuild(X; dims = dims(X),
+            metadata = md,
+            name = DimensionalData.name(X),
+            refdims = DimensionalData.refdims(X))
+end
