@@ -20,24 +20,24 @@ end
 
 ## Bandpass filters
 function bandpass(x::AbstractArray, fs::A,
-                  pass::AbstractVector{B};
-                  designmethod = DSP.Butterworth(4)) where {A <: Real, B <: Real}
+    pass::AbstractVector{B};
+    designmethod=DSP.Butterworth(4)) where {A<:Real,B<:Real}
     DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
 end
 function bandpass(x::AbstractArray, fs::A,
-                  pass::AbstractVector{B};
-                  designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
-    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustrip.(pass)...; fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    pass::AbstractVector{B};
+    designmethod=DSP.Butterworth(4)) where {A<:Quantity,B<:Quantity}
+    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustrip.(pass)...; fs=ustrip(fs)),
+            designmethod), ustrip.(x)) * unit(eltype(x))
 end
 
 function bandpass(x::AbstractTimeSeries, fs::A,
-                  pass::AbstractVector{B};
-                  kwargs...) where {A <: Quantity, B <: Quantity}
+    pass::AbstractVector{B};
+    kwargs...) where {A<:Quantity,B<:Quantity}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
 function bandpass(x::AbstractTimeSeries, fs::A,
-                  pass::AbstractVector{B}; kwargs...) where {A <: Real, B <: Real}
+    pass::AbstractVector{B}; kwargs...) where {A<:Real,B<:Real}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
 
@@ -52,23 +52,23 @@ bandpass(x, fs, pass::AbstractInterval) = bandpass(x, fs, extrema(pass))
 
 ## Other filters
 function highpass(x::AbstractArray, fs::Real,
-                  pass::Real;
-                  designmethod = DSP.Butterworth(4))
+    pass::Real;
+    designmethod=DSP.Butterworth(4))
     DSP.filtfilt(digitalfilter(DSP.Highpass(pass; fs), designmethod), x)
 end
 function highpass(x::AbstractArray, fs::Real,
-                  pass::Real;
-                  designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
-    DSP.filtfilt(digitalfilter(DSP.Highpass(ustrip(pass); fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    pass::Real;
+    designmethod=DSP.Butterworth(4))
+    DSP.filtfilt(digitalfilter(DSP.Highpass(ustrip(pass); fs=ustrip(fs)),
+            designmethod), ustrip.(x)) * unit(eltype(x))
 end
 function highpass(x::AbstractTimeSeries, fs::Quantity,
-                  pass::Quantity;
-                  kwargs...)
+    pass::Quantity;
+    kwargs...)
     set(x, highpass(x.data, fs, pass; kwargs...))
 end
 function highpass(x::AbstractTimeSeries, fs::Real,
-                  pass::Real; kwargs...)
+    pass::Real; kwargs...)
     set(x, highpass(x.data, fs, pass; kwargs...))
 end
 function highpass(x::RegularTimeSeries, pass::Number; kwargs...)
@@ -76,23 +76,23 @@ function highpass(x::RegularTimeSeries, pass::Number; kwargs...)
 end
 
 function lowpass(x::AbstractArray, fs::Real,
-                 pass::Real;
-                 designmethod = DSP.Butterworth(4))
+    pass::Real;
+    designmethod=DSP.Butterworth(4))
     DSP.filtfilt(digitalfilter(DSP.Lowpass(pass; fs), designmethod), x)
 end
 function lowpass(x::AbstractArray, fs::Real,
-                 pass::Real;
-                 designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
-    DSP.filtfilt(digitalfilter(DSP.Lowpass(ustrip(pass); fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    pass::Real;
+    designmethod=DSP.Butterworth(4))
+    DSP.filtfilt(digitalfilter(DSP.Lowpass(ustrip(pass); fs=ustrip(fs)),
+            designmethod), ustrip.(x)) * unit(eltype(x))
 end
 function lowpass(x::AbstractTimeSeries, fs::Quantity,
-                 pass::Quantity;
-                 kwargs...)
+    pass::Quantity;
+    kwargs...)
     set(x, lowpass(x.data, fs, pass; kwargs...))
 end
 function lowpass(x::AbstractTimeSeries, fs::Real,
-                 pass::Real; kwargs...)
+    pass::Real; kwargs...)
     set(x, lowpass(x.data, fs, pass; kwargs...))
 end
 function lowpass(x::RegularTimeSeries, pass::Number; kwargs...)
@@ -101,13 +101,13 @@ end
 
 ## Other utilities
 TimeseriesTools.isoamplitude(x::AbstractVector) = sin.(hilbert(x) .|> angle)
-function TimeseriesTools.isoamplitude(x::AbstractArray; dims = 1)
+function TimeseriesTools.isoamplitude(x::AbstractArray; dims=1)
     mapslices(TimeseriesTools.isoamplitude, x; dims)
 end
 
 phasewrap(ϕ::Number) = mod(ϕ + π, 2π) - π
 
-function _phasestitch(a::Tuple, b::Tuple; tol = 0.05) # a = (LFP1, PHI1)
+function _phasestitch(a::Tuple, b::Tuple; tol=0.05) # a = (LFP1, PHI1)
     x, xp = a
     y, yp = b
 
@@ -121,8 +121,8 @@ function _phasestitch(a::Tuple, b::Tuple; tol = 0.05) # a = (LFP1, PHI1)
 
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
     c = floor(Int, length(xp) / 10)
-    x = x[1:(end - c)]
-    xp = xp[1:(end - c)]
+    x = x[1:(end-c)]
+    xp = xp[1:(end-c)]
     c = floor(Int, length(yp) / 10)
     y = y[c:end]
     yp = yp[c:end]
@@ -187,8 +187,8 @@ The `phasestitch` function stitches together multiple univariate time series by 
 - A single univariate time series obtained by stitching together the input time series.
 """
 function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
-                                              AbstractVector{<:UnivariateTimeSeries}},
-                                     P = [hilbert(x) .|> angle for x in X]; tol = 0.05)
+        AbstractVector{<:UnivariateTimeSeries}},
+    P=[hilbert(x) .|> angle for x in X]; tol=0.05)
     _a = deepcopy(X)
     _ap = deepcopy(P)
     a = []
@@ -198,15 +198,15 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
     # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
     for i in eachindex(_a)
         c = floor(Int, length(_a[i]) / 10)
-        push!(a, _a[i][c:(end - c)])
-        push!(ap, _ap[i][c:(end - c)])
+        push!(a, _a[i][c:(end-c)])
+        push!(ap, _ap[i][c:(end-c)])
     end
 
     # Now match phases, ready for stitching
     for i in collect(eachindex(a))[2:end]
-        x = a[i - 1]
+        x = a[i-1]
         y = a[i]
-        xp = ap[i - 1]
+        xp = ap[i-1]
         yp = ap[i]
 
         idxs = -tol .< (yp .- xp[end]) .< tol
@@ -223,8 +223,8 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
 end
 
 function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
-                              AbstractVector{<:UnivariateTimeSeries}},
-                     pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
+        AbstractVector{<:UnivariateTimeSeries}},
+    pass::Union{NTuple{2},AbstractVector{<:Number}}; kwargs...)
     a = bandpass.(X, [pass])
     P = [hilbert(x) .|> angle for x in a] # Bandpass for phases only
     phasestitch(X, P; kwargs...)
