@@ -7,7 +7,8 @@ export AbstractTimeSeries, AbstractTS,
        IrregularIndex, IrregularTimeIndex,
        TimeSeries, Timeseries, TS, Var,
        stitch,
-       IrregularBinaryTimeSeries, SpikeTrain, spiketrain
+       IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
+       MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS
 
 """
     TimeIndex
@@ -74,6 +75,17 @@ A type alias for a regularly sampled time series.
 """
 const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex, B
                                                        } where {T, N, B}
+
+const MultidimensionalIndex = Tuple{A, Vararg{<:DimensionalData.Dimension{B}}
+                                    } where {A <: DimensionalData.TimeDim{<:RegularIndex},
+                                             B <: RegularIndex}
+
+"""
+A multidimensional time series is one that has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over a even grid in 1 dimension that fluctuates over time.
+"""
+const MultidimensionalTimeSeries = AbstractDimArray{T, N, <:MultidimensionalIndex, B
+                                                    } where {T, N, B}
+const MultidimensionalTS = MultidimensionalTimeSeries
 
 """
     IrregularIndex
@@ -154,6 +166,17 @@ julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
 function TimeSeries(t, v::DimensionalData.Dimension, x; kwargs...)
     DimArray(x, (Ti(t), v); kwargs...)
+end
+
+function TimeSeries(t::DimensionalData.TimeDim, x; kwargs...)
+    DimArray(x, (t); kwargs...)
+end
+function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (t, a); kwargs...)
+end
+function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension,
+                    b::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (t, a, b); kwargs...)
 end
 
 """
