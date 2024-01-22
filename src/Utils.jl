@@ -5,7 +5,7 @@ import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
        describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed, circmean, circvar, circstd, circresultant, circlength,
+       delayembed, circmean, circstd, circresultant, circlength,
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata
