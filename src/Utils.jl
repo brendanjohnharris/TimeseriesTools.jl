@@ -5,7 +5,8 @@ import Normalization: NormUnion, AbstractNormalization
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
        describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed, circmean, circstd, circresultant, circlength,
+       delayembed, circularmean, circularstd, circularvar, resultant,
+       resultantlength,
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata
@@ -467,11 +468,11 @@ Base.abs(x::AbstractTimeSeries) = Base.abs.(x)
 Base.angle(x::AbstractTimeSeries) = Base.angle.(x)
 
 # * See https://en.wikipedia.org/wiki/Directional_statistics
-circresultant(θ; kwargs...) = mean(exp.(im .* θ); kwargs...)
-circlength(θ; kwargs...) = abs.(circresultant(θ; kwargs...))
-circmean(θ; kwargs...) = angle.(circresultant(θ; kwargs...))
-circvar(θ; kwargs...) = 1 - circlength(θ; kwargs...)
-circstd(θ; kwargs...) = sqrt.(-2 * log.(circlength(θ; kwargs...)))
+resultant(θ; kwargs...) = mean(exp.(im .* θ); kwargs...)
+resultantlength(θ; kwargs...) = abs.(resultant(θ; kwargs...))
+circularmean(θ; kwargs...) = angle.(resultant(θ; kwargs...))
+circularvar(θ; kwargs...) = 1 - resultantlength(θ; kwargs...)
+circularstd(θ; kwargs...) = sqrt.(-2 * log.(resultantlength(θ; kwargs...)))
 
 ## Add refdims to a DimArray
 function addrefdim(X::AbstractDimArray, dim::DimensionalData.Dimension)
