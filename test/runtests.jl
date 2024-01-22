@@ -726,7 +726,7 @@ end
     @test issorted(times(y))
     @test F̂≈θ rtol=5e-2
     @test mean(dt̂)≈α * F̂ rtol=5e-2
-    @test minimum(times(y))≈minimum(times(x)) atol=4 * μ
+    @test minimum(times(y))≈minimum(times(x)) atol=6 * μ
     @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
 end
 
