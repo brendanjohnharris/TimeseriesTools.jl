@@ -10,7 +10,7 @@ using TimeseriesSurrogates
 using IntervalSets
 
 using TimeseriesTools
-import TimeseriesTools: TimeSeries, name
+import TimeseriesTools: TimeSeries, name, rectifytime
 
 using Documenter
 using ImageMagick
