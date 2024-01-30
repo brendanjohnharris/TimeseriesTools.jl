@@ -2,6 +2,7 @@ import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 import DimensionalData: print_array, _print_array_ctx
 import Normalization: NormUnion, AbstractNormalization
+using Peaks
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
        describedim, describedims, describename, interlace, _buffer, buffer, window,
@@ -9,7 +10,8 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        resultantlength,
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
-       rectify, phasegrad, addrefdim, addmetadata
+       rectify, phasegrad, addrefdim, addmetadata,
+       findpeaks
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -260,7 +262,7 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = cat(Ti(ts), y..., dims = Dim{:delay})
 end
 
-function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false)
+function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false, extend = false)
     ts = collect(ts)
     origts = ts
     stp = ts |> diff |> mean
@@ -275,7 +277,11 @@ function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false)
             t1 = t1 - t0
             t0 = 0
         end
-        ts = t0:stp:(t1 + (10000 * stp))
+        if extend
+            ts = t0:stp:(t1 + (10000 * stp))
+        else
+            ts = range(start = t0, step = stp, length = length(ts))
+        end
     end
     return ts, origts
 end
@@ -286,7 +292,7 @@ function rectify(X::AbstractDimArray; dims, tol = 6, zero = false) # tol gives s
         dims = [dims]
     end
     for dim in dims
-        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero)
+        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero, extend = true)
         ts = ts[1:size(X, dim)] # Should be ok?
         @assert length(ts) == size(X, dim)
         X = set(X, dim => ts)
@@ -313,7 +319,7 @@ not approximately constant, a warning is issued and the rectification is skipped
 """
 rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = Ti, kwargs...)
 
-function rectifytime(X::AbstractVector; tol = 6, zero = false)
+function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
     ts = times.(X)
     mint = maximum(minimum.(ts)) - exp10(tol) .. minimum(maximum.(ts)) + exp10(tol)
@@ -493,4 +499,29 @@ function addmetadata(X::AbstractDimArray; kwargs...)
             metadata = md,
             name = DimensionalData.name(X),
             refdims = DimensionalData.refdims(X))
+end
+
+function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
+                   maxprom = nothing,
+                   strict = true)
+    minprom isa Function && (minprom = minprom(x))
+    maxprom isa Function && (maxprom = maxprom(x))
+    _pks, vals = findmaxima(x)
+    pks, proms = peakproms(_pks, x; minprom)
+    idxs = indexin(pks, _pks) .|> Int
+    vals = vals[idxs]
+    proms = set(vals, proms[idxs])
+    return vals, proms
+end
+
+function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
+    @assert length(dims) == 1
+    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [
+                                        DimensionalData.dims(x,
+                                                             dims),
+                                    ]]
+    P = findpeaks.(eachslice(x; dims = _dims))
+    vals = first.(P)
+    proms = last.(P)
+    vals, proms
 end

@@ -798,3 +798,18 @@ end
 
 #     x = TimeSeries(sol)
 # end
+
+@testset "findpeaks" begin
+    x = TimeSeries(0.1:0.1:100, x -> sin(x .* 2π / 4))
+    peaks = spiketrain(range(start = 1, stop = 100, step = 4))
+    pks, proms = findpeaks(x)
+    @test times(pks) == times(peaks)
+
+    X = cat(Var(1:2), x, x .+ 1.0)
+    pks, proms = findpeaks(X)
+    @test pks isa DimArray{<:DimArray}
+    @test proms isa DimArray{<:DimArray}
+    @test times(pks[1]) == times(peaks)
+    @test times(pks[2]) == times(peaks)
+    @test all(proms[1][2:(end - 1)] .== 2)
+end
