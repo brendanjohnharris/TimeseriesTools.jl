@@ -46,6 +46,20 @@ function MakieCore.convert_arguments(P::Type{<:MakieCore.Heatmap},
     MakieCore.convert_arguments(P, decompose(x)...)
 end
 
+function MakieCore.convert_arguments(t::Type{<:MakieCore.AbstractPlot},
+                                     D, A::DimensionalData.AbstractDimMatrix)
+    xs = parent(lookup(A, D))
+    dim = dims(A, D)
+    ys = parent(first(lookup(A)[dims(A) .!= [dim]]))
+    return xs, ys, A.data
+end
+function MakieCore.convert_arguments(t::Type{<:MakieCore.AbstractPlot},
+                                     D, ys,
+                                     A::DimensionalData.AbstractDimMatrix)
+    xs = parent(lookup(A, D))
+    return xs, ys, A.data
+end
+
 # GeometryBasics.decompose(x::AN.DimensionalData.AbstractDimArray, dims...) = (getindex.((dims(x).|>collect), dims)..., x.data[dims...])
 
 function formataxislabels(x::UnivariateTimeSeries)

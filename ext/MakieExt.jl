@@ -5,9 +5,9 @@ import MakieCore.plot
 
 import ..Makie
 import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
-                Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
-                ScatterLines, Hexbin, Stem, Plot, scatter!, text!
-PointLike = Union{Scatter, Lines, ScatterLines, Hexbin, Stem}
+    Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
+    ScatterLines, Hexbin, Stem, Plot, scatter!, text!
+PointLike = Union{Scatter,Lines,ScatterLines,Hexbin,Stem}
 
 using TimeseriesTools
 using Statistics
@@ -23,7 +23,7 @@ Base.iterate(s::Makie.RichText) = iterate(String(s))
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and other niceties.
 """
-function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwargs...)
+function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks=false, kwargs...)
     s = x
     uf = frequnit(x)
     ux = unit(x)
@@ -44,7 +44,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         pks, vals = findmaxima(s, 10)
         pks, proms = peakproms(pks, s)
         if peaks isa Int
-            promidxs = partialsortperm(proms, 1:peaks, rev = true)
+            promidxs = partialsortperm(proms, 1:peaks, rev=true)
         elseif peaks isa Real
             promidxs = (proms ./ vals .> peaks) |> collect
         end
@@ -52,19 +52,19 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         pks = TimeseriesTools.freqs(s)[pks]
         vals = s[Freq(At(pks))]
         scatter!(ax, ustrip.(pks), collect(ustrip.(vals)),
-                 color = Makie.current_default_theme().textcolor,
-                 markersize = 10,
-                 marker = :dtriangle)
+            color=Makie.current_default_theme().textcolor,
+            markersize=10,
+            marker=:dtriangle)
         if eltype(pks) <: Quantity
-            txt = string.(round.(eltype(pks), pks; digits = 3))
+            txt = string.(round.(eltype(pks), pks; digits=3))
         else
-            txt = string.(round.(pks; digits = 3))
+            txt = string.(round.(pks; digits=3))
         end
         text!(ax, ustrip.(pks), collect(ustrip.(vals));
-              text = txt,
-              align = (:center, :bottom), color = Makie.current_default_theme().textcolor,
-              rotation = 0, fontsize = 12,
-              offset = (0, 3))
+            text=txt,
+            align=(:center, :bottom), color=Makie.current_default_theme().textcolor,
+            rotation=0, fontsize=12,
+            offset=(0, 3))
     end
     p
 end
@@ -73,18 +73,18 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
-                       bandcolor = nothing,
-                       percentile = 0.25, kwargs...)
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks=false,
+    bandcolor=nothing,
+    percentile=0.25, kwargs...)
     uf = frequnit(x)
     ux = unit(x)
     f, _, x = decompose(x)
     f = ustrip.(f) |> collect
     x = ustrip.(x) |> collect
-    xmin = minimum(x, dims = 2) |> vec
-    xmed = median(x, dims = 2) |> vec
-    σₗ = mapslices(x -> quantile(x, percentile), x, dims = 2) |> vec
-    σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims = 2) |> vec
+    xmin = minimum(x, dims=2) |> vec
+    xmed = median(x, dims=2) |> vec
+    σₗ = mapslices(x -> quantile(x, percentile), x, dims=2) |> vec
+    σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims=2) |> vec
     idxs = (f .> 0) .& (xmin .> 0)
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing))
     ax.xscale = log10
@@ -98,25 +98,25 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
     end
     p = spectrumplot!(ax, DimArray(xmed[idxs], (Freq(f[idxs]))); peaks, kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
-    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency = true, kwargs..., color)
+    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency=true, kwargs..., color)
     Makie.translate!(_p, 0, 0, -1.0)
     p
 end
 
-function spectrumplot(x::AbstractSpectrum; peaks = false, kwargs...)
+function spectrumplot(x::AbstractSpectrum; peaks=false, kwargs...)
     (f = Figure();
-     ax = Axis(f[1, 1]);
-     p = spectrumplot!(ax, x; peaks, kwargs...);
-     Makie.FigureAxisPlot(f,
-                          ax,
-                          p))
+    ax = Axis(f[1, 1]);
+    p = spectrumplot!(ax, x; peaks, kwargs...);
+    Makie.FigureAxisPlot(f,
+        ax,
+        p))
 end
 Makie.plot!(ax::Axis, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
 Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
-function Makie.plot!(ax::Axis, x::AbstractSpectrum{T, 2}; kwargs...) where {T}
+function Makie.plot!(ax::Axis, x::AbstractSpectrum{T,2}; kwargs...) where {T}
     spectrumplot!(ax, x; kwargs...)
 end
-Makie.plot(x::AbstractSpectrum{T, 2}; kwargs...) where {T} = spectrumplot(x; kwargs...)
+Makie.plot(x::AbstractSpectrum{T,2}; kwargs...) where {T} = spectrumplot(x; kwargs...)
 
 function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ut = timeunit(x)
@@ -134,14 +134,14 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     p
 end
 
-Makie.plot!(x::UnivariateTimeSeries; kwargs...) = Makie.plot!(current_axis(), x; kwargs...)
+Makie.plot!(x::UnivariateTimeSeries; kwargs...) = Makie.plot!(Makie.current_axis(), x; kwargs...)
 function Makie.plot(x::UnivariateTimeSeries; kwargs...)
     (f = Makie.Figure();
-     ax = Makie.Axis(f[1, 1]);
-     p = plot!(ax, x; kwargs...);
-     Makie.FigureAxisPlot(f,
-                          ax,
-                          p))
+    ax = Makie.Axis(f[1, 1]);
+    p = plot!(ax, x; kwargs...);
+    Makie.FigureAxisPlot(f,
+        ax,
+        p))
 end
 
 """
@@ -196,7 +196,7 @@ end
 
 # ? -------------------------- Colored trajectory -------------------------- ? #
 @recipe(Trajectory, x, y, z) do scene
-    Theme(colormode = :velocity)
+    Theme(colormode=:velocity)
 end
 
 function Makie.plot!(plot::Trajectory)
@@ -209,7 +209,7 @@ function Makie.plot!(plot::Trajectory)
 
     colormode = plot.colormode[]
     if colormode === :velocity
-        dx = @lift [y[2:end] .- y[1:(end - 1)] for y in $(z)]
+        dx = @lift [y[2:end] .- y[1:(end-1)] for y in $(z)]
         sqr = x -> x .^ 2
         colors = @lift sqrt.(sum(sqr.($(dx))))
     elseif colormode === :time
@@ -217,14 +217,14 @@ function Makie.plot!(plot::Trajectory)
     elseif !isnothing(colormode) && colormode != :none
         error("Not a supported `colormode`")
     end
-    _z = @lift [y[1:(end - 1)] for y in $(z)]
-    lines!(plot, _z[]...; plot.attributes..., color = colors)
+    _z = @lift [y[1:(end-1)] for y in $(z)]
+    lines!(plot, _z[]...; plot.attributes..., color=colors)
 
     plot
 end
 
 # ? -------------------------- Trajectory shadows -------------------------- ? #
-function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kwargs...)
+function shadows!(ax, x, y, z; shadowmode=:projection, swapshadows=false, kwargs...)
     (x isa Observable) || (x = Observable(x))
     (y isa Observable) || (y = Observable(y))
     (z isa Observable) || (z = Observable(z))
@@ -258,13 +258,13 @@ end
 
 # ? ------------------------------- # Traces ------------------------------- ? #
 @recipe(Traces, x, y, z) do scene
-    Theme(colormap = nothing,
-          normalize = false, # Can be any normalization type from Normalizations.jl
-          colorrange = nothing)
+    Theme(colormap=nothing,
+        normalize=false, # Can be any normalization type from Normalizations.jl
+        colorrange=nothing)
 end
 
 function Makie.convert_arguments(::Type{<:Plot{<:TimeseriesTools.Traces}},
-                                 x::AbstractDimArray)
+    x::AbstractDimArray)
     (x.dims[1].val.data, x.dims[2].val.data, x.data)
 end
 
@@ -275,7 +275,7 @@ function Makie.plot!(plot::Traces)
     z = lift(z) do z
         (normalize == true) && (normalize = Normalization.MinMax)
         if normalize != false && normalize <: Normalization.AbstractNormalization
-            N = fit(normalize, z; dims = 1)
+            N = fit(normalize, z; dims=1)
             z = Normalization.normalize(z, N)
         end
         z
@@ -354,13 +354,13 @@ end
 
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
-    Theme(offset = 1,
-          normalize = false,
-          spacing = :close)
+    Theme(offset=1,
+        normalize=false,
+        spacing=:close)
 end
 
 function Makie.convert_arguments(::Type{<:Plot{TimeseriesTools.StackedTraces}},
-                                 x::AbstractDimArray)
+    x::AbstractDimArray)
     (x.dims[1].val.data, x.dims[2].val.data, x.data)
 end
 
@@ -372,7 +372,7 @@ function Makie.plot!(plot::StackedTraces)
     z = lift(z) do z
         (normalize == true) && (normalize = Normalization.MinMax)
         if normalize != false && normalize <: Normalization.AbstractNormalization
-            N = fit(normalize, z; dims = 1)
+            N = fit(normalize, z; dims=1)
             z = Normalization.normalize(z, N)
         end
         z
@@ -384,13 +384,13 @@ function Makie.plot!(plot::StackedTraces)
         end
         c = zeros(size(z, 2))
         if spacing === :even
-            space = maximum([maximum(z[:, i - 1] .- z[:, i]) for i in 2:size(z, 2)])
+            space = maximum([maximum(z[:, i-1] .- z[:, i]) for i in 2:size(z, 2)])
         end
         for i in 2:size(z, 2)
             if spacing === :close
-                space = maximum(z[:, i - 1] .- z[:, i])
+                space = maximum(z[:, i-1] .- z[:, i])
             end
-            c[i] = c[i - 1] + space * offset
+            c[i] = c[i-1] + space * offset
         end
         z .+ c'
     end

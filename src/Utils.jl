@@ -11,7 +11,7 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks
+       findpeaks, align, upsample
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -510,7 +510,7 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     pks, proms = peakproms(_pks, x; minprom)
     idxs = indexin(pks, _pks) .|> Int
     vals = vals[idxs]
-    proms = set(vals, proms[idxs])
+    proms = set(vals, proms)
     return vals, proms
 end
 
@@ -520,8 +520,41 @@ function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwar
                                         DimensionalData.dims(x,
                                                              dims),
                                     ]]
-    P = findpeaks.(eachslice(x; dims = _dims))
+    P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
     vals = first.(P)
     proms = last.(P)
     vals, proms
+end
+
+"""
+    align(x::AbstractDimArray, ts, dt; dims = 1)
+
+Align a [`DimArray`](@ref) `x` to each of a set of dimension values `ts`, selecting a window given by dt centered at each element of `ts`.
+`dt` can be a two-element vector/tuple, or an interval.
+The `dims` argument specifies the dimension along which the alignment is performed.
+Each element of the resulting [`DimArray`](@ref) is an aligned portion of the original `x`.
+"""
+function align(x::DimensionalData.AbstractDimArray, ts,
+               dt::Union{<:Tuple, <:AbstractVector}; dims = 1, zero = true)
+    @assert length(dims) == 1
+    dims isa Integer &&
+        (dims = DimensionalData.dims(x, dims))
+    ints = [Interval((t .+ dt)...) for t in ts]
+    x = TimeSeries(ts, [view(x, rebuild(dims, i)) for i in ints])
+    if zero
+        x = set(x, map(enumerate(x)) do (i, _x)
+                    set(_x, dims => lookup(_x, dims) .- ts[i])
+                end)
+    end
+    return x
+end
+align(x, ts, dt::Interval; kwargs...) = align(x, ts, extrema(dt); kwargs...)
+
+function upsample(d::DimensionalData.Dimension{<:RegularIndex}, factor::Number)
+    rebuild(d, range(start = minimum(d), stop = maximum(d), step = step(d) / factor))
+end
+function upsample(d::DimensionalData.Dimension, factor)
+    rebuild(d,
+            range(start = minimum(d), stop = maximum(d),
+                  step = mean(diff(lookup(d))) / factor))
 end
