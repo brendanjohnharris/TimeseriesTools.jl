@@ -11,7 +11,7 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks, align, upsample
+       findpeaks, align, upsample, matchdim
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -322,7 +322,7 @@ rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = Ti, kwargs...
 function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
     ts = times.(X)
-    mint = maximum(minimum.(ts)) - exp10(tol) .. minimum(maximum.(ts)) + exp10(tol)
+    mint = maximum(minimum.(ts)) - exp10(-tol) .. minimum(maximum.(ts)) + exp10(-tol)
     X = [x[Ti(mint)] for x in X]
     X = [x[1:minimum(size.(X, 1))] for x in X]
     ts = mean(times.(X))
@@ -333,6 +333,29 @@ function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     end
 
     X = [set(x, Ti => ts) for x in X]
+    return X
+end
+
+function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 6, zero = false)
+    # Generate some common time indices as close as possible to the rectified times of each element of the input vector. At most this will change each time index by a maximum of 1 sampling period. We could do better--maximum of a half-- but leave that for now.
+    ts = lookup.(X, [dims])
+    mint = maximum(minimum.(ts)) - exp10(-tol) .. minimum(maximum.(ts)) + exp10(-tol)
+    X = map(X) do x
+        d = rebuild(DimensionalData.dims(x, dims), mint)
+        x = getindex(x, d)
+    end
+    L = minimum(size.(X, dims))
+    X = map(X) do x
+        d = DimensionalData.dims(x, dims)[1:L]
+        x = getindex(x, At(d)) # Should now have same length for all inputs
+    end
+
+    ts = mean(lookup.(X, [dims]))
+    ts, origts = rectify(rebuild(DimensionalData.dims(X[1], dims), ts); tol, zero)
+    if any([any(ts .- lookup(x, dims) .> std(ts) / 10.0^(-tol)) for x in X])
+        @error "Cannot find common dimension indices within tolerance"
+    end
+    X = [set(x, rebuild(DimensionalData.dims(x, dims), ts)) for x in X]
     return X
 end
 
@@ -558,3 +581,31 @@ function upsample(d::DimensionalData.Dimension, factor)
             range(start = minimum(d), stop = maximum(d),
                   step = mean(diff(lookup(d))) / factor))
 end
+
+"""
+    stitch(x, args...)
+
+Stitch multiple time series together by concatenatign along the time dimension generating new contiguous time indices. The time series must be of the same type (`UnivariateRegular`, `MultivariateRegular`, or `AbstractArray`), and the sampling period and dimensions of the data arrays must match. If the arguments are `MultivariateRegular, they must have the same dimensions (except for the time dimension).
+
+# Arguments
+- `X`: The first time series.
+- `args...`: Additional time series.
+
+# Returns
+- A new time series containing the concatenated data.
+"""
+function stitch(x::UnivariateRegular, y::UnivariateRegular)
+    dt = samplingperiod(x)
+    @assert dt == samplingperiod(y)
+    z = vcat(x.data, y.data)
+    z = TimeSeries(dt:dt:(dt * size(z, 1)), z)
+end
+stitch(x::AbstractArray, y::AbstractArray) = vcat(x, y)
+function stitch(x::MultivariateRegular, y::MultivariateRegular)
+    dt = samplingperiod(x)
+    @assert dt == samplingperiod(y)
+    @assert all(dims(x)[2:end] .== dims(y)[2:end])
+    z = vcat(x.data, y.data)
+    z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
+end
+stitch(X, Y, args...) = reduce(stitch, (X, Y, args...))

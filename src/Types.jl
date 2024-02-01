@@ -232,31 +232,3 @@ end
 
 const UnivariateRegular = typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 const MultivariateRegular = typeintersect(MultivariateTimeSeries, RegularTimeSeries)
-
-"""
-    stitch(x, args...)
-
-Stitch multiple time series together by concatenatign along the time dimension generating new contiguous time indices. The time series must be of the same type (`UnivariateRegular`, `MultivariateRegular`, or `AbstractArray`), and the sampling period and dimensions of the data arrays must match. If the arguments are `MultivariateRegular, they must have the same dimensions (except for the time dimension).
-
-# Arguments
-- `X`: The first time series.
-- `args...`: Additional time series.
-
-# Returns
-- A new time series containing the concatenated data.
-"""
-function stitch(x::UnivariateRegular, y::UnivariateRegular)
-    dt = samplingperiod(x)
-    @assert dt == samplingperiod(y)
-    z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt * size(z, 1)), z)
-end
-stitch(x::AbstractArray, y::AbstractArray) = vcat(x, y)
-function stitch(x::MultivariateRegular, y::MultivariateRegular)
-    dt = samplingperiod(x)
-    @assert dt == samplingperiod(y)
-    @assert all(dims(x)[2:end] .== dims(y)[2:end])
-    z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
-end
-stitch(X, Y, args...) = reduce(stitch, (X, Y, args...))

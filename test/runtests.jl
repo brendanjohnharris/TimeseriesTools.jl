@@ -813,3 +813,13 @@ end
     @test times(pks[2]) == times(peaks)
     @test all(proms[1][2:(end - 1)] .== 2)
 end
+
+@testset "matchdim" begin
+    ts = 0:0.01:1
+    X = [Timeseries(ts .+ 1e-7 .* randn(101), sin) for _ in 1:10]
+    X = TimeSeries(1:10, X)
+    Y = matchdim(X)
+
+    @test length(unique(dims.(Y))) == 1
+    @test dims(Y[1], Ti) == Ti(ts)
+end
