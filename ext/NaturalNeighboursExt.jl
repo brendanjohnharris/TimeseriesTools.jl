@@ -26,11 +26,11 @@ function (itp::NaturalNeighboursInterpolant)(x::DimensionalData.Dimension,
     DimArray(X, (x, y))
 end
 
-function upsample(x::DimensionalData.AbstractDimMatrix, factor; derivatives = true,
-                  kwargs...)
-    xy = upsample.(dims(x), factor)
-    itp, N = interpolate(x; derivatives)
-    itp(xy..., N; method = Sibson(1), parallel = true, kwargs...)
-end
+# function upsample(x::DimensionalData.AbstractDimMatrix, factor; derivatives = true,
+#                   kwargs...)
+#     xy = upsample.(dims(x), factor)
+#     itp, N = interpolate(x; derivatives)
+#     itp(xy..., N; method = Sibson(1), parallel = true, kwargs...)
+# end
 
 end # module

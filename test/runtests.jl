@@ -8,6 +8,7 @@ using ContinuousWavelets
 using StatsBase
 using TimeseriesSurrogates
 using IntervalSets
+using Dierckx
 
 using TimeseriesTools
 import TimeseriesTools: TimeSeries, name, rectifytime
@@ -16,6 +17,40 @@ using Documenter
 using ImageMagick
 using BenchmarkTools
 using Foresight
+
+@testset "Upsampling" begin
+    x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    itp = TimeseriesTools.interpolate(x)
+    y = itp(dims(x)...)
+    @test x == y
+    z = @test_nowarn upsample(x, 2)
+    @test length(dims(x, 1)) == length(dims(x, 2)) == 199
+end
+
+@testset "matchdim" begin
+    ts = 0:0.01:1
+    X = [Timeseries(ts .+ 1e-7 .* randn(101), sin) for _ in 1:10]
+    X = TimeSeries(1:10, X)
+    Y = matchdim(X)
+
+    @test length(unique(dims.(Y))) == 1
+    @test dims(Y[1], Ti) == Ti(ts)
+end
+
+@testset "findpeaks" begin
+    x = TimeSeries(0.1:0.1:100, x -> sin(x .* 2π / 4))
+    peaks = spiketrain(range(start = 1, stop = 100, step = 4))
+    pks, proms = findpeaks(x)
+    @test times(pks) == times(peaks)
+
+    X = cat(Var(1:2), x, x .+ 1.0)
+    pks, proms = findpeaks(X)
+    @test pks isa DimArray{<:DimArray}
+    @test proms isa DimArray{<:DimArray}
+    @test times(pks[1]) == times(peaks)
+    @test times(pks[2]) == times(peaks)
+    @test all(proms[1][2:(end - 1)] .== 2)
+end
 
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
@@ -798,28 +833,3 @@ end
 
 #     x = TimeSeries(sol)
 # end
-
-@testset "findpeaks" begin
-    x = TimeSeries(0.1:0.1:100, x -> sin(x .* 2π / 4))
-    peaks = spiketrain(range(start = 1, stop = 100, step = 4))
-    pks, proms = findpeaks(x)
-    @test times(pks) == times(peaks)
-
-    X = cat(Var(1:2), x, x .+ 1.0)
-    pks, proms = findpeaks(X)
-    @test pks isa DimArray{<:DimArray}
-    @test proms isa DimArray{<:DimArray}
-    @test times(pks[1]) == times(peaks)
-    @test times(pks[2]) == times(peaks)
-    @test all(proms[1][2:(end - 1)] .== 2)
-end
-
-@testset "matchdim" begin
-    ts = 0:0.01:1
-    X = [Timeseries(ts .+ 1e-7 .* randn(101), sin) for _ in 1:10]
-    X = TimeSeries(1:10, X)
-    Y = matchdim(X)
-
-    @test length(unique(dims.(Y))) == 1
-    @test dims(Y[1], Ti) == Ti(ts)
-end

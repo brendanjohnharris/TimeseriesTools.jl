@@ -346,8 +346,8 @@ function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 6, zero
     end
     L = minimum(size.(X, dims))
     X = map(X) do x
-        d = DimensionalData.dims(x, dims)[1:L]
-        x = getindex(x, At(d)) # Should now have same length for all inputs
+        d = rebuild(DimensionalData.dims(x, dims), 1:L)
+        x = getindex(x, d) # Should now have same length for all inputs
     end
 
     ts = mean(lookup.(X, [dims]))
@@ -581,6 +581,7 @@ function upsample(d::DimensionalData.Dimension, factor)
             range(start = minimum(d), stop = maximum(d),
                   step = mean(diff(lookup(d))) / factor))
 end
+function interpolate end
 
 """
     stitch(x, args...)
