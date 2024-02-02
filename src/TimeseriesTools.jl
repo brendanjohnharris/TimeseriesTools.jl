@@ -53,6 +53,7 @@ export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude,
 function _waveletfreqs end
 function _waveletspectrogram end
 function waveletspectrogram end
+function interpolate end
 export _waveletfreqs, _waveletspectrogram, waveletspectrogram
 
 end

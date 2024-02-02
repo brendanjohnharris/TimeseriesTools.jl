@@ -6,9 +6,11 @@ CurrentModule = TimeseriesTools
 
 Documentation for [TimeseriesTools](https://github.com/brendanjohnharris/TimeseriesTools.jl).
 
-```@index
+
+```@contents
+Pages = ["index.md"]
 ```
 
-```@autodocs
-Modules = [TimeseriesTools]
+```@index
+Pages = ["index.md"]
 ```

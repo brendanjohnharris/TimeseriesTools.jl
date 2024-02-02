@@ -18,6 +18,16 @@ using ImageMagick
 using BenchmarkTools
 using Foresight
 
+@testset "Cat" begin
+    x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    y = cat(Freq(1:2), x, x)
+    @test dims(y, 3) == Freq(1:2)
+    z = cat(Freq(1:2), [x, x])
+    @test y == z
+    y = cat(Freq(1:2), [x, x]; dims = 1)
+    @test dims(y, 1) == Freq(1:2)
+end
+
 @testset "Upsampling" begin
     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
     itp = TimeseriesTools.interpolate(x)

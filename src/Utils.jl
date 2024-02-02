@@ -55,6 +55,86 @@ function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
     _print_array_ctx(io, Bool)
 end
 
+function Base.cat(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractDimArray};
+                  dims = nothing, kwargs...)
+    x = first(args) # Is this allocating?
+
+    isnothing(dims) && (dims = ndims(x) + 1)
+    if !all([size(x)] .== size.(args))
+        error("Input arrays must have the same dimensionality and size")
+    end
+    if dims isa Val && typeof(dims).parameters[1] isa Integer
+        dims = typeof(dims).parameters[1]
+    end
+    if !(dims isa Integer) && !(dims isa Val)
+        idx = DimensionalData.dims(x) isa dims ? 1 :
+              findfirst(isa.(DimensionalData.dims(x), [dims]))
+        isnothing(idx) && error("Dimension $dims not found in input array")
+        dims = first(idx)
+    end
+    outsize = size(x) |> collect
+    insert!(outsize, dims, length(D)) # Size of the output array
+
+    X = Array{eltype(x), length(outsize)}(undef, Tuple(outsize))
+
+    for (i, _x) in enumerate(eachslice(X; dims, drop = false))
+        _x .= args[i]
+    end
+
+    ds = Vector{Any}([DimensionalData.dims(x)...])
+    insert!(ds, dims, D)
+    y = DimArray(X, (ds...,); refdims = refdims(x), name = name(x),
+                 metadata = metadata(x))
+    # if hasdim(y, Ti)
+    #     ts = times(y)
+    #     y = set(y, Ti => ts .- minimum(ts))
+    # end
+    return y
+end
+
+"""
+    Base.cat(D::DimensionalData.Dimension, args...; kwargs...)
+Concatenate the arrays given in `args...`, and give the resulting extra axis dimensions `D`.
+Note that unlike `Base.cat` without the first `Dim` argument, this increments all existing dimensions greater than `dims` by one (so N n×n arrays concatenated at `dims=1` will result in an N×n×n array).
+`args...` can be a splatted collection of `DimArray`s, but this will give the same behaviour as if `args...` is a single vector of `DimArray`s; the latter is much more performant.
+"""
+function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, y::AbstractDimArray,
+                  args...;
+                  dims = nothing,
+                  kwargs...) # TODO Refactor this method, to call the method above.
+    isnothing(dims) && (dims = ndims(x) + 1)
+    if !all([size(x)] .== size.(args))
+        error("Input arrays must have the same dimensionality and size")
+    end
+    if dims isa Val && typeof(dims).parameters[1] isa Integer
+        dims = typeof(dims).parameters[1]
+    end
+    if !(dims isa Integer) && !(dims isa Val)
+        idx = DimensionalData.dims(x) isa dims ? 1 :
+              findfirst(isa.(DimensionalData.dims(x), [dims]))
+        isnothing(idx) && error("Dimension $dims not found in input array")
+        dims = first(idx)
+    end
+    function rf(x)sb
+        r = size(x) |> collect
+        insert!(r, dims, 1)
+        reshape(x, r...)
+    end
+    _x = rf(x.data)
+    _y = rf(y.data)
+    _args = rf.(getfield.(args, [:data]))
+    x′ = cat(_x, _y, _args...; dims, kwargs...)
+    ds = Vector{Any}([DimensionalData.dims(x)...])
+    insert!(ds, dims, D)
+    y = DimArray(x′, (ds...,); refdims = refdims(x), name = name(x),
+                 metadata = metadata(x))
+    # if hasdim(y, Ti)
+    #     ts = times(y)
+    #     y = set(y, Ti => ts .- minimum(ts))
+    # end
+    return y
+end
+
 """
     times(x::AbstractTimeSeries)
 
@@ -552,10 +632,10 @@ end
 """
     align(x::AbstractDimArray, ts, dt; dims = 1)
 
-Align a [`DimArray`](@ref) `x` to each of a set of dimension values `ts`, selecting a window given by dt centered at each element of `ts`.
+Align a `DimArray` `x` to each of a set of dimension values `ts`, selecting a window given by `dt` centered at each element of `ts`.
 `dt` can be a two-element vector/tuple, or an interval.
 The `dims` argument specifies the dimension along which the alignment is performed.
-Each element of the resulting [`DimArray`](@ref) is an aligned portion of the original `x`.
+Each element of the resulting `DimArray` is an aligned portion of the original `x`.
 """
 function align(x::DimensionalData.AbstractDimArray, ts,
                dt::Union{<:Tuple, <:AbstractVector}; dims = 1, zero = true)
@@ -581,7 +661,6 @@ function upsample(d::DimensionalData.Dimension, factor)
             range(start = minimum(d), stop = maximum(d),
                   step = mean(diff(lookup(d))) / factor))
 end
-function interpolate end
 
 """
     stitch(x, args...)
