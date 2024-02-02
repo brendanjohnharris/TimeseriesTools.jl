@@ -73,7 +73,7 @@ function Base.cat(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractD
         dims = first(idx)
     end
     outsize = size(x) |> collect
-    insert!(outsize, dims, length(D)) # Size of the output array
+    insert!(outsize, dims, length(D))
 
     X = Array{eltype(x), length(outsize)}(undef, Tuple(outsize))
 
@@ -85,10 +85,6 @@ function Base.cat(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractD
     insert!(ds, dims, D)
     y = DimArray(X, (ds...,); refdims = refdims(x), name = name(x),
                  metadata = metadata(x))
-    # if hasdim(y, Ti)
-    #     ts = times(y)
-    #     y = set(y, Ti => ts .- minimum(ts))
-    # end
     return y
 end
 
@@ -115,7 +111,7 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, y::Abstract
         isnothing(idx) && error("Dimension $dims not found in input array")
         dims = first(idx)
     end
-    function rf(x)sb
+    function rf(x)
         r = size(x) |> collect
         insert!(r, dims, 1)
         reshape(x, r...)
