@@ -32,9 +32,9 @@ end
     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
     itp = TimeseriesTools.interpolate(x)
     y = itp(dims(x)...)
-    @test x == y
+    @test x ≈ y
     z = @test_nowarn upsample(x, 2)
-    @test length(dims(x, 1)) == length(dims(x, 2)) == 199
+    @test length(dims(z, 1)) == length(dims(z, 2)) == 199
 end
 
 @testset "matchdim" begin

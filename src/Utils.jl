@@ -462,7 +462,7 @@ The dimension to perform differencing over can be specified as `dims`, and the d
 """
 centraldiff!(x::UnivariateRegular; kwargs...) = _centraldiff!(x; kwargs...)
 function centraldiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
-    _centraldiff!(eachslice(x; dims); kwargs...)
+    _centraldiff!(eachslice(x; dims); dims, kwargs...)
 end
 
 """
