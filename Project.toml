@@ -30,6 +30,7 @@ CUDAExt = ["CUDA", "ContinuousWavelets"]
 ContinuousWaveletsExt = ["ContinuousWavelets", "Mmap"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
 DierckxExt = ["Dierckx"]
+GeneralizedPhase = ["GeneralizedPhase"]
 
 [compat]
 CUDA = "3, 4, 5"
@@ -46,7 +47,7 @@ JSON = "0.20, 0.21"
 LaTeXStrings = "1"
 Makie = "0.20"
 MakieCore = "0.7"
-Normalization = "0.4, 0.5"
+Normalization = "0.4, 0.5, 0.6"
 Peaks = "0.4"
 Reexport = "1"
 Requires = "1"
@@ -54,6 +55,7 @@ TimeseriesSurrogates = "2.6.3"
 NaturalNeighbours = "1"
 Unitful = "1"
 Dierckx = "0.5"
+GeneralizedPhase = "0.1"
 julia = "1.9"
 
 [weakdeps]
@@ -65,12 +67,15 @@ Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+GeneralizedPhase = "13235c25-d339-4138-a8bf-65c4e89d8d0a"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ContinuousWavelets = "96eb917e-2868-4417-9cb6-27e7ff17528f"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+GeneralizedPhase = "13235c25-d339-4138-a8bf-65c4e89d8d0a"

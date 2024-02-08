@@ -26,7 +26,7 @@ end
     decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum})
 Convert a time series or spectrum to a tuple of the dimensions and the data (as `Array`s).
 """
-decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = ((dims(x) .|> collect)...,
+decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = (lookup(x)...,
                                                                  x.data)
 # function decompose(x::MultivariateTimeSeries)
 #     if size(x)[2] < 3

@@ -179,6 +179,21 @@ function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension,
     DimArray(x, (t, a, b); kwargs...)
 end
 
+import DimensionalData.data
+function data(x::AbstractTimeSeries)
+    _x = x.data
+    while _x isa AbstractTimeSeries
+        _x = _x.data
+    end
+    return _x
+end
+function TimeSeries(t, x::AbstractDimArray; kwargs...)
+    TimeSeries(t, DimensionalData.data(x); kwargs...)
+end
+function TimeSeries(t, v, x::AbstractDimArray; kwargs...)
+    TimeSeries(t, v, DimensionalData.data(x); kwargs...)
+end
+
 """
     TimeSeries(t, f::Function)
 
@@ -189,7 +204,6 @@ TimeSeries(t, f::Function; kwargs...) = TimeSeries(t, f.(t), kwargs...)
 const TS = Timeseries = TimeSeries
 
 convertconst(a, _) = a
-
 
 const UnivariateRegular = typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 const MultivariateRegular = typeintersect(MultivariateTimeSeries, RegularTimeSeries)

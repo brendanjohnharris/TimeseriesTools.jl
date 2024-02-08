@@ -4,7 +4,9 @@ import Unitful.unit
 import LinearAlgebra.normalize
 import Normalization.denormalize
 
-export dimunit, timeunit, frequnit, unit, UnitfulIndex, UnitfulTimeSeries, UnitfulSpectrum
+export dimunit, timeunit, frequnit, unit,
+       UnitfulIndex, UnitfulTimeSeries, UnitfulSpectrum,
+       ustripall
 
 # Unitful._promote_unit(::S, ::T) where {S<:Unitful.FreeUnits{(), NoDims, nothing}, T<:Unitful.TimeUnits} = u"s"
 """
@@ -193,4 +195,12 @@ end
 function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity};
                      kwargs...)
     error("Denormalization of unitful arrays currently not supported")
+end
+
+function ustripall(x::AbstractDimArray)
+    x = set(x, ustrip.(x))
+    for d in dims(x)
+        x = set(x, d => ustrip.(lookup(x, d)))
+    end
+    return x
 end
