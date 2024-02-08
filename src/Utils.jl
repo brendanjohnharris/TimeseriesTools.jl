@@ -1,7 +1,7 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 import DimensionalData: print_array, _print_array_ctx
-import Normalization: NormUnion, AbstractNormalization
+import Normalization: NormUnion, AbstractNormalization, nansafe
 using Peaks
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
@@ -11,7 +11,7 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks, align, upsample, matchdim
+       findpeaks, align, upsample, matchdim, nansafe, coarsegrain
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -55,8 +55,8 @@ function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
     _print_array_ctx(io, Bool)
 end
 
-function Base.cat(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractDimArray};
-                  dims = nothing, kwargs...)
+function Base.stack(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractDimArray};
+                    dims = nothing, kwargs...)
     x = first(args) # Is this allocating?
 
     isnothing(dims) && (dims = ndims(x) + 1)
@@ -339,15 +339,17 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
 end
 
 function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false, extend = false)
+    u = unit(eltype(ts))
     ts = collect(ts)
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
-    if err > stp / 10.0^(-tol)
+    if err > stp / exp10(-tol)
         @warn "Step is not approximately constant, skipping rectification"
     else
-        stp = round(stp; digits = tol)
-        t0, t1 = round.(extrema(ts); digits = tol)
+        stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
+        t0, t1 = u == NoUnits ? round.(extrema(ts); digits = tol) :
+                 round.(u, extrema(ts); digits = tol)
         if zero
             origts = t0:stp:(t1 + (10000 * stp))
             t1 = t1 - t0
@@ -414,8 +416,10 @@ end
 
 function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 6, zero = false)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector. At most this will change each time index by a maximum of 1 sampling period. We could do better--maximum of a half-- but leave that for now.
+    u = lookup(X |> first, dims) |> eltype |> unit
     ts = lookup.(X, [dims])
-    mint = maximum(minimum.(ts)) - exp10(-tol) .. minimum(maximum.(ts)) + exp10(-tol)
+    mint = (maximum(minimum.(ts)) - exp10(-tol) * u) ..
+           (minimum(maximum.(ts)) + exp10(-tol) * u)
     X = map(X) do x
         d = rebuild(DimensionalData.dims(x, dims), mint)
         x = getindex(x, d)
@@ -428,7 +432,7 @@ function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 6, zero
 
     ts = mean(lookup.(X, [dims]))
     ts, origts = rectify(rebuild(DimensionalData.dims(X[1], dims), ts); tol, zero)
-    if any([any(ts .- lookup(x, dims) .> std(ts) / 10.0^(-tol)) for x in X])
+    if any([any(ts .- lookup(x, dims) .> std(ts) / exp10(-tol)) for x in X])
         @error "Cannot find common dimension indices within tolerance"
     end
     X = [set(x, rebuild(DimensionalData.dims(x, dims), ts)) for x in X]
@@ -461,8 +465,11 @@ The first and last elements are set to the forward and backward difference, resp
 The dimension to perform differencing over can be specified as `dims`, and the differencing function can be specified as `grad` (defaulting to the euclidean distance, `-`)
 """
 centraldiff!(x::UnivariateRegular; kwargs...) = _centraldiff!(x; kwargs...)
-function centraldiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
-    _centraldiff!(eachslice(x; dims); dims, kwargs...)
+function centraldiff!(x::AbstractDimArray; dims = 1, kwargs...)
+    if !(DimensionalData.lookup(x, dims).data isa AbstractRange)
+        error("Differencing dimension must be regularly sampled")
+    end
+    _centraldiff!(eachslice(x; dims); kwargs...)
 end
 
 """
@@ -503,7 +510,8 @@ Also c.f. [`centralderiv!`](@ref).
 """
 function centralderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
     y = deepcopy(x)
-    centralderiv!(y; dims, kwargs...)
+    centraldiff!(y; dims, kwargs...)
+    y = y ./ samplingperiod(y; dims)
     return y
 end
 
@@ -685,3 +693,73 @@ function stitch(x::MultivariateRegular, y::MultivariateRegular)
     z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
 end
 stitch(X, Y, args...) = reduce(stitch, (X, Y, args...))
+
+"""
+    coarsegrain(X::AbstractArray; dims = nothing, newdim=ndims(X)+1)
+Coarse-grain an array by taking every second element over the given dimensions `dims` and concatenating them in the dimension `newdim`. `dims` are coarse-grained in sequence, from last to first. If `dims` is not specified, we iterate over all dimensions that are not `newdim`. If the array has an odd number of slices in any `dims`, the last slice is discarded.
+This is more flexibile than the conventional, mean-based definition of coarse graining: it can be used to generate coarse-grained distributions from an array. To recover this conventional mean-based coarse-graining:
+```julia
+    C = coarsegrain(X)
+    mean(C, dims=ndims(C))
+```
+"""
+function coarsegrain(X::AbstractArray; dims = nothing, newdim = ndims(X) + 1)
+    if isnothing(dims)
+        dims = collect(1:ndims(X))
+        dims = setdiff(dims, newdim)
+    end
+    dims = collect(Tuple(dims))
+    if newdim ∈ dims
+        error("`dims` cannot contain `newdim`")
+    end
+    all(size(X)[dims] .> 1) ||
+        error("Cannot coarse-grain a dimension with only one element")
+    while !isempty(dims)
+        dim = pop!(dims)
+        𝒳 = eachslice(X; dims = dim)
+        N = floor(Int, length(𝒳) / 2)
+        X = cat(stack(𝒳[1:2:(N * 2)], dims = dim), stack(𝒳[2:2:(N * 2)], dims = dim),
+                dims = newdim)
+    end
+    return X
+end
+
+function coarsegrain(X::AbstractDimArray; dims = nothing,
+                     newdim = ndims(X) + 1)
+    if isnothing(dims)
+        dims = DimensionalData.dims(X)
+    end
+    _dims = [dimnum(X, dims)...]
+    dims = DimensionalData.dims.([X], _dims)
+    if hasdim(X, newdim)
+        _newdim = dimnum(X, newdim)
+        newdim = DimensionalData.dims(X, _newdim)
+    else
+        _newdim = ndims(X) + 1
+    end
+    while !isempty(_dims)
+        _dim = pop!(_dims)
+        _X = coarsegrain(X.data; dims = _dim, newdim = _newdim)
+        N = floor(Int, size(X, _dim) / 2)
+        if hasdim(X, newdim)
+            newdim = rebuild(DimensionalData.dims(X, newdim),
+                             vcat(DimensionalData.dims(X, _newdim).val,
+                                  DimensionalData.dims(X, _newdim).val))
+            newdims = collect(Any, DimensionalData.dims(X))
+            newdims[_dim] = rebuild(newdims[_dim],
+                                    (newdims[_dim][1:2:(N * 2)] .+
+                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+            newdims[_newdim] = newdim
+        else
+            newdims = collect(Any, DimensionalData.dims(X))
+            newdims[_dim] = rebuild(newdims[_dim],
+                                    (newdims[_dim][1:2:(N * 2)] .+
+                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+            newdims = [newdims..., DimensionalData.AnonDim(1:size(_X, _newdim))]
+            newdim = newdims[newdim]
+        end
+        X = rebuild(X, _X, Tuple(newdims))
+    end
+
+    return X
+end

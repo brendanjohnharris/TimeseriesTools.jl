@@ -17,14 +17,70 @@ using Documenter
 using ImageMagick
 using BenchmarkTools
 using Foresight
+using ComplexityMeasures
+using Distributions
+using LinearAlgebra
+
+@testset "coarsegrain" begin
+    X = repeat(1:11, 1, 100)
+    C = coarsegrain(X, dims = 1)
+    M = mean(C, dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+    @test size(C, 1) == size(X, 1) ÷ 2
+
+    C = coarsegrain(X)
+    @test size(C) == (5, 50, 4)
+    M = mean(C, dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    C = coarsegrain(X; newdim = 2)
+    M = mean(C, dims = 2)
+    @test size(C) == (5, 200)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    X = cat(X, X; dims = 3)
+    C = coarsegrain(X; dims = 1, newdim = 2)
+    @test size(C) == (5, 200, 2)
+
+    X = TimeSeries(1:11, 1:100, repeat(1:11, 1, 100))
+    C = coarsegrain(X, dims = 1)
+    M = dropdims(mean(C, dims = 3), dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+    @test size(C, 1) == size(X, 1) ÷ 2
+
+    C = coarsegrain(X)
+    @test size(C) == (5, 50, 4)
+    M = dropdims(mean(C, dims = 3), dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    C = coarsegrain(X; dims = Ti, newdim = Var)
+    @test length(lookup(C, 1)) == size(C, 1)
+    @test length(lookup(C, 2)) == size(C, 2)
+    M = mean(C.data, dims = 2)
+    @test size(C) == (5, 200)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    X = cat(X, X; dims = 3)
+    C = coarsegrain(X; dims = 1, newdim = 2)
+    @test size(C) == (5, 200, 2)
+end
+
+@testset "ComplexityMeasuresExt" begin
+    μ = [1.0, -4.0]
+    σ = [2.0, 2.0]
+    𝒩 = MvNormal(μ, LinearAlgebra.Diagonal(map(abs2, σ)))
+    N = 500
+    D = Timeseries(1:N, 1:2, hcat(sort([rand(𝒩) for i in 1:N])...)')
+    p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
+end
 
 @testset "Cat" begin
     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
     y = cat(Freq(1:2), x, x)
     @test dims(y, 3) == Freq(1:2)
-    z = cat(Freq(1:2), [x, x])
+    z = stack(Freq(1:2), [x, x])
     @test y == z
-    y = cat(Freq(1:2), [x, x]; dims = 1)
+    y = stack(Freq(1:2), [x, x]; dims = 1)
     @test dims(y, 1) == Freq(1:2)
 end
 
