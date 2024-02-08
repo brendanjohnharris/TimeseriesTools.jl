@@ -7,7 +7,7 @@ import TimeseriesTools: bandpass, phasestitch
 import ..DSP
 import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 
-hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustrip(X.data)) * unit(eltype(X.data)))
+hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustrip.(X.data)) * unit(eltype(X.data)))
 
 analyticphase(x) = x |> hilbert .|> angle
 analyticamplitude(x) = x |> hilbert .|> abs
