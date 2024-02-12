@@ -63,6 +63,7 @@ using LinearAlgebra
     X = cat(X, X; dims = 3)
     C = coarsegrain(X; dims = 1, newdim = 2)
     @test size(C) == (5, 200, 2)
+    @test_nowarn C[Ti(Near(0.1))]
 end
 
 @testset "ComplexityMeasuresExt" begin
@@ -72,6 +73,9 @@ end
     N = 500
     D = Timeseries(1:N, 1:2, hcat(sort([rand(𝒩) for i in 1:N])...)')
     p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
+
+    ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
+                               StateSpaceSet(D))
 end
 
 @testset "Cat" begin
@@ -160,6 +164,7 @@ end
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries
     @test x isa MultidimensionalTimeSeries
+    @test_nowarn x[Ti(Near(4:10))]
 
     x = @test_nowarn TimeSeries(Ti(1:100), X(randn(10) |> sort), Y(1:10),
                                 randn(100, 10, 10))

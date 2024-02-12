@@ -758,7 +758,8 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
             newdims = [newdims..., DimensionalData.AnonDim(1:size(_X, _newdim))]
             newdim = newdims[newdim]
         end
-        X = rebuild(X, _X, Tuple(newdims))
+        X = DimArray(_X, Tuple(newdims); refdims = refdims(X), name = name(X),
+                     metadata = metadata(X))
     end
 
     return X
