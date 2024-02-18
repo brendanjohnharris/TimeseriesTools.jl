@@ -63,6 +63,10 @@ function Base.stack(D::DimensionalData.Dimension, args::AbstractVector{<:Abstrac
     if !all([size(x)] .== size.(args))
         error("Input arrays must have the same dimensionality and size")
     end
+    unidims = dims(first(args))
+    if !all(dims.(args) .== unidims)
+        error("Input arrays must have the same dimensions")
+    end
     if dims isa Val && typeof(dims).parameters[1] isa Integer
         dims = typeof(dims).parameters[1]
     end
@@ -344,7 +348,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false, extend = 
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
-    if err > stp / exp10(-tol)
+    if err > stp / exp10(tol)
         @warn "Step is not approximately constant, skipping rectification"
     else
         stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)

@@ -198,9 +198,11 @@ function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<
 end
 
 function ustripall(x::AbstractDimArray)
-    x = set(x, ustrip.(x))
+    x = set(x, ustripall.(x))
     for d in dims(x)
-        x = set(x, d => ustrip.(lookup(x, d)))
+        x = set(x, d => ustripall.(lookup(x, d)))
     end
     return x
 end
+ustripall(x::String) = x
+ustripall(x) = ustrip(x)
