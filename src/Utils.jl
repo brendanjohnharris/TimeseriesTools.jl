@@ -63,8 +63,8 @@ function Base.stack(D::DimensionalData.Dimension, args::AbstractVector{<:Abstrac
     if !all([size(x)] .== size.(args))
         error("Input arrays must have the same dimensionality and size")
     end
-    unidims = dims(first(args))
-    if !all(dims.(args) .== unidims)
+    unidims = DimensionalData.dims(first(args))
+    if !all(DimensionalData.dims.(args) .== [unidims])
         error("Input arrays must have the same dimensions")
     end
     if dims isa Val && typeof(dims).parameters[1] isa Integer
@@ -342,13 +342,14 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = cat(Ti(ts), y..., dims = Dim{:delay})
 end
 
-function rectify(ts::DimensionalData.Dimension; tol = 6, zero = false, extend = false)
+function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false)
     u = unit(eltype(ts))
     ts = collect(ts)
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
-    if err > stp / exp10(tol)
+    tol = Int(tol - floor(log10(stp)))
+    if err > exp10(-tol)
         @warn "Step is not approximately constant, skipping rectification"
     else
         stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
@@ -418,7 +419,7 @@ function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     return X
 end
 
-function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 6, zero = false)
+function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero = false)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector. At most this will change each time index by a maximum of 1 sampling period. We could do better--maximum of a half-- but leave that for now.
     u = lookup(X |> first, dims) |> eltype |> unit
     ts = lookup.(X, [dims])

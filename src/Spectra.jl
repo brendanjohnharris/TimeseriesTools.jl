@@ -88,9 +88,9 @@ function _energyspectrum(x::AbstractVector, fs::Number,
         f_min = validfreqs[2]
         nfft = floor(Int, n / 2) * 2
     else
-        nfft = ceil(Int, ustrip(fs) / ustrip(f_min))
+        nfft = ceil(Int, ustripall(fs) / ustripall(f_min))
     end
-    if ustrip(f_min) < ustrip(validfreqs[2])
+    if ustripall(f_min) < ustripall(validfreqs[2])
         error("Cannot resolve an `f_min` of $f_min")
     end
 
@@ -130,8 +130,8 @@ function _energyspectrum(x::AbstractVector, fs::Number,
 
     # Normalize the mean energy spectrum to obey Parseval's theorem
     meanS̄ = mean(S̄, dims = 2)
-    S̄ = S̄ ./ ustrip((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
-    S̄ = 0.5 * S̄ .* ustrip(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
+    S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
+    S̄ = 0.5 * S̄ .* ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
     Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
 
@@ -278,9 +278,9 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
     end
 
     # Normalize the energy spectrum to obey Parseval's theorem
-    S̄ = S̄ ./ ustrip((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
+    S̄ = S̄ ./ ustripall((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
     # display(2 * sum(S̄[2:end]) + S̄[1])
-    S̄ = S̄ .* ustrip(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
+    S̄ = S̄ .* ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
     Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 

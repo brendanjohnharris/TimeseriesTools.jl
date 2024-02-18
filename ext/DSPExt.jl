@@ -7,7 +7,7 @@ import TimeseriesTools: bandpass, phasestitch
 import ..DSP
 import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 
-hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustrip.(X.data)) * unit(eltype(X.data)))
+hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustripall(X.data)) * unit(eltype(X.data)))
 
 analyticphase(x) = x |> hilbert .|> angle
 analyticamplitude(x) = x |> hilbert .|> abs
@@ -27,8 +27,8 @@ end
 function bandpass(x::AbstractArray, fs::A,
                   pass::AbstractVector{B};
                   designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
-    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustrip.(pass)...; fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustripall.(pass)...; fs = ustripall(fs)),
+                               designmethod), ustripall.(x)) * unit(eltype(x))
 end
 
 function bandpass(x::AbstractTimeSeries, fs::A,
@@ -57,10 +57,10 @@ function highpass(x::AbstractArray, fs::Real,
     DSP.filtfilt(digitalfilter(DSP.Highpass(pass; fs), designmethod), x)
 end
 function highpass(x::AbstractArray, fs::Real,
-                  pass::Real;
+                  pass::Quantity;
                   designmethod = DSP.Butterworth(4))
-    DSP.filtfilt(digitalfilter(DSP.Highpass(ustrip(pass); fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    DSP.filtfilt(digitalfilter(DSP.Highpass(ustripall(pass); fs = ustripall(fs)),
+                               designmethod), ustripall(x)) * unit(eltype(x))
 end
 function highpass(x::AbstractTimeSeries, fs::Quantity,
                   pass::Quantity;
@@ -81,10 +81,10 @@ function lowpass(x::AbstractArray, fs::Real,
     DSP.filtfilt(digitalfilter(DSP.Lowpass(pass; fs), designmethod), x)
 end
 function lowpass(x::AbstractArray, fs::Real,
-                 pass::Real;
+                 pass::Quantity;
                  designmethod = DSP.Butterworth(4))
-    DSP.filtfilt(digitalfilter(DSP.Lowpass(ustrip(pass); fs = ustrip(fs)),
-                               designmethod), ustrip.(x)) * unit(eltype(x))
+    DSP.filtfilt(digitalfilter(DSP.Lowpass(ustripall(pass); fs = ustripall(fs)),
+                               designmethod), ustripall(x)) * unit(eltype(x))
 end
 function lowpass(x::AbstractTimeSeries, fs::Quantity,
                  pass::Quantity;

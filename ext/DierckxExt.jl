@@ -17,7 +17,7 @@ function interpolate(X::DimensionalData.AbstractDimVector; kwargs...)
 end
 
 function (itp::Spline2D)(x::DimensionalData.Dimension,
-    y::DimensionalData.Dimension; kwargs...)
+                         y::DimensionalData.Dimension; kwargs...)
     DimArray(evalgrid(itp, lookup(x), lookup(y)), (x, y); kwargs...)
 end
 function (itp::Spline1D)(x::DimensionalData.Dimension; kwargs...)
@@ -27,19 +27,19 @@ end
 function upsample(x::DimensionalData.AbstractDimMatrix, factor; kwargs...)
     xy = upsample.(dims(x), factor)
     itp = interpolate(x; kwargs...)
-    itp(xy...; name=DimensionalData.name(x),
-        metadata=DimensionalData.metadata(x),
-        refdims=DimensionalData.refdims(x))
+    itp(xy...; name = DimensionalData.name(x),
+        metadata = DimensionalData.metadata(x),
+        refdims = DimensionalData.refdims(x))
 end
 function upsample(x::DimensionalData.AbstractDimVector, factor::Integer; kwargs...)
     d = upsample(dims(x)[1], factor)
     itp = interpolate(x; kwargs...)
-    itp(d; name=DimensionalData.name(x),
-        metadata=DimensionalData.metadata(x),
-        refdims=DimensionalData.refdims(x))
+    itp(d; name = DimensionalData.name(x),
+        metadata = DimensionalData.metadata(x),
+        refdims = DimensionalData.refdims(x))
 end
 function upsample(x::DimensionalData.AbstractDimMatrix, factor::Number,
-    dim; kwargs...)
+                  dim; kwargs...)
     d = upsample(DimensionalData.dims(x, dim), factor)
     adims = setdiff(1:ndims(x), dimnum(x, dim)) |> only
     if only(adims) == 1
@@ -47,7 +47,8 @@ function upsample(x::DimensionalData.AbstractDimMatrix, factor::Number,
     end
     u = unit(eltype(x))
     z = DimArray(zeros(length(d), size(x, 2)), (d, dims(x, 2)))
-    itp = Spline1D.([ustrip(lookup(x, 1))], eachslice(ustrip.(x.data), dims=2); kwargs...)
+    itp = Spline1D.([ustrip(lookup(x, 1))], eachslice(ustrip.(x.data), dims = 2);
+                    kwargs...)
     Threads.@threads for (i, I) in collect(enumerate(itp))
         z[:, i] = I(ustrip.(d)) .* u
     end

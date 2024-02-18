@@ -200,9 +200,11 @@ end
 function ustripall(x::AbstractDimArray)
     x = set(x, ustripall.(x))
     for d in dims(x)
-        x = set(x, d => ustripall.(lookup(x, d)))
+        x = set(x, d => ustripall(lookup(x, d)))
     end
     return x
 end
+ustripall(d::DimensionalData.Dimension) = ustripall(lookup(d).data)
 ustripall(x::String) = x
+ustripall(x::AbstractArray{T}) where {T <: Number} = ustrip.(x)
 ustripall(x) = ustrip(x)

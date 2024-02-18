@@ -28,8 +28,8 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
     uf = frequnit(x)
     ux = unit(x)
     f, x = decompose(x)
-    f = ustrip.(f) |> collect
-    x = ustrip.(x) |> collect
+    f = ustripall.(f) |> collect
+    x = ustripall.(x) |> collect
     idxs = (f .> 0) .& (x .> 0)
     ax.limits = ((minimum(f[idxs]), nothing), (minimum(x[idxs]), nothing))
     ax.xscale = log10
@@ -51,7 +51,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         pks = pks[promidxs]
         pks = TimeseriesTools.freqs(s)[pks]
         vals = s[Freq(At(pks))]
-        scatter!(ax, ustrip.(pks), collect(ustrip.(vals)),
+        scatter!(ax, ustripall.(pks), collect(ustripall.(vals)),
                  color = Makie.current_default_theme().textcolor,
                  markersize = 10,
                  marker = :dtriangle)
@@ -60,7 +60,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         else
             txt = string.(round.(pks; digits = 3))
         end
-        text!(ax, ustrip.(pks), collect(ustrip.(vals));
+        text!(ax, ustripall.(pks), collect(ustripall.(vals));
               text = txt,
               align = (:center, :bottom), color = Makie.current_default_theme().textcolor,
               rotation = 0, fontsize = 12,
@@ -79,8 +79,8 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
     uf = frequnit(x)
     ux = unit(x)
     f, _, x = decompose(x)
-    f = ustrip.(f) |> collect
-    x = ustrip.(x) |> collect
+    f = ustripall.(f) |> collect
+    x = ustripall.(x) |> collect
     xmin = minimum(x, dims = 2) |> vec
     xmed = median(x, dims = 2) |> vec
     σₗ = mapslices(x -> quantile(x, percentile), x, dims = 2) |> vec
@@ -122,8 +122,8 @@ function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
     ut = timeunit(x)
     ux = unit(x)
     t, x = decompose(x)
-    t = ustrip.(t) |> collect
-    x = ustrip.(x) |> collect
+    t = ustripall.(t) |> collect
+    x = ustripall.(x) |> collect
     p = lines!(ax, t, x; kwargs...)
     if isempty(ax.xlabel[])
         ut == NoUnits ? (ax.xlabel = "Time") : (ax.xlabel = "Time ($ut)")
@@ -340,7 +340,7 @@ function traces!(ax, S::MultivariateSpectrum; kwargs...)
     yu = yu == NoUnits ? "" : "($yu)"
     isempty(ax.xlabel[]) && (ax.xlabel = "Frequency $xu")
     isempty(ax.ylabel[]) && (ax.ylabel = "Power $yu")
-    traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+    traces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
 
 function traces!(ax, S::MultivariateTimeSeries; kwargs...)
@@ -351,7 +351,7 @@ function traces!(ax, S::MultivariateTimeSeries; kwargs...)
     yu = yu == NoUnits ? "" : "($yu)"
     isempty(ax.xlabel[]) && (ax.xlabel = "Time $xu")
     isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
-    traces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+    traces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
 
 # ? --------------------------- # Stacked traces --------------------------- ? #
@@ -409,7 +409,7 @@ function stackedtraces!(ax, S::MultivariateSpectrum; kwargs...)
     yu = yu == NoUnits ? "" : "($yu)"
     isempty(ax.xlabel[]) && (ax.xlabel = "Frequency $xu")
     isempty(ax.ylabel[]) && (ax.ylabel = "Power $yu")
-    stackedtraces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+    stackedtraces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
 
 function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
@@ -420,7 +420,7 @@ function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
     yu = yu == NoUnits ? "" : "($yu)"
     isempty(ax.xlabel[]) && (ax.xlabel = "Time $xu")
     isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
-    stackedtraces!(ax, ustrip.(x), ustrip.(y), ustrip.(z); kwargs...)
+    stackedtraces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
 
 # end # module
