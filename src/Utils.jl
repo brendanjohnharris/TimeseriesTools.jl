@@ -348,7 +348,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
-    tol = Int(tol - floor(log10(stp)))
+    tol = Int(tol - floor(log10(stp |> ustripall)))
     if err > exp10(-tol)
         @warn "Step is not approximately constant, skipping rectification"
     else
@@ -370,7 +370,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
 end
 rectifytime(ts::Ti; kwargs...) = rectify(ts; kwargs...)
 
-function rectify(X::AbstractDimArray; dims, tol = 6, zero = false) # tol gives significant figures for rounding
+function rectify(X::AbstractDimArray; dims, tol = 4, zero = false) # tol gives significant figures for rounding
     if !(dims isa Tuple || dims isa AbstractVector)
         dims = [dims]
     end
