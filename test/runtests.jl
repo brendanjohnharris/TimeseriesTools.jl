@@ -261,6 +261,8 @@ end
     @test x[Ti(1u"s" .. 10u"s")] == x[1:10]
     @test x[Ti = 1:10] == x[1:10]
     @test_nowarn spectrum(x, 0.1)
+
+    @test_nowarn rectify(x; dims = Ti)
 end
 
 @testset "Twice unitful" begin
