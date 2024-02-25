@@ -9,6 +9,7 @@ using StatsBase
 using TimeseriesSurrogates
 using IntervalSets
 using Dierckx
+using GeneralizedPhase
 
 using TimeseriesTools
 import TimeseriesTools: TimeSeries, name, rectifytime
@@ -20,6 +21,19 @@ using Foresight
 using ComplexityMeasures
 using Distributions
 using LinearAlgebra
+
+@testset "GeneralizedPhaseExt" begin
+    x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
+    X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
+    _ϕ = @test_nowarn _generalized_phase(x)
+    ϕ = @test_nowarn _generalized_phase(X)
+
+    x = set(x, Ti => lookup(x, Ti).data * u"s")
+    X = set(X, Ti => lookup(X, Ti).data * u"s")
+
+    ϕ = @test_nowarn _generalized_phase(x)
+    ϕ = @test_nowarn _generalized_phase(X)
+end
 
 @testset "coarsegrain" begin
     X = repeat(1:11, 1, 100)
