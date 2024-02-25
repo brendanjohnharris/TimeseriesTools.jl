@@ -30,7 +30,7 @@ CUDAExt = ["CUDA", "ContinuousWavelets"]
 ContinuousWaveletsExt = ["ContinuousWavelets", "Mmap"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
 DierckxExt = ["Dierckx"]
-GeneralizedPhase = ["GeneralizedPhase"]
+GeneralizedPhaseExt = ["GeneralizedPhase"]
 
 [compat]
 CUDA = "3, 4, 5"

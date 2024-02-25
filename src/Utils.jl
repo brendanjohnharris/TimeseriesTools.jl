@@ -628,10 +628,8 @@ end
 
 function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
     @assert length(dims) == 1
-    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [
-                                        DimensionalData.dims(x,
-                                                             dims),
-                                    ]]
+    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
+                                                                                      dims)]]
     P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
     vals = first.(P)
     proms = last.(P)

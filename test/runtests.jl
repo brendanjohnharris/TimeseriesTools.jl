@@ -98,8 +98,8 @@ end
 end
 
 @testset "matchdim" begin
-    ts = 0:0.01:1
-    X = [Timeseries(ts .+ 1e-7 .* randn(101), sin) for _ in 1:10]
+    ts = 0:1:100
+    X = [Timeseries(ts .+ 1e-6 .* randn(101), sin) for _ in 1:10]
     X = TimeSeries(1:10, X)
     Y = matchdim(X)
 
@@ -248,7 +248,7 @@ end
 @testset "Unitful" begin
     ts = (1:1000)u"s"
     x = @test_nowarn TimeSeries(ts, randn(1000))
-    @test TimeSeries(ustrip.(ts), collect(x), u"s") == x
+    @test TimeSeries(ustripall(ts), collect(x), u"s") == x
     @test x isa AbstractTimeSeries
     @test x isa UnitfulTimeSeries
     @test x isa RegularTimeSeries
@@ -279,18 +279,18 @@ end
     peaks = findall(x -> x > maximum(P) / 3, P)
     peakfs = f[peaks]
     peakamps = P[peaks]
-    @test all(round.(ustrip.(peakfs)) .∈ ([50, 100],))
+    @test all(round.(ustripall.(peakfs)) .∈ ([50, 100],))
     @test first(peakamps) / last(peakamps)≈4.2 / 3.1 rtol=1e-1
 
-    x = exp.(-ustrip.(ts) .^ 2)
+    x = exp.(-ustripall(ts) .^ 2)
     x = TimeSeries(ts, x * u"V")
-    ℱ = sqrt(π) .* exp.(-π^2 .* ustrip.(f) .^ 2)
+    ℱ = sqrt(π) .* exp.(-π^2 .* ustripall(f) .^ 2)
     _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
     S = energyspectrum(x, 0.0)
     @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, Freq)) rtol=0.05
 
-    lines(ustrip.(f), ustrip.(_S), axis = (; limits = ((0, 1), (0, 4))))
-    plot!(collect(ustrip.(dims(S, Freq))), collect(ustrip.(S)))
+    lines(ustripall(f), ustripall(_S), axis = (; limits = ((0, 1), (0, 4))))
+    plot!(collect(ustripall(dims(S, Freq))), collect(ustripall(S)))
     current_figure()
 end
 
@@ -389,7 +389,7 @@ end
     X = copy(_X)
     T = fit(N, X)
     Y = normalize(X, T)
-    @test ustrip(sum(Y .^ 2) / duration(Y)) ≈ 1
+    @test ustripall(sum(Y .^ 2) / duration(Y)) ≈ 1
     @test !isnothing(T.p)
     @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
                                                                                          T)
@@ -473,7 +473,7 @@ end
     S = _powerspectrum(x, 0.0005)[2:end, :]
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
-    # x, y, z = collect.(ustrip.(decompose(S)))
+    # x, y, z = collect.(ustripall(decompose(S)))
     @test_nowarn traces!(ax, S; colormap = :turbo)
 end
 
