@@ -350,7 +350,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
     err = ts |> diff |> std
     tol = Int(tol - round(log10(stp |> ustripall)))
     if ustripall(err) > exp10(-tol)
-        @warn "Step is not approximately constant, skipping rectification"
+        @warn "Step $stp is not approximately constant (err=$err, tol=$(exp10(tol))), skipping rectification"
     else
         stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
         t0, t1 = u == NoUnits ? round.(extrema(ts); digits = tol) :
