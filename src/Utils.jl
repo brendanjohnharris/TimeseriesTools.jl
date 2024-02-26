@@ -348,7 +348,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
-    tol = Int(tol - floor(log10(stp |> ustripall)))
+    tol = Int(tol - round(log10(stp |> ustripall)))
     if ustripall(err) > exp10(-tol)
         @warn "Step is not approximately constant, skipping rectification"
     else

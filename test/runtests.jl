@@ -880,13 +880,13 @@ end
 
 @testset "Rectification" begin
     ts = 0.1:0.1:1000
-    x = TimeSeries(ts .+ randn(length(ts)) .* 1e-8, sin)
+    x = TimeSeries(ts .+ randn(length(ts)) .* 1e-9, sin)
     @test issorted(times(x))
     _x = @test_nowarn rectifytime(x)
     @test all(x .== _x)
     @test ts == times(_x)
 
-    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-8, cos)
+    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-9, cos)
     @test issorted(times(y))
     _x, _y = (rectifytime([x, y])...,)
 
