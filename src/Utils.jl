@@ -425,7 +425,8 @@ function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     return X
 end
 
-function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero = false)
+function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero = false,
+                  kwargs...)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector. At most this will change each time index by a maximum of 1 sampling period. We could do better--maximum of a half-- but leave that for now.
     u = lookup(X |> first, dims) |> eltype |> unit
     ts = lookup.(X, [dims])
@@ -442,7 +443,8 @@ function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero
     end
 
     ts = mean(lookup.(X, [dims]))
-    ts, origts = rectify(rebuild(DimensionalData.dims(X[1], dims), ts); tol, zero)
+    ts, origts = rectify(rebuild(DimensionalData.dims(X[1], dims), ts); tol, zero,
+                         kwargs...)
     if any([any(ts .- lookup(x, dims) .> std(ts) / exp10(-tol)) for x in X])
         @error "Cannot find common dimension indices within tolerance"
     end
