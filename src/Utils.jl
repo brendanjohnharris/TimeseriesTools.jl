@@ -342,16 +342,21 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = cat(Ti(ts), y..., dims = Dim{:delay})
 end
 
-function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false)
+function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false,
+                 atol = nothing)
     u = unit(eltype(ts))
     ts = collect(ts)
     origts = ts
     stp = ts |> diff |> mean
     err = ts |> diff |> std
     tol = Int(tol - round(log10(stp |> ustripall)))
-    if ustripall(err) > exp10(-tol - 1)
+
+    if isnothing(atol) && ustripall(err) > exp10(-tol - 1)
         @warn "Step $stp is not approximately constant (err=$err, tol=$(exp10(-tol-1))), skipping rectification"
     else
+        if !isnothing(atol)
+            tol = max(tol, atol)
+        end
         stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
         t0, t1 = u == NoUnits ? round.(extrema(ts); digits = tol) :
                  round.(u, extrema(ts); digits = tol)
