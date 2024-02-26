@@ -355,7 +355,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
         @warn "Step $stp is not approximately constant (err=$err, tol=$(exp10(-tol-1))), skipping rectification"
     else
         if !isnothing(atol)
-            tol = max(tol, atol)
+            tol = atol
         end
         stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
         t0, t1 = u == NoUnits ? round.(extrema(ts); digits = tol) :
@@ -375,12 +375,13 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
 end
 rectifytime(ts::Ti; kwargs...) = rectify(ts; kwargs...)
 
-function rectify(X::AbstractDimArray; dims, tol = 4, zero = false) # tol gives significant figures for rounding
+function rectify(X::AbstractDimArray; dims, tol = 4, zero = false, kwargs...) # tol gives significant figures for rounding
     if !(dims isa Tuple || dims isa AbstractVector)
         dims = [dims]
     end
     for dim in dims
-        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero, extend = true)
+        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero, extend = true,
+                             kwargs...)
         ts = ts[1:size(X, dim)] # Should be ok?
         @assert length(ts) == size(X, dim)
         X = set(X, dim => ts)
