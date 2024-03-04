@@ -22,21 +22,21 @@ Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 # Allow dims to be passed directly to selectors
 [:($(S)(D::Dimension) = $(S)(D.val.data)) for S in Selectors] .|> eval
 
-describate(x) = "$(size(x)) $(typeof(x).name.name)"
+description(x) = "$(size(x)) $(typeof(x).name.name)"
 function print_array(io::IO, mime, A::AbstractDimArray{T, 0}) where {T <: AbstractArray}
-    print(_print_array_ctx(io, T), "\n", describate.(A[]))
+    print(_print_array_ctx(io, T), "\n", description.(A[]))
 end
 function print_array(io::IO, mime, A::AbstractDimArray{T, 1}) where {T <: AbstractArray}
-    Base.print_matrix(_print_array_ctx(io, T), describate.(A))
+    Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
 function print_array(io::IO, mime, A::AbstractDimArray{T, 2}) where {T <: AbstractArray}
-    Base.print_matrix(_print_array_ctx(io, T), describate.(A))
+    Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
 function print_array(io::IO, mime, A::AbstractDimArray{T, 3}) where {T <: AbstractArray}
     i3 = firstindex(A, 3)
     frame = view(parent(A), :, :, i3)
     println(io, "[:, :, $i3]")
-    _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
+    _print_matrix(_print_array_ctx(io, T), description.(frame), lookup(A, (1, 2)))
     nremaining = size(A, 3) - 1
     nremaining > 0 &&
         printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
@@ -46,7 +46,7 @@ function print_array(io::IO, mime, A::AbstractDimArray{T, N}) where {T <: Abstra
     frame = view(A, :, :, o...)
     onestring = join(o, ", ")
     println(io, "[:, :, $(onestring)]")
-    _print_matrix(_print_array_ctx(io, T), describate.(frame), lookup(A, (1, 2)))
+    _print_matrix(_print_array_ctx(io, T), description.(frame), lookup(A, (1, 2)))
     nremaining = prod(size(A, d) for d in 3:N) - 1
     nremaining > 0 &&
         printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
@@ -235,7 +235,21 @@ IntervalSets.Interval(x::AbstractTimeSeries) = (first ∘ times)(x) .. (last ∘
 #         return sum(x.^2)/(dur*u"s")
 #     end
 # end
-𝑝(x::RegularTimeSeries) = sum(x .^ 2) / duration(x)
+𝑝(x::RegularTimeSeries) = sum(x .^ 2) / duration(x) # * Assume seconds.
+# TODO !!!
+"""
+    UnitPower <: AbstractNormalization
+
+A normalization that sets the total power of a signal to unity.
+
+# Fields
+- `dims`: The dimensions to normalize over.
+- `p`: Computed normalization parameters.
+- `𝑝`: A function that returns the power from a given time series.
+- `𝑓`: The normalization method
+- `𝑓⁻¹`: The inverse normalization method.
+
+"""
 mutable struct UnitPower{T} <: AbstractNormalization{T}
     dims::Any
     p::NTuple{1, AbstractArray{T}}
@@ -243,6 +257,7 @@ mutable struct UnitPower{T} <: AbstractNormalization{T}
     𝑓::Function
     𝑓⁻¹::Function
 end;
+
 function UnitPower{T}(; dims = nothing,
                       p = (Vector{T}(),),
                       𝑝 = (𝑝,),
@@ -250,6 +265,7 @@ function UnitPower{T}(; dims = nothing,
                       𝑓⁻¹ = (y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
     UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
 end
+
 UnitPower(; kwargs...) = UnitPower{Nothing}(; kwargs...);
 
 dimname(d::DimensionalData.Dimension) = name(d) |> string
@@ -623,14 +639,19 @@ end
 
 function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
                    maxprom = nothing,
-                   strict = true)
+                   strict = true, N = nothing)
     minprom isa Function && (minprom = minprom(x))
     maxprom isa Function && (maxprom = maxprom(x))
-    _pks, vals = findmaxima(x)
-    pks, proms = peakproms(_pks, x; minprom)
+    _pks, vals = findmaxima(x, w)
+    pks, proms = peakproms(_pks, x; minprom, maxprom, strict)
     idxs = indexin(pks, _pks) .|> Int
     vals = vals[idxs]
     proms = set(vals, proms)
+    if !isnothing(N)
+        ps = sortperm(proms)
+        vals = vals[ps[1:N]]
+        proms = proms[ps[1:N]]
+    end
     return vals, proms
 end
 

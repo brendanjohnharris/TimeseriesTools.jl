@@ -15,16 +15,17 @@ export AbstractTimeSeries, AbstractTS,
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-const TimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                        } where {A <: DimensionalData.TimeDim}
+const TimeIndex = Tuple{A,
+                        Vararg{DimensionalData.Dimension}} where {A <:
+                                                                  DimensionalData.TimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
 
 A type alias for an [AbstractDimArray](https://rafaqz.github.io/DimensionalData.jl/stable/api/#DimensionalData.AbstractDimArray) with a time index.
 """
-const AbstractTimeSeries = AbstractTS = AbstractDimArray{T, N, <:TimeIndex, B
-                                                         } where {T, N, B}
+const AbstractTimeSeries = AbstractTS = AbstractDimArray{T, N, <:TimeIndex,
+                                                         B} where {T, N, B}
 
 """
     UnivariateTimeSeries{T}
@@ -55,36 +56,42 @@ Var
 
 A type alias for a regularly sampled dimension, wrapping an `AbstractRange`.
 """
-const RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R
-                                                                     } where {T,
-                                                                              R <:
-                                                                              AbstractRange}
+const RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,
+                                                                     R} where {T,
+                                                                               R <:
+                                                                               AbstractRange
+                                                                               }
 
 """
     RegularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const RegularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                               } where {A <: DimensionalData.TimeDim{<:RegularIndex}}
+const RegularTimeIndex = Tuple{A,
+                               Vararg{DimensionalData.Dimension}} where {A <:
+                                                                         DimensionalData.TimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
 
 A type alias for a regularly sampled time series.
 """
-const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex, B
-                                                       } where {T, N, B}
+const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex,
+                                                       B} where {T, N, B}
 
-const MultidimensionalIndex = Tuple{A, Vararg{<:DimensionalData.Dimension{B}}
-                                    } where {A <: DimensionalData.TimeDim{<:RegularIndex},
-                                             B <: RegularIndex}
+const MultidimensionalIndex = Tuple{A,
+                                    Vararg{<:DimensionalData.Dimension{B}}} where {
+                                                                                   A <:
+                                                                                   DimensionalData.TimeDim{<:RegularIndex},
+                                                                                   B <:
+                                                                                   RegularIndex
+                                                                                   }
 
 """
-A multidimensional time series is one that has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over a even grid in 1 dimension that fluctuates over time.
+A multidimensional time series has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over an even grid in 1 dimension that fluctuates over time.
 """
-const MultidimensionalTimeSeries = AbstractDimArray{T, N, <:MultidimensionalIndex, B
-                                                    } where {T, N, B}
+const MultidimensionalTimeSeries = AbstractDimArray{T, N, <:MultidimensionalIndex,
+                                                    B} where {T, N, B}
 const MultidimensionalTS = MultidimensionalTimeSeries
 
 """
@@ -92,35 +99,36 @@ const MultidimensionalTS = MultidimensionalTimeSeries
 
 A type alias for an irregularly sampled dimension, wrapping an `AbstractVector`.
 """
-const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T, R
-                                                                       } where {T,
-                                                                                R <:
-                                                                                AbstractVector
-                                                                                }
+const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,
+                                                                       R} where {T,
+                                                                                 R <:
+                                                                                 AbstractVector
+                                                                                 }
 
 """
     IrregularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const IrregularTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                                 } where {A <: DimensionalData.TimeDim{<:IrregularIndex}}
+const IrregularTimeIndex = Tuple{A,
+                                 Vararg{DimensionalData.Dimension}} where {A <:
+                                                                           DimensionalData.TimeDim{<:IrregularIndex}}
 
 """
     IrregularTimeSeries
 
 A type alias for a potentially irregularly sampled time series.
 """
-const IrregularTimeSeries = IrregularTS = AbstractDimArray{T, N, <:IrregularTimeIndex, B
-                                                           } where {T, N, B}
+const IrregularTimeSeries = IrregularTS = AbstractDimArray{T, N, <:IrregularTimeIndex,
+                                                           B} where {T, N, B}
 
 """
     BinaryTimeSeries
 
 A type alias for a time series of bits.
 """
-const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex, B
-                                                                  } where {T <: Bool, N, B}
+const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex,
+                                                                  B} where {T <: Bool, N, B}
 
 """
     SpikeTrain

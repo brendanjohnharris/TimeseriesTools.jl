@@ -4,6 +4,7 @@ import Unitful.unit
 using FFTW
 using CairoMakie
 using DSP
+using Dates
 using ContinuousWavelets
 using StatsBase
 using TimeseriesSurrogates
@@ -21,6 +22,16 @@ using Foresight
 using ComplexityMeasures
 using Distributions
 using LinearAlgebra
+
+@testset "Dates" begin
+    x = 1:100
+    t = DateTime(1901):Year(1):DateTime(2000)
+    y = @test_nowarn TimeSeries(t, x)
+
+    @test samplingperiod(y) == Year(1)
+    @test times(y) == t
+    @test duration(y) == last(t) - first(t)
+end
 
 @testset "GeneralizedPhaseExt" begin
     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
@@ -227,7 +238,7 @@ end
     @test Pxx_mts isa MultivariateSpectrum
     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx
 
-    for i in 1:size(Pxx_mts, 2)
+    for i in axes(Pxx_mts, 2)
         Pxx = Pxx_mts[:, i]
         freqs = dims(Pxx, Freq)
         peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
@@ -674,8 +685,8 @@ end
     G = TimeseriesTools.normal
     t1 = 0.025
     t2 = 0.0
-    f(x) = G(t1, σ)(x) * G(t2, σ)(x)
-    I1 = sum(f.(-1:0.001:1)) * 0.001
+    ff(x) = G(t1, σ)(x) * G(t2, σ)(x)
+    I1 = sum(ff.(-1:0.001:1)) * 0.001
     I2 = G(t1, sqrt(2) * σ)(t2)
     @test I1≈I2 rtol=1e-6
     # Aw yeah
