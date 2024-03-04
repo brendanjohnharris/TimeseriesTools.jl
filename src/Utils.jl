@@ -648,7 +648,7 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     vals = vals[idxs]
     proms = set(vals, proms)
     if !isnothing(N)
-        ps = sortperm(proms)
+        ps = sortperm(proms; rev = true)
         vals = vals[ps[1:N]]
         proms = proms[ps[1:N]]
     end
