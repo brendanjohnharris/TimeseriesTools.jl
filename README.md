@@ -57,6 +57,4 @@ Please see the documentation for further functionality.
 
 TimeseriesTools.jl builds upon the excellent [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl) package for handling dimensions and indexing in time-series data.
 
-_README courtesy of GPT_ 🤖
-
 Happy analyzing! 🚀

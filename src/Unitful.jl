@@ -38,8 +38,9 @@ UnitfulIndex = UnitfulTIndex = Union{AbstractArray{<:Unitful.Time},
 
 A type alias for a tuple of dimensions, where the first dimension is of type `DimensionalData.Dimension{<:UnitfulIndex}`.
 """
-UnitfulTimeIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                         } where {A <: DimensionalData.Dimension{<:UnitfulIndex}}
+UnitfulTimeIndex = Tuple{A,
+                         Vararg{DimensionalData.Dimension}} where {A <:
+                                                                   DimensionalData.Dimension{<:UnitfulIndex}}
 
 """
     UnitfulTimeSeries{T, N, B}
@@ -59,8 +60,9 @@ UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B
 
 UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency},
                       AbstractRange{<:Unitful.Frequency}, Tuple{<:Unitful.Frequency}}
-UnitfulFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                         } where {A <: DimensionalData.Dimension{<:UnitfulFIndex}}
+UnitfulFreqIndex = Tuple{A,
+                         Vararg{DimensionalData.Dimension}} where {A <:
+                                                                   DimensionalData.Dimension{<:UnitfulFIndex}}
 
 """
     UnitfulSpectrum{T,N,B}
@@ -188,7 +190,7 @@ function FFTW.rfft(x::UnitfulTimeSeries{<:Quantity}) # 🐕
     ℱ = (ℱ) * (a * t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end
 
-# Extend Normalization.jl to uniful DimArrays
+# Extend Normalization.jl to unitful DimArrays
 function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
     DimensionalData.modify(x -> normalize(x, T; kwargs...), X)
 end
@@ -198,7 +200,7 @@ function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<
 end
 
 function ustripall(x::AbstractDimArray)
-    x = set(x, ustripall.(x))
+    x = set(x, ustripall.(parent(x)))
     for d in dims(x)
         x = set(x, d => ustripall(lookup(x, d)))
     end

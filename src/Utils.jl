@@ -515,6 +515,12 @@ function centraldiff(x::AbstractTimeSeries; kwargs...)
     return y
 end
 
+function checkderivdims(dims)
+    if dims isa Tuple || dims isa AbstractVector
+        error("Only one dimension can be specified for derivatives.")
+    end
+end
+
 """
     centralderiv!(x::RegularTimeSeries; kwargs...)
 
@@ -522,25 +528,22 @@ Compute the central derivative of a regular time series `x`, in-place.
 See [`centraldiff!`](@ref) for available keyword arguments.
 """
 function centralderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    if dims isa Tuple || dims isa AbstractVector
-        error("Only one dimension can be specified for central derivatives.")
-    end
+    checkderivdims(dims)
     centraldiff!(x; dims, kwargs...)
     x ./= samplingperiod(x; dims)
     nothing
 end
 
 """
-    centralderiv(x::RegularTimeSeries)
+    centralderiv(x::AbstractTimeSeries)
 
-Compute the central derivative of a regular time series `x`.
+Compute the central derivative of a time series `x`.
 See [`centraldiff`](@ref) for available keyword arguments.
 Also c.f. [`centralderiv!`](@ref).
 """
-function centralderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
+function centralderiv(x::RegularTimeSeries; kwargs...)
     y = deepcopy(x)
-    centraldiff!(y; dims, kwargs...)
-    y = y ./ samplingperiod(y; dims)
+    centralderiv!(y; kwargs...)
     return y
 end
 
@@ -551,7 +554,7 @@ function _rightdiff!(x; grad = -, dims = nothing) # Dims unused
     return nothing
 end
 
-rightdiff!(x::UnivariateRegular; kwargs...) = _rightdiff!(x; kwargs...)
+rightdiff!(x::UnivariateTimeSeries; kwargs...) = _rightdiff!(x; kwargs...)
 function rightdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
     _rightdiff!(eachslice(x; dims); kwargs...)
 end
@@ -561,15 +564,13 @@ function rightdiff(x::AbstractTimeSeries; kwargs...)
     return y
 end
 function rightderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    if dims isa Tuple || dims isa AbstractVector
-        error("Only one dimension can be specified for right derivatives.")
-    end
+    checkderivdims(dims)
     rightdiff!(x; dims, kwargs...)
     x ./= samplingperiod(x; dims)
     nothing
 end
 
-function rightderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
+function rightderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
     y = deepcopy(x)
     rightderiv!(y; dims, kwargs...)
     return y
@@ -582,7 +583,7 @@ function _leftdiff!(x; grad = -, dims = nothing) # Dims unused
     return nothing
 end
 
-leftdiff!(x::UnivariateRegular; kwargs...) = _leftdiff!(x; kwargs...)
+leftdiff!(x::UnivariateTimeSeries; kwargs...) = _leftdiff!(x; kwargs...)
 function leftdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
     _leftdiff!(eachslice(x; dims); kwargs...)
 end
@@ -592,17 +593,42 @@ function leftdiff(x::AbstractTimeSeries; kwargs...)
     return y
 end
 function leftderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    if dims isa Tuple || dims isa AbstractVector
-        error("Only one dimension can be specified for left derivatives.")
-    end
+    checkderivdims(dims)
     leftdiff!(x; dims, kwargs...)
     x ./= samplingperiod(x; dims)
     nothing
 end
 
-function leftderiv(x::RegularTimeSeries; dims = Ti, kwargs...)
+function leftderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
     y = deepcopy(x)
     leftderiv!(y; dims, kwargs...)
+    return y
+end
+
+function leftderiv!(x::AbstractTimeSeries; dims = Ti, kwargs...)
+    checkderivdims(dims)
+    leftdiff!(x; dims, kwargs...)
+    l = lookup(x, dims) |> collect
+    _leftdiff!(l)
+    x ./= l
+    nothing
+end
+function rightderiv!(x::AbstractTimeSeries; dims = Ti, kwargs...)
+    checkderivdims(dims)
+    rightdiff!(x; dims, kwargs...)
+    r = lookup(x, dims) |> collect
+    _rightdiff!(r)
+    x ./= r
+    nothing
+end
+
+function centralderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
+    checkderivdims(dims)
+    l = leftderiv(x; dims, kwargs...)
+    r = rightderiv(x; dims, kwargs...)
+    y = mean([l, r])
+    y[1] = y[2]
+    y[end] = y[end - 1]
     return y
 end
 

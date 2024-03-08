@@ -386,9 +386,9 @@ function Makie.plot!(plot::StackedTraces)
         end
         c = zeros(size(z, 2))
         if spacing === :even
-            space = maximum([maximum(z[:, i - 1] .- z[:, i]) for i in 2:size(z, 2)])
+            space = maximum([maximum(z[:, i - 1] .- z[:, i]) for i in axes(z, 2)[2:end]])
         end
-        for i in 2:size(z, 2)
+        for i in axes(z, 2)[2:end]
             if spacing === :close
                 space = maximum(z[:, i - 1] .- z[:, i])
             end

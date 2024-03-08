@@ -13,7 +13,7 @@ using Dierckx
 using GeneralizedPhase
 
 using TimeseriesTools
-import TimeseriesTools: TimeSeries, name, rectifytime
+import TimeseriesTools: TimeSeries, name, rectifytime, leftdiff, rightdiff
 
 using Documenter
 using ImageMagick
@@ -321,23 +321,12 @@ end
     current_figure()
 end
 
-# @testset "Doctests" begin
-#     using TimeseriesTools
-#     using Unitful
-#     using Documenter
-
-#     DocMeta.setdocmeta!(TimeseriesTools, :DocTestSetup, :(using Unitful, TimeseriesTools); recursive=true)
-
-#     doctest(TimeseriesTools)
-# end
-
 @testset "Readme" begin
     using TimeseriesTools, CairoMakie, Unitful
     import TimeseriesTools.TimeSeries # or TS
 
     t = 0.005:0.005:1e5
     x = colorednoise(t, u"s") * u"V"
-
     # Plot the time series
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
@@ -887,6 +876,36 @@ end
 
     ϕ = analyticphase(x)[1000:(end - 1000)]
     dϕ = @test_nowarn centraldiff(ϕ)
+end
+
+@testset "Left and right derivatives" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+
+    dx = @test_nowarn leftdiff(x)
+    @test all(dx[2:(end)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn leftdiff(X)
+    @test all(dX[2:(end), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+
+    dx = @test_nowarn rightdiff(x)
+    @test all(dx[1:(end - 1)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn rightdiff(X)
+    @test all(dX[1:(end - 1), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+end
+
+@testset "Irregular central derivative" begin
+    ts = 0.1:0.1:1000
+    x = TimeSeries(ts, sin)
+    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, parent(x))
+    @test centralderiv(x) ≈ centralderiv(y)
 end
 
 @testset "Rectification" begin
