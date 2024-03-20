@@ -209,4 +209,5 @@ end
 ustripall(d::DimensionalData.Dimension) = ustripall(lookup(d).data)
 ustripall(x::String) = x
 ustripall(x::AbstractArray{T}) where {T <: Number} = ustrip.(x)
+ustripall(a::ClosedInterval) = ustrip(a.left) .. ustrip(a.right)
 ustripall(x) = ustrip(x)

@@ -80,12 +80,12 @@ const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex,
                                                        B} where {T, N, B}
 
 const MultidimensionalIndex = Tuple{A,
-                                    Vararg{<:DimensionalData.Dimension{B}}} where {
-                                                                                   A <:
-                                                                                   DimensionalData.TimeDim{<:RegularIndex},
-                                                                                   B <:
-                                                                                   RegularIndex
-                                                                                   }
+                                    Vararg{DimensionalData.Dimension{B}}} where {
+                                                                                 A <:
+                                                                                 DimensionalData.TimeDim{<:RegularIndex},
+                                                                                 B <:
+                                                                                 RegularIndex
+                                                                                 }
 
 """
 A multidimensional time series has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over an even grid in 1 dimension that fluctuates over time.
@@ -156,6 +156,7 @@ julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
 TimeSeries(t, x; kwargs...) = DimArray(x, (Ti(t),); kwargs...)
+TimeSeries(t::DimensionalData.TimeDim, x; kwargs...) = DimArray(x, (t,); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -171,20 +172,24 @@ julia> mts = TimeSeries(t, v, x)
 julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 ```
 """
-TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
+function TimeSeries(t::DimensionalData.TimeDim, v::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (t, v); kwargs...)
+end
+function TimeSeries(t::DimensionalData.TimeDim, v, x; kwargs...)
+    DimArray(x, (t, Var(v)); kwargs...)
+end
 function TimeSeries(t, v::DimensionalData.Dimension, x; kwargs...)
     DimArray(x, (Ti(t), v); kwargs...)
 end
+TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
 
-function TimeSeries(t::DimensionalData.TimeDim, x; kwargs...)
-    DimArray(x, (t); kwargs...)
-end
-function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension, x; kwargs...)
-    DimArray(x, (t, a); kwargs...)
-end
 function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension,
                     b::DimensionalData.Dimension, x; kwargs...)
     DimArray(x, (t, a, b); kwargs...)
+end
+function TimeSeries(t, a::DimensionalData.Dimension,
+                    b::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (Ti(t), a, b); kwargs...)
 end
 
 import DimensionalData.data

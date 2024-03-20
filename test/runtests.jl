@@ -23,6 +23,143 @@ using ComplexityMeasures
 using Distributions
 using LinearAlgebra
 
+@testset "ND Fourier transform surrogates" begin
+    xs = -0.6:0.01:0.6
+    x = [stack(X(xs), [colorednoise(0.01:0.01:1) for _ in xs]) for _ in xs]
+    x = stack(Y(xs), x)
+
+    S = abs.(rfft(x)) .^ 2
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(x, NDFT())
+
+    Ŝ = abs.(rfft(x̂)) .^ 2
+end
+begin
+    xs = -0.6:0.01:0.6
+    x = [stack(X(xs), [colorednoise(0.01:0.01:10) for _ in xs]) for _ in xs]
+    x = stack(Y(xs), x)
+
+    function G(x, μ, σ)
+        d = length(μ)
+        exponent = -0.5 * dot(x .- μ, (x .- μ) ./ σ)
+        coeff = 1 / ((2π)^(d / 2) * σ)
+        return coeff * exp(exponent)
+    end
+    G(μ, σ) = x -> G(x, μ, σ)
+
+    G1(x) = G(x, [-0.25, -0.25], 0.05)
+    G2(x) = G(x, [0.25, 0.25], 0.05)
+    M1 = G1.(Iterators.product(lookup(x)[2:3]...))
+    M2 = G2.(Iterators.product(lookup(x)[2:3]...))
+    # x[X = 0 .. 0.5] .= reverse(x[X = 0 .. 0.5]) # A little boundary
+    _x = 5.0 * mean(std(x, dims = 1)) .* sin.(times(x))  # A slowly varying "true" signal
+    _x = zeros(size(x, 1), 1, 1) .+ _x
+    MM1 = permutedims(stack([M1 for _ in 1:size(x, 1)]), [3, 1, 2])
+    MM1 = mapslices(x -> x .* _x, MM1, dims = 1)
+
+    _x = 5.0 * mean(std(x, dims = 1)) .* cos.(times(x .* 1.5))  # A slowly varying "true" signal
+    _x = zeros(size(x, 1), 1, 1) .+ _x
+    MM2 = permutedims(stack([M2 for _ in 1:size(x, 1)]), [3, 1, 2])
+    MM2 = mapslices(x -> x .* _x, MM2, dims = 1)
+
+    x = x .+ MM1 .+ MM2
+
+    x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 2)
+    x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 3)
+
+    x = bandpass(x, (0.1, 0.5))
+    y = angle.(hilbert(x))
+
+    x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+end
+if false
+    f = Figure()
+    ax = Axis(f[1, 1])
+    display(f)
+    [(heatmap!(ax, x[Ti = i]; colorrange = extrema(x)), display(f)) for i in 1:10:1000]
+end
+if false
+    f = Figure()
+    ax = Axis(f[1, 1])
+    display(f)
+    [(heatmap!(ax, y[Ti = i]; colormap = cyclic), display(f)) for i in 1:10:5000]
+end
+begin
+    S = abs.(rfft(x)) .^ 2
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(x, NDFT())
+
+    Ŝ = abs.(rfft(x̂)) .^ 2
+end
+
+@testset "IO" begin
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
+                   name = "name")
+
+    f = tempname() * ".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+
+    f = tempname() * ".tsv"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = x[:, 1]
+    savetimeseries(f, x)
+    _x = @test_logs (:warn, "Cannot load refdims yet") loadtimeseries(f)
+    @test refdims(_x) == ()
+    @test all(x .≈ _x)
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, X(1:3), rand(1000, 3); metadata = Dict(:a => :test))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    # Currently not the greatest way of handling non-serializable metadata
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
+                   metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
+                                                                                                      x)
+    _x = loadtimeseries(f)
+    @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
+                                                                                                  x)
+    _x = loadtimeseries(f)
+    @test name(_x) == DimensionalData.NoName()
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, rand(1000))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
+                   name = "name") * u"V"
+
+    f = tempname() * ".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+end
+
 @testset "Dates" begin
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
@@ -263,11 +400,8 @@ end
     @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pa) .* step(TimeseriesTools.freqs(Pa)) * 2 rtol=1e-3
     @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pb) .* step(TimeseriesTools.freqs(Pb)) * 2 rtol=1e-5
     # # Plotting
-    # f = Figure()
-    # ax = Axis(f[1, 1])
-    # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
-    # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb)
-    # save("tmp.pdf", f)
+    # f = Figure() ax = Axis(f[1, 1]) @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
+    # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
 end
 
 @testset "Unitful" begin
@@ -416,67 +550,6 @@ end
     # @test all(Y .≈ _X)
 end
 
-@testset "IO" begin
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-                   name = "name")
-
-    f = tempname() * ".jld2"
-    savetimeseries(f, x)
-    _x = loadtimeseries(f)
-    @test x == _x
-
-    f = tempname() * ".csv"
-    savetimeseries(f, x)
-    _x = loadtimeseries(f)
-    @test x ≈ _x
-
-    x = x[:, 1]
-    savetimeseries(f, x)
-    _x = @test_logs (:warn, "Cannot load refdims yet") loadtimeseries(f)
-    @test refdims(_x) == ()
-    @test all(x .≈ _x)
-
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test))
-    savetimeseries(f, x)
-    _x = loadtimeseries(f)
-    @test x ≈ _x
-
-    # Currently not the greatest way of handling non-serializable metadata
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
-                   metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
-    @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
-                                                                                                      x)
-    _x = loadtimeseries(f)
-    @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
-    @test x ≈ _x
-
-    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
-    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-                                                                                                  x)
-    _x = loadtimeseries(f)
-    @test name(_x) == DimensionalData.NoName()
-    @test x ≈ _x
-
-    x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
-    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-                                                                                                  x)
-    _x = loadtimeseries(f)
-    @test x ≈ _x
-
-    x = TimeSeries(0.001:0.001:1, rand(1000))
-    savetimeseries(f, x)
-    _x = loadtimeseries(f)
-    @test x ≈ _x
-
-    x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-                   name = "name") * u"V"
-
-    f = tempname() * ".jld2"
-    savetimeseries(f, x)
-    _x = loadtimeseries(f)
-    @test x == _x
-end
-
 @testset "Traces" begin
     using CairoMakie, TimeseriesTools, Unitful
     import TimeseriesTools.TimeSeries # or TS
@@ -548,8 +621,8 @@ end
 
     pac = autocor(p, [10])[1]
     @test ≈(pac, autocor(x[Ti(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
-    # @test pac - autocor(x̂[Ti(1:10000)] |> collect, [10])[1] >
-    #   pac - autocor(x[Ti(1:10000)] |> collect, [10])[1]
+    # @test pac - autocor(x̂[Ti(1:10000)] |> collect, [10])[1] >   pac -
+    # autocor(x[Ti(1:10000)] |> collect, [10])[1]
 end
 
 @testset "Interlace" begin
@@ -713,7 +786,8 @@ end
 end
 
 @testset "Stoic spike-train length" begin
-    # * Set up independent gamma renewal processes and verify stoic scaling with length vs. kernel width
+    # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
+    #   kernel width
     Ns = range(start = 100, step = 100, length = 100)
     xs = [gammarenewal(N, 1, 1) for N in Ns]
     ρ = @test_nowarn pairwise(stoic(; σ = 0.01), xs; symmetric = true)
@@ -726,7 +800,8 @@ end
     Colorbar(f[1, 2], p, label = "stoic")
 end
 @testset "Stoic spike-train fano" begin
-    # * Set up independent gamma renewal processes and verify stoic scaling with length vs. kernel width
+    # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
+    #   kernel width
     θs = range(start = 0.1, step = 0.01, length = 150)
     xs = [gammarenewal(10000, 1, θ) for θ in θs]
     ρ = pairwise(stoic(; σ = 0.01), xs; symmetric = true)
@@ -749,27 +824,16 @@ end
     f
 end
 
-# @testset "Stoic firing rate and fano factor" begin
-#     N = 5000
+# @testset "Stoic firing rate and fano factor" begin N = 5000
 
-#     fr = range(start = 0.1, stop = 500, length = 100) # 1 the mean ISI
-#     θs = range(start = 0.1, stop = 2, length = 100) # 1 the mean ISI
-#     αs = 1 ./ (fr .* θs)
+#     fr = range(start = 0.1, stop = 500, length = 100) # 1 the mean ISI θs = range(start =
+#     0.1, stop = 2, length = 100) # 1 the mean ISI αs = 1 ./ (fr .* θs)
 
 #     ps = Iterators.product(αs, θs)
 
-#     ρ = zeros(length(fr), length(θs))
-#     n = 50
-#     Threads.@threads for i in 1:n
-#         _ρ = map(ps) do (α, θ)
-#             x = gammarenewal(N, α, θ)
-#             y = gammarenewal(N, α, θ)
-#             # sttc(x, y; Δt = 0.025) |> abs
-#             stoic(x, y; σ = 0.01) |> abs
-#         end
-#         ρ .+= _ρ
-#     end
-#     ρ ./= n # Mean
+#     ρ = zeros(length(fr), length(θs)) n = 50 Threads.@threads for i in 1:n _ρ = map(ps) do
+#     (α, θ) x = gammarenewal(N, α, θ) y = gammarenewal(N, α, θ) # sttc(x, y; Δt = 0.025) |>
+#     abs stoic(x, y; σ = 0.01) |> abs end ρ .+= _ρ end ρ ./= n # Mean
 
 #     f = Figure()
 #     ax = Axis(f[1, 1]; aspect = 1, xlabel = "Mean firing rate", ylabel = "Fano factor")
@@ -940,13 +1004,8 @@ end
     @test dims(y2, X) == dims(x, X)
 end
 
-# @testset "DiffEqBaseExt" begin
-#     using DifferentialEquations
-#     f(u, p, t) = 1.01 * u
-#     u0 = 1 / 2
-#     tspan = (0.0, 1.0)
-#     prob = ODEProblem(f, u0, tspan, saveat=0.1)
-#     sol = solve(prob)
+# @testset "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
+#     2 tspan = (0.0, 1.0) prob = ODEProblem(f, u0, tspan, saveat=0.1) sol = solve(prob)
 
 #     x = TimeSeries(sol)
 # end

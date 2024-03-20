@@ -39,8 +39,9 @@ freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
 
 A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
 """
-const RegularFreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}
-                               } where {A <: FrequencyDim{<:RegularIndex}}
+const RegularFreqIndex = Tuple{A,
+                               Vararg{DimensionalData.Dimension}} where {A <:
+                                                                         FrequencyDim{<:RegularIndex}}
 
 """
     RegularSpectrum{T, N, B}
@@ -234,9 +235,9 @@ function colorednoise(ts::AbstractRange, args...; α = 2.0)
     x̂[1] = 0
     x = irfft(x̂, 2 * length(f) - 2)
     dt = length(ts) * step(f)
-    t = range(dt, length(x) * dt, length = length(x))
-    @assert all(t .== ts)
-    TimeSeries(t, x, args...)
+    t = range(0, (length(x) - 1) * dt, length = length(x))
+    @assert all(t .+ first(ts) .≈ ts)
+    TimeSeries(ts, x, args...)
 end
 
 function spikefft(t::AbstractVector, ::Val{:schild})
