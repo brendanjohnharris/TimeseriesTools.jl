@@ -233,7 +233,7 @@ function colorednoise(ts::AbstractRange, args...; α = 2.0)
     f = rfftfreq(length(ts), step(ts))
     x̂ = sqrt.(1.0 ./ f .^ α) .* exp.(2π .* rand(length(f)) * im)
     x̂[1] = 0
-    x = irfft(x̂, 2 * length(f) - 2)
+    x = irfft(x̂, length(ts))
     dt = length(ts) * step(f)
     t = range(0, (length(x) - 1) * dt, length = length(x))
     @assert all(t .+ first(ts) .≈ ts)

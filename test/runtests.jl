@@ -23,9 +23,103 @@ using ComplexityMeasures
 using Distributions
 using LinearAlgebra
 
+@testset "ND phase randomization" begin
+    f = xy -> sin.(0.5 * 2π * sum(xy)) + cos.(0.1 * 2π * xy[2])
+
+    # * Odd
+    x = f.(Iterators.product(range(0, 1, length = 5), range(0, 1, length = 5)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    x = randn(11, 11, 11)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    # * Even
+    x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 6)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    matchn = sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0)
+    @test matchn == length(ϕ[2:end, 2:end]) - 1
+
+    x = randn(10, 10, 10)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, 2:end, 2:end] .+
+              reverse(fftshift((ϕ))[2:end, 2:end, 2:end]) .== 0) ==
+          length(ϕ[2:end, 2:end, 2:end]) - 1
+
+    # * Mixed
+    x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 5)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, :] .+ reverse(fftshift((ϕ))[2:end, :]) .== 0) ==
+          length(ϕ[2:end, :]) - 1
+
+    x = randn(11, 10, 11)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[:, 2:end, :] .+ reverse(fftshift((ϕ))[:, 2:end, :]) .== 0) ==
+          length(ϕ[:, 2:end, :]) - 1
+end
+
+@testset "1D ND surrogates" begin
+    x = loadtimeseries("./test_timeseries.tsv")[1:10001, 1]
+    x = bandpass(x, 1000, [1, 20])
+    S = abs.(fft(x)) .^ 2
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), FT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+end
+
+@testset "2D ND surrogates" begin
+    f = xy -> sin.(2 * 2π * sum(xy)) + cos.(1 * 2π * xy[2])
+
+    # * Odd
+    x = f.(Iterators.product(range(0, 1, length = 101), range(0, 1, length = 101)))
+
+    S = abs.(fft(x)) .^ 2
+
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+
+    # * Even
+    x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
+
+    S = abs.(fft(x)) .^ 2
+
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0) ==
+          length(ϕ[2:end, 2:end]) - 1 # The zero frequency phase should be non-zero, although this doesn't matter
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+end
 @testset "ND Fourier transform surrogates" begin
     xs = -0.6:0.01:0.6
-    x = [stack(X(xs), [colorednoise(0.01:0.01:1) for _ in xs]) for _ in xs]
+    x = [stack(X(xs), [colorednoise(0:0.01:1) for _ in xs]) for _ in xs]
     x = stack(Y(xs), x)
 
     S = abs.(rfft(x)) .^ 2
@@ -34,10 +128,12 @@ using LinearAlgebra
     x̂ .= surrogate(x, NDFT())
 
     Ŝ = abs.(rfft(x̂)) .^ 2
-end
-begin
+
+    @test S≈Ŝ rtol=1e-10
+
+    # * Larger array, smoothed
     xs = -0.6:0.01:0.6
-    x = [stack(X(xs), [colorednoise(0.01:0.01:10) for _ in xs]) for _ in xs]
+    x = [stack(X(xs), [colorednoise(0:0.01:10) for _ in xs]) for _ in xs]
     x = stack(Y(xs), x)
 
     function G(x, μ, σ)
@@ -68,31 +164,32 @@ begin
     x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 2)
     x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 3)
 
-    x = bandpass(x, (0.1, 0.5))
+    x = bandpass(x, 0.1 .. 0.5)
     y = angle.(hilbert(x))
 
     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-end
-if false
-    f = Figure()
-    ax = Axis(f[1, 1])
-    display(f)
-    [(heatmap!(ax, x[Ti = i]; colorrange = extrema(x)), display(f)) for i in 1:10:1000]
-end
-if false
-    f = Figure()
-    ax = Axis(f[1, 1])
-    display(f)
-    [(heatmap!(ax, y[Ti = i]; colormap = cyclic), display(f)) for i in 1:10:5000]
-end
-begin
-    S = abs.(rfft(x)) .^ 2
+    if false
+        f = Figure()
+        ax = Axis(f[1, 1])
+        display(f)
+        [(heatmap!(ax, x[Ti = i]; colorrange = extrema(x)), display(f)) for i in 1:10:1000]
+    end
+    if false
+        f = Figure()
+        ax = Axis(f[1, 1])
+        display(f)
+        [(heatmap!(ax, y[Ti = i]; colormap = cyclic), display(f)) for i in 1:10:5000]
+    end
+
+    S = abs.(fft(x)) .^ 2
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(x, NDFT())
 
-    Ŝ = abs.(rfft(x̂)) .^ 2
+    Ŝ = abs.(fft(x̂)) .^ 2
+
+    @test S≈Ŝ rtol=1e-10
 end
 
 @testset "IO" begin
@@ -475,7 +572,7 @@ end
     @test_nowarn save("./powerspectrum.png", f; px_per_unit = 3)
 
     # Shadows
-    x = loadtimeseries("./test_timeseries.csv")
+    x = loadtimeseries("./test_timeseries.tsv")
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
@@ -509,7 +606,7 @@ end
     @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit = 3)
 
     # Shadows
-    x = loadtimeseries("./test_timeseries.csv")
+    x = loadtimeseries("./test_timeseries.tsv")
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])

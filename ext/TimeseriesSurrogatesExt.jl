@@ -6,7 +6,7 @@ using Statistics
 using Distributions
 using DimensionalData
 
-export RandomJitter, GammaRenewal, NDFT
+export RandomJitter, GammaRenewal, NDFT, phaserand!
 
 # Spike train surrogates
 struct RandomJitter <: Surrogate
@@ -50,62 +50,7 @@ function (sg::SurrogateGenerator{<:GammaRenewal})()
     return s
 end
 
-"""
-Generate a surrogate for a multi-dimensional time series `X` using the multidimensional
-phase-randomisation algorithm. If the array contains any boundary NaNs, the Fourier
-transform subsamples the largest non-NaN rectangular array.
-"""
-struct NDFT <: Surrogate
-end
-
-function surrogenerator(x::AbstractArray{<:Real}, rf::NDFT, rng = Random.default_rng())
-    # @assert !any(Bool.(mod.(size(x), 2))) # All even Assumes the largest valid
-    # subrectangle is at least half the size of the array in each dim.
-    NaNs = isnan.(x)
-    any(NaNs) && (x = nansubarray(x))
-    m = mean(x)
-    σ = std(x) # Weird scaling issue
-    oddsizes = size(x) .- Bool.(mod.(size(x), 2))
-    x = getindex(x, [1:n for n in oddsizes]...)
-    # ! We get periodic funniness here; better to extend by 1?
-
-    ffreqs = fftfreq.(size(x))
-    ds = [Dim{Symbol(i)}(ix) for (i, ix) in enumerate(ffreqs)]
-    F = fft(x .- m)
-    F = DimArray(F, Tuple(ds))
-
-    s = zeros(2 .* size(x)) # Double the size of the surrogate array to have the correct frequencies but a buffer for resizing. Pretty slow, but what do you want?
-    inverse = plan_ifft(s)
-    sfreqs = fftfreq.(size(s))
-    ds = [Dim{Symbol(i)}(ix) for (i, ix) in enumerate(sfreqs)]
-    shuffledF = DimArray(zeros(Complex, length.(sfreqs)), Tuple(ds))
-
-    n = size(F)
-    r = abs.(F)
-    ϕ = angle.(F)
-
-    init = (; inverse, m, n, r, ϕ, shuffledF, NaNs, σ)
-    return SurrogateGenerator(rf, x, s, init, rng)
-end
-
-function (sg::SurrogateGenerator{<:NDFT})()
-    inverse, m, n, r, ϕ, shuffledF, NaNs, σ = getfield.(Ref(sg.init),
-                                                        (:inverse, :m, :n, :r, :ϕ,
-                                                         :shuffledF, :NaNs, :σ))
-    s, rng = sg.s, sg.rng
-
-    phaserand!(ϕ, rng)
-
-    shuffledF[At.(dims(ϕ))...] .= r .* exp.(ϕ .* 1im)
-
-    _s = inverse * shuffledF
-    @assert all(isapprox.(real(_s), _s; atol = 1e-6))
-    s .= σ .* real(_s) ./ std(real(_s)) .+ m
-    s = s[axes(parent(NaNs))...] # Crop to the original size. Doesn't really matter where we crop, the surrogate is totally stationary
-    s[NaNs] .= NaN
-
-    return s
-end
+# NDFT surrogates
 
 function nansubarray(X::AbstractMatrix{<:AbstractFloat})
     # Get a rectangular sub array that contains no nans
@@ -173,35 +118,70 @@ function maxrect(X::AbstractArray)
     return maxS, (endt, endl), (endb, endr)
 end
 
-function phaserand!(ϕ, rng = Random.default_rng()) # ! Works!!! But only for gridded data
-    length(ϕ) == 1 && return # This will correspond to (0, 0, ...)
-    i2f(x) = [i - Int(size(ϕ, n) ÷ 2 + 1) for (n, i) in enumerate(x)]
-    f2i(x) = [i + Int(size(ϕ, n) ÷ 2 + 1) for (n, i) in enumerate(x)]
-    # First do the edges, recursively
-    N = ndims(ϕ)
-    edg = [fill(Colon(), N) for _ in 1:N] .|> Array{Union{Colon, Int}}
-    [edg[n][n] = 1 for n in 1:N]
-    for e in edg
-        _ϕ = view(ϕ, e...)
-        phaserand!(_ϕ, rng)
-    end
-    # Then the remainder
-    for i in CartesianIndices(ϕ)
-        i = Tuple(i)
-        if !any(i .== 1)
-            if all(i2f(i) .== 0)
-                if mod(ϕ[i...], π) ≈ 0 || mod(ϕ[i...], π) ≈ π
-                    # Then pass. These zero frequencies we don't want to touch.
-                else
-                    @warn "The zero-frequency phases are neither 0 nor π. Leaving untouched since I don't know the symmetry here."
-                end
-            else
-                _i = f2i(.-i2f(i))
-                ϕ[_i...] = rand(rng, Uniform(0, 2π))
-                ϕ[i...] = -ϕ[_i...] # Phase symmetry
-            end
+# * Only 100% accurate for ODD sized arrays
+function phaserand!(ϕ, rng = Random.default_rng(), n = size(ϕ))
+    if any(iseven.(n))
+        ds = findall(iseven, n)
+        Is = collect.(axes(ϕ))
+        for d in ds
+            idxs = collect(Any, axes(ϕ))
+            idxs[d] = n[d] ÷ 2 + 1
+            _ϕ = view(ϕ, idxs...)
+            # phaserand!(_ϕ)
+            popat!(Is[d], n[d] ÷ 2 + 1)
         end
+        ϕ = view(ϕ, Is...)
     end
+    fs = fftfreq.(size(ϕ))
+    for _fs in Iterators.product(fs...)
+        idx = map(_fs, fs) do _f, f
+            findfirst(_f .== f)
+        end
+        any(isnothing.(idx)) && continue
+        ϕ[idx...] = rand(rng, Uniform(-π, π))
+        idx₋ = map(_fs, fs) do _f, f
+            findfirst(-_f .== f)
+        end
+        any(isnothing.(idx₋)) && continue
+        ϕ[idx₋...] = -ϕ[idx...]
+    end
+end
+
+struct NDFT <: Surrogate
+end
+
+function surrogenerator(x, method::NDFT, rng = Random.default_rng())
+    n = size(x)
+    m = mean(x)
+    forward = plan_fft(x)
+    inverse = plan_ifft(forward * x)
+    𝓕 = forward * (x .- m)
+
+    init = (inverse = inverse,
+            m = m,
+            𝓕 = 𝓕,
+            r = abs.(𝓕),
+            ϕ = angle.(𝓕),
+            shuffled𝓕 = similar(𝓕),
+            coeffs = zeros(size(𝓕)),
+            n = n)
+
+    return SurrogateGenerator(method, x, similar(x), init, rng)
+end
+
+function (sg::SurrogateGenerator{<:NDFT})()
+    s, rng = sg.s, sg.rng
+
+    init_fields = (:inverse, :m, :r, :ϕ, :shuffled𝓕, :coeffs, :n)
+    inverse, m, r, ϕ, shuffled𝓕, coeffs, n = getfield.(Ref(sg.init),
+                                                       init_fields)
+    coeffs .= ϕ
+    phaserand!(coeffs, rng)
+    shuffled𝓕 .= r .* exp.(coeffs .* 1im)
+    _s = inverse * shuffled𝓕
+    @assert all(isapprox.(imag.(_s), 0; atol = 1e-3))
+    s .= real.(_s) .+ m
+    return s
 end
 
 # end # module

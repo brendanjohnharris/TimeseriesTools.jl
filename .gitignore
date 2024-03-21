@@ -16,4 +16,4 @@ LocalPreferences.toml
 data
 docs/build/
 docs/site/
-!test/test_timeseries.csv
+!test/test_timeseries.tsv
