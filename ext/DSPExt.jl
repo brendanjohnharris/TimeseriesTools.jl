@@ -22,13 +22,16 @@ end
 function bandpass(x::AbstractArray, fs::A,
                   pass::AbstractVector{B};
                   designmethod = DSP.Butterworth(4)) where {A <: Real, B <: Real}
-    DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
+    f = x -> DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
+    mapslices(f, x; dims = 1)
 end
 function bandpass(x::AbstractArray, fs::A,
                   pass::AbstractVector{B};
                   designmethod = DSP.Butterworth(4)) where {A <: Quantity, B <: Quantity}
-    DSP.filtfilt(digitalfilter(DSP.Bandpass(ustripall.(pass)...; fs = ustripall(fs)),
-                               designmethod), ustripall.(x)) * unit(eltype(x))
+    f = x -> DSP.filtfilt(digitalfilter(DSP.Bandpass(ustripall.(pass)...;
+                                                     fs = ustripall(fs)),
+                                        designmethod), ustripall.(x)) * unit(eltype(x))
+    mapslices(f, x; dims = 1)
 end
 
 function bandpass(x::AbstractTimeSeries, fs::A,
