@@ -13,7 +13,9 @@ using Dierckx
 using GeneralizedPhase
 
 using TimeseriesTools
-import TimeseriesTools: TimeSeries, name, rectifytime, leftdiff, rightdiff
+import TimeseriesTools: TimeSeries, name, rectifytime,
+                        leftdiff, rightdiff,
+                        NDAAFT, NDIAAFT, MVFT
 
 using Documenter
 using ImageMagick
@@ -22,6 +24,70 @@ using Foresight
 using ComplexityMeasures
 using Distributions
 using LinearAlgebra
+
+@testset "Central differences" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+
+    dx = @test_nowarn centraldiff(x)
+    @test all(dx[2:(end - 1)] .== (x[3:end] - x[1:(end - 2)]) / 2)
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn centraldiff(X)
+    @test all(dX[2:(end - 1), :] .== (X[3:end, :] - X[1:(end - 2), :]) / 2)
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+
+    dX = @test_nowarn centralderiv(X)
+    @test all(dX[2:(end - 1), :] .==
+              ((X[3:end, :] - X[1:(end - 2), :]) / 2) ./ samplingperiod(X))
+
+    x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
+    𝑓 = instantaneousfreq(x)
+    @test std(𝑓[2500:(end - 2500)]) < 0.001
+    @test mean(𝑓[2500:(end - 2500)])≈1 / 2π rtol=1e-5
+
+    ϕ = analyticphase(x)[1000:(end - 1000)]
+    dϕ = @test_nowarn centraldiff(ϕ; grad = phasegrad)
+    @test sum(dϕ .!= centraldiff(ϕ)) > 4000
+end
+
+@testset "Left and right derivatives" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+
+    dx = @test_nowarn leftdiff(x)
+    @test all(dx[2:(end)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn leftdiff(X)
+    @test all(dX[2:(end), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+
+    dx = @test_nowarn rightdiff(x)
+    @test all(dx[1:(end - 1)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
+
+    dX = @test_nowarn rightdiff(X)
+    @test all(dX[1:(end - 1), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+end
+
+# @testset "Irregular central derivative" begin
+#     ts = 0.1:0.1:1000
+#     x = TimeSeries(ts, sin)
+#     y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, parent(x))
+#     @test centralderiv(x) ≈ centralderiv(y)
+# end
+
+@testset "Unitful derivative" begin
+    ts = 0.1:0.1:1000
+    x = TimeSeries(ts, sin)
+    y = set(x, Ti => ts .* u"s")
+    @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
+end
 
 @testset "ND phase randomization" begin
     f = xy -> sin.(0.5 * 2π * sum(xy)) + cos.(0.1 * 2π * xy[2])
@@ -66,21 +132,37 @@ using LinearAlgebra
 end
 
 @testset "1D ND surrogates" begin
-    x = loadtimeseries("./test_timeseries.tsv")[1:10001, 1]
+    x = loadtimeseries("./test_timeseries.tsv")[:, 1]
     x = bandpass(x, 1000, [1, 20])
     S = abs.(fft(x)) .^ 2
+    s = spectrum(rectify(x, dims = Ti))
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), FT())
     Ŝ = abs.(fft(x̂)) .^ 2
+    ŝ = spectrum(rectify(x̂, dims = Ti))
     @test length(Ŝ) == length(S)
-    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
+    ŝ = spectrum(rectify(x̂, dims = Ti))
     @test length(Ŝ) == length(S)
-    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDAAFT())
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.15
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDIAAFT())
+
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.1
 end
 
 @testset "2D ND surrogates" begin
@@ -99,7 +181,25 @@ end
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDAAFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDIAAFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), MVFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-10
 
     # * Even
     x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
@@ -115,8 +215,9 @@ end
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(S .- Ŝ) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
 end
+
 @testset "ND Fourier transform surrogates" begin
     xs = -0.6:0.01:0.6
     x = [stack(X(xs), [colorednoise(0:0.01:1) for _ in xs]) for _ in xs]
@@ -133,7 +234,7 @@ end
 
     # * Larger array, smoothed
     xs = -0.6:0.01:0.6
-    x = [stack(X(xs), [colorednoise(0:0.01:10) for _ in xs]) for _ in xs]
+    x = [stack(X(xs), [colorednoise(0:0.05:50) for _ in xs]) for _ in xs]
     x = stack(Y(xs), x)
 
     function G(x, μ, σ)
@@ -154,7 +255,7 @@ end
     MM1 = permutedims(stack([M1 for _ in 1:size(x, 1)]), [3, 1, 2])
     MM1 = mapslices(x -> x .* _x, MM1, dims = 1)
 
-    _x = 5.0 * mean(std(x, dims = 1)) .* cos.(times(x .* 1.5))  # A slowly varying "true" signal
+    _x = 10.0 * mean(std(x, dims = 1)) .* cos.(times(x .* 1.5))  # A slowly varying "true" signal
     _x = zeros(size(x, 1), 1, 1) .+ _x
     MM2 = permutedims(stack([M2 for _ in 1:size(x, 1)]), [3, 1, 2])
     MM2 = mapslices(x -> x .* _x, MM2, dims = 1)
@@ -169,17 +270,23 @@ end
 
     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-    if false
+    if !haskey(ENV, "CI")
         f = Figure()
         ax = Axis(f[1, 1])
-        display(f)
-        [(heatmap!(ax, x[Ti = i]; colorrange = extrema(x)), display(f)) for i in 1:10:1000]
+        xx = Observable(x[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(x))
+        record(f, "./MultidimModel_x.mp4", 1:2:900) do i
+            xx[] = x[Ti = i]
+        end
     end
-    if false
+    if !haskey(ENV, "CI")
         f = Figure()
         ax = Axis(f[1, 1])
-        display(f)
-        [(heatmap!(ax, y[Ti = i]; colormap = cyclic), display(f)) for i in 1:10:5000]
+        xx = Observable(y[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+        record(f, "./MultidimModel_phi.mp4", 1:2:900) do i
+            xx[] = y[Ti = i]
+        end
     end
 
     S = abs.(fft(x)) .^ 2
@@ -189,7 +296,37 @@ end
 
     Ŝ = abs.(fft(x̂)) .^ 2
 
+    # Ss = periodogram(collect(x[50, :, :]), radialavg = true)
+    # plot(Ss.freq, Ss.power)
+    # Ss = periodogram(collect(x̂[50, :, :]), radialavg = true)
+    # plot!(Ss.freq, Ss.power)
+    # current_figure()
+
     @test S≈Ŝ rtol=1e-10
+
+    x = bandpass(x̂, 0.1 .. 0.5)
+    y = angle.(hilbert(x))
+
+    x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(x[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(x))
+        record(f, "./MultidimModel_x_s.mp4", 1:2:900) do i
+            xx[] = x[Ti = i]
+        end
+    end
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(y[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+        record(f, "./MultidimModel_phi_s.mp4", 1:2:900) do i
+            xx[] = y[Ti = i]
+        end
+    end
 end
 
 @testset "IO" begin
@@ -1011,62 +1148,6 @@ end
     @test mean(dt̂)≈α * F̂ rtol=5e-2
     @test minimum(times(y))≈minimum(times(x)) atol=6 * μ
     @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
-end
-
-@testset "Central differences" begin
-    x = colorednoise(0.01:0.01:10)
-    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
-
-    dx = @test_nowarn centraldiff(x)
-    @test all(dx[2:(end - 1)] .== (x[3:end] - x[1:(end - 2)]) / 2)
-    @test times(dx) == times(x)
-
-    dX = @test_nowarn centraldiff(X)
-    @test all(dX[2:(end - 1), :] .== (X[3:end, :] - X[1:(end - 2), :]) / 2)
-    @test times(dX) == times(X)
-    @test dims(dX, Var) == dims(X, Var)
-
-    dX = @test_nowarn centralderiv(X)
-    @test all(dX[2:(end - 1), :] .==
-              ((X[3:end, :] - X[1:(end - 2), :]) / 2) ./ samplingperiod(X))
-
-    x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
-    𝑓 = instantaneousfreq(x)
-    @test std(𝑓[2500:(end - 2500)]) < 0.001
-    @test mean(𝑓[2500:(end - 2500)])≈1 / 2π rtol=1e-5
-
-    ϕ = analyticphase(x)[1000:(end - 1000)]
-    dϕ = @test_nowarn centraldiff(ϕ)
-end
-
-@testset "Left and right derivatives" begin
-    x = colorednoise(0.01:0.01:10)
-    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
-
-    dx = @test_nowarn leftdiff(x)
-    @test all(dx[2:(end)] .== (x[2:end] - x[1:(end - 1)]))
-    @test times(dx) == times(x)
-
-    dX = @test_nowarn leftdiff(X)
-    @test all(dX[2:(end), :] .== (X[2:end, :] - X[1:(end - 1), :]))
-    @test times(dX) == times(X)
-    @test dims(dX, Var) == dims(X, Var)
-
-    dx = @test_nowarn rightdiff(x)
-    @test all(dx[1:(end - 1)] .== (x[2:end] - x[1:(end - 1)]))
-    @test times(dx) == times(x)
-
-    dX = @test_nowarn rightdiff(X)
-    @test all(dX[1:(end - 1), :] .== (X[2:end, :] - X[1:(end - 1), :]))
-    @test times(dX) == times(X)
-    @test dims(dX, Var) == dims(X, Var)
-end
-
-@testset "Irregular central derivative" begin
-    ts = 0.1:0.1:1000
-    x = TimeSeries(ts, sin)
-    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, parent(x))
-    @test centralderiv(x) ≈ centralderiv(y)
 end
 
 @testset "Rectification" begin

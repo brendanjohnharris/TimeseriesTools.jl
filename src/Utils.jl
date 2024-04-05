@@ -486,6 +486,14 @@ function _centraldiff!(x; grad = -, dims = nothing) # Dims unused
     return nothing
 end
 
+_diff!(x::UnivariateRegular, f!; kwargs...) = f!(x; kwargs...)
+function _diff!(x::AbstractDimArray, f!; dims = 1, kwargs...)
+    if !(DimensionalData.lookup(x, dims).data isa AbstractRange)
+        error("Differencing dimension must be regularly sampled")
+    end
+    f!(eachslice(x; dims); kwargs...)
+end
+
 """
     centraldiff!(x::RegularTimeSeries; dims=Ti, grad=-)
 
@@ -493,14 +501,13 @@ Compute the central difference of a regular time series `x`, in-place.
 The first and last elements are set to the forward and backward difference, respectively.
 The dimension to perform differencing over can be specified as `dims`, and the differencing function can be specified as `grad` (defaulting to the euclidean distance, `-`)
 """
-centraldiff!(x::UnivariateRegular; kwargs...) = _centraldiff!(x; kwargs...)
-function centraldiff!(x::AbstractDimArray; dims = 1, kwargs...)
-    if !(DimensionalData.lookup(x, dims).data isa AbstractRange)
-        error("Differencing dimension must be regularly sampled")
-    end
-    _centraldiff!(eachslice(x; dims); kwargs...)
-end
+centraldiff!(args...; kwargs...) = _diff!(args..., _centraldiff!; kwargs...)
 
+function _diff(x::RegularTimeSeries, f!; kwargs...)
+    y = deepcopy(x)
+    f!(y; kwargs...)
+    return y
+end
 """
     centraldiff(x::RegularTimeSeries; dims=Ti, grad=-)
 
@@ -509,16 +516,19 @@ The first and last elements are set to the forward and backward difference, resp
 The dimension to perform differencing over can be specified as `dims`, and the differencing function can be specified as `grad` (defaulting to the euclidean distance, `-`)
 See [`centraldiff!`](@ref).
 """
-function centraldiff(x::AbstractTimeSeries; kwargs...)
-    y = deepcopy(x)
-    centraldiff!(y; kwargs...)
-    return y
-end
+centraldiff(args...; kwargs...) = _diff(args..., centraldiff!; kwargs...)
 
 function checkderivdims(dims)
     if dims isa Tuple || dims isa AbstractVector
         error("Only one dimension can be specified for derivatives.")
     end
+end
+
+function _deriv!(x::RegularTimeSeries, f!; dims = Ti, kwargs...)
+    checkderivdims(dims)
+    f!(x; dims, kwargs...)
+    x ./= step(x; dims)
+    nothing
 end
 
 """
@@ -527,13 +537,20 @@ end
 Compute the central derivative of a regular time series `x`, in-place.
 See [`centraldiff!`](@ref) for available keyword arguments.
 """
-function centralderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    centraldiff!(x; dims, kwargs...)
-    x ./= samplingperiod(x; dims)
-    nothing
-end
+centralderiv!(args...; kwargs...) = _deriv!(args..., centraldiff!; kwargs...)
 
+function _deriv(x::RegularTimeSeries, f!; dims = Ti, kwargs...)
+    y = deepcopy(x)
+    if unit(step(x; dims)) == NoUnits # Can safely mutate
+        f!(y; kwargs...)
+    else
+        y = ustripall(y)
+        f!(y; dims, kwargs...)
+        newu = unit(eltype(x)) / unit(step(x; dims))
+        y = set(x, y .* newu)
+    end
+    return y
+end
 """
     centralderiv(x::AbstractTimeSeries)
 
@@ -541,11 +558,7 @@ Compute the central derivative of a time series `x`.
 See [`centraldiff`](@ref) for available keyword arguments.
 Also c.f. [`centralderiv!`](@ref).
 """
-function centralderiv(x::RegularTimeSeries; kwargs...)
-    y = deepcopy(x)
-    centralderiv!(y; kwargs...)
-    return y
-end
+centralderiv(args...; kwargs...) = _deriv(args..., centralderiv!; kwargs...)
 
 function _rightdiff!(x; grad = -, dims = nothing) # Dims unused
     x[1:(end - 1)] .= grad(x[2:end], x[1:(end - 1)])
@@ -553,28 +566,10 @@ function _rightdiff!(x; grad = -, dims = nothing) # Dims unused
     x[[end]] .= [copy(x[end - 1])]
     return nothing
 end
-
-rightdiff!(x::UnivariateTimeSeries; kwargs...) = _rightdiff!(x; kwargs...)
-function rightdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
-    _rightdiff!(eachslice(x; dims); kwargs...)
-end
-function rightdiff(x::AbstractTimeSeries; kwargs...)
-    y = deepcopy(x)
-    rightdiff!(y; kwargs...)
-    return y
-end
-function rightderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    rightdiff!(x; dims, kwargs...)
-    x ./= samplingperiod(x; dims)
-    nothing
-end
-
-function rightderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
-    y = deepcopy(x)
-    rightderiv!(y; dims, kwargs...)
-    return y
-end
+rightdiff!(args...; kwargs...) = _diff!(args..., _rightdiff!; kwargs...)
+rightdiff(args...; kwargs...) = _diff(args..., rightdiff!; kwargs...)
+rightderiv!(args...; kwargs...) = _deriv!(args..., rightdiff!; kwargs...)
+rightderiv(args...; kwargs...) = _deriv(args..., rightderiv!; kwargs...)
 
 function _leftdiff!(x; grad = -, dims = nothing) # Dims unused
     x[2:end] .= grad(x[2:end], x[1:(end - 1)])
@@ -582,55 +577,10 @@ function _leftdiff!(x; grad = -, dims = nothing) # Dims unused
     x[[1]] .= [copy(x[2])]
     return nothing
 end
-
-leftdiff!(x::UnivariateTimeSeries; kwargs...) = _leftdiff!(x; kwargs...)
-function leftdiff!(x::MultidimensionalTimeSeries; dims = Ti, kwargs...)
-    _leftdiff!(eachslice(x; dims); kwargs...)
-end
-function leftdiff(x::AbstractTimeSeries; kwargs...)
-    y = deepcopy(x)
-    leftdiff!(y; kwargs...)
-    return y
-end
-function leftderiv!(x::RegularTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    leftdiff!(x; dims, kwargs...)
-    x ./= samplingperiod(x; dims)
-    nothing
-end
-
-function leftderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
-    y = deepcopy(x)
-    leftderiv!(y; dims, kwargs...)
-    return y
-end
-
-function leftderiv!(x::AbstractTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    leftdiff!(x; dims, kwargs...)
-    l = lookup(x, dims) |> collect
-    _leftdiff!(l)
-    x ./= l
-    nothing
-end
-function rightderiv!(x::AbstractTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    rightdiff!(x; dims, kwargs...)
-    r = lookup(x, dims) |> collect
-    _rightdiff!(r)
-    x ./= r
-    nothing
-end
-
-function centralderiv(x::AbstractTimeSeries; dims = Ti, kwargs...)
-    checkderivdims(dims)
-    l = leftderiv(x; dims, kwargs...)
-    r = rightderiv(x; dims, kwargs...)
-    y = mean([l, r])
-    y[1] = y[2]
-    y[end] = y[end - 1]
-    return y
-end
+leftdiff!(args...; kwargs...) = _diff!(args..., _leftdiff!; kwargs...)
+leftdiff(args...; kwargs...) = _diff(args..., leftdiff!; kwargs...)
+leftderiv!(args...; kwargs...) = _deriv!(args..., leftdiff!; kwargs...)
+leftderiv(args...; kwargs...) = _deriv(args..., leftderiv!; kwargs...)
 
 Base.abs(x::AbstractTimeSeries) = Base.abs.(x)
 Base.angle(x::AbstractTimeSeries) = Base.angle.(x)

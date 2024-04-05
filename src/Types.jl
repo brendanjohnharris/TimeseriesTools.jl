@@ -1,3 +1,5 @@
+import DimensionalData: Dimension, TimeDim
+
 export AbstractTimeSeries, AbstractTS,
        UnivariateTimeSeries, UnivariateTS,
        MultivariateTimeSeries, MultivariateTS,
@@ -15,9 +17,7 @@ export AbstractTimeSeries, AbstractTS,
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-const TimeIndex = Tuple{A,
-                        Vararg{DimensionalData.Dimension}} where {A <:
-                                                                  DimensionalData.TimeDim}
+const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
@@ -56,20 +56,14 @@ Var
 
 A type alias for a regularly sampled dimension, wrapping an `AbstractRange`.
 """
-const RegularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,
-                                                                     R} where {T,
-                                                                               R <:
-                                                                               AbstractRange
-                                                                               }
+const RegularIndex = Dimensions.LookupArrays.Sampled{T, R} where {T, R <: AbstractRange}
 
 """
     RegularTimeIndex
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const RegularTimeIndex = Tuple{A,
-                               Vararg{DimensionalData.Dimension}} where {A <:
-                                                                         DimensionalData.TimeDim{<:RegularIndex}}
+const RegularTimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
@@ -80,12 +74,12 @@ const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex,
                                                        B} where {T, N, B}
 
 const MultidimensionalIndex = Tuple{A,
-                                    Vararg{DimensionalData.Dimension{B}}} where {
-                                                                                 A <:
-                                                                                 DimensionalData.TimeDim{<:RegularIndex},
-                                                                                 B <:
-                                                                                 RegularIndex
-                                                                                 }
+                                    Vararg{Dimension{B}}} where {
+                                                                 A <:
+                                                                 TimeDim{<:RegularIndex},
+                                                                 B <:
+                                                                 RegularIndex
+                                                                 }
 
 """
 A multidimensional time series has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over an even grid in 1 dimension that fluctuates over time.
@@ -99,11 +93,11 @@ const MultidimensionalTS = MultidimensionalTimeSeries
 
 A type alias for an irregularly sampled dimension, wrapping an `AbstractVector`.
 """
-const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,
-                                                                       R} where {T,
-                                                                                 R <:
-                                                                                 AbstractVector
-                                                                                 }
+const IrregularIndex = Dimensions.LookupArrays.Sampled{T,
+                                                       R} where {T,
+                                                                 R <:
+                                                                 AbstractVector
+                                                                 }
 
 """
     IrregularTimeIndex
@@ -111,8 +105,8 @@ const IrregularIndex = DimensionalData.Dimensions.LookupArrays.Sampled{T,
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
 const IrregularTimeIndex = Tuple{A,
-                                 Vararg{DimensionalData.Dimension}} where {A <:
-                                                                           DimensionalData.TimeDim{<:IrregularIndex}}
+                                 Vararg{Dimension}} where {A <:
+                                                           TimeDim{<:IrregularIndex}}
 
 """
     IrregularTimeSeries
@@ -156,7 +150,7 @@ julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
 TimeSeries(t, x; kwargs...) = DimArray(x, (Ti(t),); kwargs...)
-TimeSeries(t::DimensionalData.TimeDim, x; kwargs...) = DimArray(x, (t,); kwargs...)
+TimeSeries(t::TimeDim, x; kwargs...) = DimArray(x, (t,); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -172,23 +166,23 @@ julia> mts = TimeSeries(t, v, x)
 julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 ```
 """
-function TimeSeries(t::DimensionalData.TimeDim, v::DimensionalData.Dimension, x; kwargs...)
+function TimeSeries(t::TimeDim, v::Dimension, x; kwargs...)
     DimArray(x, (t, v); kwargs...)
 end
-function TimeSeries(t::DimensionalData.TimeDim, v, x; kwargs...)
+function TimeSeries(t::TimeDim, v, x; kwargs...)
     DimArray(x, (t, Var(v)); kwargs...)
 end
-function TimeSeries(t, v::DimensionalData.Dimension, x; kwargs...)
+function TimeSeries(t, v::Dimension, x; kwargs...)
     DimArray(x, (Ti(t), v); kwargs...)
 end
 TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
 
-function TimeSeries(t::DimensionalData.TimeDim, a::DimensionalData.Dimension,
-                    b::DimensionalData.Dimension, x; kwargs...)
+function TimeSeries(t::TimeDim, a::Dimension,
+                    b::Dimension, x; kwargs...)
     DimArray(x, (t, a, b); kwargs...)
 end
-function TimeSeries(t, a::DimensionalData.Dimension,
-                    b::DimensionalData.Dimension, x; kwargs...)
+function TimeSeries(t, a::Dimension,
+                    b::Dimension, x; kwargs...)
     DimArray(x, (Ti(t), a, b); kwargs...)
 end
 

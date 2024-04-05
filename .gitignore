@@ -4,6 +4,7 @@
 *.jl.cov
 *.jl.mem
 *.jld2
+*.mp4
 coverage-lcov.info
 *.mat
 *.parquet
