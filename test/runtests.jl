@@ -87,6 +87,7 @@ end
     x = TimeSeries(ts, sin)
     y = set(x, Ti => ts .* u"s")
     @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
+    @test unit(eltype(y)) == unit(u"1/s")
 end
 
 @testset "ND phase randomization" begin

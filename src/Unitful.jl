@@ -213,4 +213,5 @@ ustripall(x::AbstractArray{T}) where {T <: Number} = ustrip.(x)
 ustripall(a::AbstractRange) = a
 ustripall(a::AbstractRange{<:Quantity}) = ustrip(a)
 ustripall(a::ClosedInterval) = ustrip(a.left) .. ustrip(a.right)
+ustripall(x::Vector{<:AbstractString}) = x
 ustripall(x) = ustrip(x)
