@@ -1,6 +1,6 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
-import DimensionalData: print_array, _print_array_ctx
+import DimensionalData: print_array, _print_array_ctx, _print_matrix
 import Normalization: NormUnion, AbstractNormalization, nansafe
 using Peaks
 
