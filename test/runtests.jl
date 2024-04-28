@@ -25,6 +25,60 @@ using ComplexityMeasures
 using Distributions
 using LinearAlgebra
 
+@testset "progressmap" begin
+    S = [1:1000 for _ in 1:3]
+    L = @test_nowarn progressmap(S; description = "outer") do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+    end
+    L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+    end
+    L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner",
+                    parallel = true)
+    end
+
+    s = [x for x in 1:3]
+    _L = map(exp10, collect(s))
+    L = @test_nowarn progressmap(exp10, collect(s))
+    @test _L == L
+    @test typeof(L) == typeof(_L)
+
+    S = [stack(X(1:3), [colorednoise(0:0.1:100) for _ in 1:1000]) for _ in 1:3]
+
+    _L = map(exp10, collect(S[1]))
+    L = @test_nowarn progressmap(exp10, collect(S[1]))
+    @test _L == L
+    @test typeof(L) == typeof(_L)
+
+    _L = map(S) do s
+        map(exp10, collect(s))
+    end
+    L = @test_nowarn progressmap(S) do s
+        progressmap(exp10, collect(s))
+    end
+    @test _L == L
+    @test L isa Vector{Any}
+
+    _L = map(S) do s
+        map(sum, collect(eachslice(s, dims = (2,))))
+    end
+    L = @test_nowarn progressmap(S) do s
+        progressmap(sum, collect(eachslice(s, dims = (2,))))
+    end
+    @test _L == L
+    @test L isa Vector{Any}
+
+    _L = map(S) do s
+        map(sum, eachslice(s, dims = (2,)))
+    end
+    L = @test_nowarn progressmap(S; parallel = false) do s
+        progressmap(sum, eachslice(s, dims = (2,)); parallel = false)
+    end
+    @test _L == L
+    @test typeof(L[1]) != typeof(_L[1]) # This is a limitation of the current implementation; often returns Vector{Any}
+end
+
 @testset "Central differences" begin
     x = colorednoise(0.01:0.01:10)
     X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)

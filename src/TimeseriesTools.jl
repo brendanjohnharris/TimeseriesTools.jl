@@ -54,6 +54,7 @@ function _waveletfreqs end
 function _waveletspectrogram end
 function waveletspectrogram end
 function interpolate end
-export _waveletfreqs, _waveletspectrogram, waveletspectrogram
+function progressmap end
+export _waveletfreqs, _waveletspectrogram, waveletspectrogram, progressmap
 
 end
