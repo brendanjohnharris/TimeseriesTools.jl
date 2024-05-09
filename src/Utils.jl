@@ -11,7 +11,7 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks, align, upsample, matchdim, nansafe, coarsegrain
+       findpeaks, maskpeaks, align, upsample, matchdim, nansafe, coarsegrain
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -620,15 +620,19 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     maxprom isa Function && (maxprom = maxprom(x))
     _pks, vals = findmaxima(x, w)
     pks, proms = peakproms(_pks, x; minprom, maxprom, strict)
+    pks, widths, leftedge, rightedge = peakwidths(pks, x, proms)
+    leftedge = [only(lookup(x))[ceil(Int, l)] for l in leftedge]
+    rightedge = [only(lookup(x))[floor(Int, r)] for r in rightedge]
     idxs = indexin(pks, _pks) .|> Int
     vals = vals[idxs]
     proms = set(vals, proms)
+    widths = set(vals, [l .. r for (l, r) in zip(leftedge, rightedge)])
     if !isnothing(N)
         ps = sortperm(proms; rev = true)
         vals = vals[ps[1:N]]
-        proms = proms[ps[1:N]]
+        widths = widths[ps[1:N]]
     end
-    return vals, proms
+    return vals, proms, widths
 end
 
 function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
@@ -636,9 +640,31 @@ function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwar
     _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
                                                                                       dims)]]
     P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
-    vals = first.(P)
-    proms = last.(P)
-    vals, proms
+    return [getindex.(P, i) for i in 1:3] # vals, proms, widths
+end
+
+function maskpeaks!(y, x::DimensionalData.AbstractDimVector, args...; kwargs...)
+    vals, proms, widths = findpeaks(x, args...; kwargs...)
+    y .= 0
+    for (i, I) in enumerate(widths)
+        y[I] .= i
+    end
+    return y
+end
+function maskpeaks(x::DimensionalData.AbstractDimVector, args...; kwargs...)
+    y = set(x, similar(x, Int))
+    maskpeaks!(y, x, args...; kwargs...)
+    return y
+end
+
+function maskpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
+    @assert length(dims) == 1
+    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
+                                                                                      dims)]]
+    y = similar(x, Int)
+    maskpeaks!.(eachslice(y; dims = _dims), eachslice(x; dims = _dims), args...;
+                kwargs...)
+    return y
 end
 
 """

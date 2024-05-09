@@ -76,7 +76,12 @@ using LinearAlgebra
         progressmap(sum, eachslice(s, dims = (2,)); parallel = false)
     end
     @test _L == L
-    @test typeof(L[1]) != typeof(_L[1]) # This is a limitation of the current implementation; often returns Vector{Any}
+    @test typeof(L[1]) != typeof(_L[1]) # This is a limitation of the current implementation; does not handle rebuilding slices of a dim array
+    L = @test_nowarn progressmap(S; parallel = false) do s
+        map(sum, eachslice(s, dims = (2,)))
+    end
+    @test _L == L
+    @test typeof(L[1]) == typeof(_L[1])
 end
 
 @testset "Central differences" begin
@@ -571,6 +576,10 @@ end
     @test times(pks[1]) == times(peaks)
     @test times(pks[2]) == times(peaks)
     @test all(proms[1][2:(end - 1)] .== 2)
+
+    m = @test_nowarn maskpeaks(x)
+    M = @test_nowarn maskpeaks(X)
+    @test M[:, 2] == m
 end
 
 @testset "TimeseriesTools.jl" begin
