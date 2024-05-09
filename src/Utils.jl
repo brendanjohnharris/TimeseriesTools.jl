@@ -620,9 +620,14 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     maxprom isa Function && (maxprom = maxprom(x))
     _pks, vals = findmaxima(x, w)
     pks, proms = peakproms(_pks, x; minprom, maxprom, strict)
-    pks, widths, leftedge, rightedge = peakwidths(pks, x, proms)
-    leftedge = [only(lookup(x))[ceil(Int, l)] for l in leftedge]
-    rightedge = [only(lookup(x))[floor(Int, r)] for r in rightedge]
+    if !isempty(pks)
+        pks, widths, leftedge, rightedge = peakwidths(pks, x, proms)
+        leftedge = [only(lookup(x))[ceil(Int, l)] for l in leftedge]
+        rightedge = [only(lookup(x))[floor(Int, r)] for r in rightedge]
+    else
+        leftedge = []
+        rightedge = []
+    end
     idxs = indexin(pks, _pks) .|> Int
     vals = vals[idxs]
     proms = set(vals, proms)

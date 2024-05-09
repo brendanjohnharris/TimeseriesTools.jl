@@ -580,6 +580,11 @@ end
     m = @test_nowarn maskpeaks(x)
     M = @test_nowarn maskpeaks(X)
     @test M[:, 2] == m
+
+    # * With no-peak signal
+    X[:, 2] .= 1
+    @test_nowarn findpeaks(X)
+    M = @test_nowarn maskpeaks(X)
 end
 
 @testset "TimeseriesTools.jl" begin
