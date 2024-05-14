@@ -1,4 +1,5 @@
 using Test
+using Term
 using Unitful
 import Unitful.unit
 using FFTW
@@ -146,7 +147,7 @@ end
     x = TimeSeries(ts, sin)
     y = set(x, Ti => ts .* u"s")
     @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
-    @test unit(eltype(y)) == unit(u"1/s")
+    @test unit(eltype(centralderiv(y))) == unit(u"1/s")
 end
 
 @testset "ND phase randomization" begin
