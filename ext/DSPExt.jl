@@ -1,6 +1,7 @@
 # module DSPExt
 
 using TimeseriesTools
+using ..DimensionalData
 using ..Unitful
 using ..IntervalSets
 import TimeseriesTools: bandpass, phasestitch
@@ -34,12 +35,12 @@ function bandpass(x::AbstractArray, fs::A,
     mapslices(f, x; dims = 1)
 end
 
-function bandpass(x::AbstractTimeSeries, fs::A,
+function bandpass(x::AbstractDimArray, fs::A,
                   pass::AbstractVector{B};
                   kwargs...) where {A <: Quantity, B <: Quantity}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
-function bandpass(x::AbstractTimeSeries, fs::A,
+function bandpass(x::AbstractDimArray, fs::A,
                   pass::AbstractVector{B}; kwargs...) where {A <: Real, B <: Real}
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
@@ -65,12 +66,12 @@ function highpass(x::AbstractArray, fs::Real,
     DSP.filtfilt(digitalfilter(DSP.Highpass(ustripall(pass); fs = ustripall(fs)),
                                designmethod), ustripall(x)) * unit(eltype(x))
 end
-function highpass(x::AbstractTimeSeries, fs::Quantity,
+function highpass(x::AbstractDimArray, fs::Quantity,
                   pass::Quantity;
                   kwargs...)
     set(x, highpass(x.data, fs, pass; kwargs...))
 end
-function highpass(x::AbstractTimeSeries, fs::Real,
+function highpass(x::AbstractDimArray, fs::Real,
                   pass::Real; kwargs...)
     set(x, highpass(x.data, fs, pass; kwargs...))
 end

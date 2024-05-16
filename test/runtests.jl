@@ -323,8 +323,9 @@ end
 
     x = x .+ MM1 .+ MM2
 
-    x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 2)
-    x = mapslices(x -> bandpass(x, 1 / step(xs), (1, 5)), x, dims = 3)
+    fg(x) = bandpass(x, 1 / step(xs), (1, 5))
+    x = mapslices(fg, x, dims = 2)
+    x = mapslices(fg, x, dims = 3)
 
     x = bandpass(x, 0.1 .. 0.5)
     y = angle.(hilbert(x))
@@ -402,7 +403,7 @@ end
     f = tempname() * ".tsv"
     savetimeseries(f, x)
     _x = loadtimeseries(f)
-    @test x ≈ _x
+    @test all(x .≈ _x)
 
     x = x[:, 1]
     savetimeseries(f, x)
@@ -419,6 +420,8 @@ end
     savetimeseries(f, x)
     _x = loadtimeseries(f)
     @test x ≈ _x
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     # Currently not the greatest way of handling non-serializable metadata
     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
@@ -427,24 +430,32 @@ end
                                                                                                       x)
     _x = loadtimeseries(f)
     @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
-    @test x ≈ _x
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
     @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
                                                                                                   x)
     _x = loadtimeseries(f)
     @test name(_x) == DimensionalData.NoName()
-    @test x ≈ _x
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
     savetimeseries(f, x)
     _x = loadtimeseries(f)
-    @test x ≈ _x
+    @test all(parent(x) .≈ parent(_x))
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+    @test parent(lookup(_x, 2)) isa Vector{Symbol}
 
     x = TimeSeries(0.001:0.001:1, rand(1000))
     savetimeseries(f, x)
     _x = loadtimeseries(f)
-    @test x ≈ _x
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
                    name = "name") * u"V"
