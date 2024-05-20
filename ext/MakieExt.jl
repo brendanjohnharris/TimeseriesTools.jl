@@ -6,7 +6,8 @@ import MakieCore.plot
 import ..Makie
 import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
                 Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
-                ScatterLines, Hexbin, Stem, Plot, scatter!, text!
+                ScatterLines, Hexbin, Stem, Plot, scatter!, text!, with_theme, Attributes,
+                theme
 PointLike = Union{Scatter, Lines, ScatterLines, Hexbin, Stem}
 
 using TimeseriesTools
@@ -198,7 +199,14 @@ end
 
 # ? -------------------------- Colored trajectory -------------------------- ? #
 @recipe(Trajectory, x, y, z) do scene
-    Theme(colormode = :velocity)
+    Attributes(colormode = :velocity,
+               linewidth = theme(scene, :line_width),
+               alpha = 0.8,
+               colormap = :viridis,
+               colorscale = identity,
+               linestyle = theme(scene, :linestyle),
+               linecap = theme(scene, :linecap),
+               joinstyle = theme(scene, :joinstyle))
 end
 
 function Makie.plot!(plot::Trajectory)
@@ -220,8 +228,16 @@ function Makie.plot!(plot::Trajectory)
         error("Not a supported `colormode`")
     end
     _z = @lift [y[1:(end - 1)] for y in $(z)]
-    lines!(plot, _z[]...; plot.attributes..., color = colors)
-
+    lineattrs = [
+        :colormap,
+        :linewidth,
+        :alpha,
+        :colorscale,
+        :linestyle,
+        :linecap,
+        :joinstyle
+    ]
+    lines!(plot, _z[]...; color = colors, [a => plot.attributes[a] for a in lineattrs]...)
     plot
 end
 
@@ -260,9 +276,15 @@ end
 
 # ? ------------------------------- # Traces ------------------------------- ? #
 @recipe(Traces, x, y, z) do scene
-    Theme(colormap = nothing,
-          normalize = false, # Can be any normalization type from Normalizations.jl
-          colorrange = nothing)
+    Attributes(colormap = nothing,
+               normalize = false, # Can be any normalization type from Normalizations.jl
+               colorrange = nothing,
+               linewidth = theme(scene, :line_width),
+               alpha = 0.8,
+               colorscale = identity,
+               linestyle = theme(scene, :linestyle),
+               linecap = theme(scene, :linecap),
+               joinstyle = theme(scene, :joinstyle))
 end
 
 function Makie.convert_arguments(::Type{<:Plot{<:TimeseriesTools.Traces}},
@@ -293,14 +315,21 @@ function Makie.plot!(plot::Traces)
         _y = lift((x, r) -> (x .- r[1]) ./ (r[2] - r[1]), y, plot.colorrange)
         colormap = lift((c, i) -> [c[Float64(_i)] for _i in i], colormap, _y)
     end
-
+    lineattrs = [
+        :linewidth,
+        :alpha,
+        :colorscale,
+        :linestyle,
+        :linecap,
+        :joinstyle
+    ]
     for i in axes(z[], 2)
         _z = lift(x -> x[:, i], z)
         if isnothing(colormap[])
-            lines!(plot, x, _z; plot.attributes...)
+            lines!(plot, x, _z, [a => plot.attributes[a] for a in lineattrs]...)
         else
             color = lift(c -> c[i], colormap)
-            lines!(plot, x, _z; plot.attributes..., color)
+            lines!(plot, x, _z; color, [a => plot.attributes[a] for a in lineattrs]...)
         end
     end
     plot
@@ -356,9 +385,16 @@ end
 
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
-    Theme(offset = 1,
-          normalize = false,
-          spacing = :close)
+    Attributes(offset = 1,
+               normalize = false,
+               spacing = :close,
+               linewidth = theme(scene, :line_width),
+               alpha = 0.8,
+               colormap = :viridis,
+               colorscale = identity,
+               linestyle = theme(scene, :linestyle),
+               linecap = theme(scene, :linecap),
+               joinstyle = theme(scene, :joinstyle))
 end
 
 function Makie.convert_arguments(::Type{<:Plot{TimeseriesTools.StackedTraces}},
@@ -397,7 +433,17 @@ function Makie.plot!(plot::StackedTraces)
         z .+ c'
     end
     plot.attributes.normalize[] = false
-    traces!(plot, x, y, z; plot.attributes...)
+    lineattrs = [
+        :colormap,
+        :linewidth,
+        :alpha,
+        :colorscale,
+        :linestyle,
+        :linecap,
+        :joinstyle
+    ]
+    traces!(plot, x, y, z; normalize = plot.attributes[:normalize],
+            [a => plot.attributes[a] for a in lineattrs]...)
     plot
 end
 

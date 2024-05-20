@@ -7,9 +7,14 @@ import GeometryBasics.decompose
 export dimname, decompose, spectrumplot!, spectrumplot
 
 MakieCore.@recipe(SpectrumPlot, x, y) do scene
-    MakieCore.Theme(;
-                    color = :cornflowerblue,
-                    peaks = false)
+    MakieCore.Attributes(;
+                         color = :cornflowerblue,
+                         peaks = false,
+                         linewidth = theme(scene, :line_width),
+                         alpha = 1,
+                         linestyle = theme(scene, :linestyle),
+                         linecap = theme(scene, :linecap),
+                         joinstyle = theme(scene, :joinstyle))
 end
 
 function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector, <:AbstractVector}})
@@ -18,7 +23,8 @@ function MakieCore.plot!(p::SpectrumPlot{<:Tuple{<:AbstractVector, <:AbstractVec
     # idxs = map((x, y)->(x .> 0) .& (y .> 0), x, y)
     # _x = map((x, i)->x[i], x, idxs)
     # _y = map((y, i)->y[i], y, idxs)
-    MakieCore.lines!(p, x, y; p.attributes...)
+    lineattrs = [:linewidth, :alpha, :linestyle, :linecap, :joinstyle]
+    MakieCore.lines!(p, x, y; [a => p.attributes[a] for a in lineattrs]...)
     p
 end
 
