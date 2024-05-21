@@ -640,7 +640,7 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     return vals, proms, widths
 end
 
-function findpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
+function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
     @assert length(dims) == 1
     _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
                                                                                       dims)]]
@@ -662,7 +662,7 @@ function maskpeaks(x::DimensionalData.AbstractDimVector, args...; kwargs...)
     return y
 end
 
-function maskpeaks(x::DimensionalData.AbstractDimMatrix, args...; dims = 1, kwargs...)
+function maskpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
     @assert length(dims) == 1
     _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
                                                                                       dims)]]

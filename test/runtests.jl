@@ -22,753 +22,753 @@ using Documenter
 using ImageMagick
 using BenchmarkTools
 using Foresight
-# using ComplexityMeasures
+using ComplexityMeasures
 using Distributions
 using LinearAlgebra
 
-# @testset "progressmap" begin
-#     S = [1:1000 for _ in 1:3]
-#     L = @test_nowarn progressmap(S; description = "outer") do s
-#         progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
-#     end
-#     L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
-#         progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
-#     end
-#     L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
-#         progressmap(x -> (sleep(0.0001); randn()), s; description = "inner",
-#                     parallel = true)
-#     end
+@testset "progressmap" begin
+    S = [1:1000 for _ in 1:3]
+    L = @test_nowarn progressmap(S; description = "outer") do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+    end
+    L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+    end
+    L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
+        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner",
+                    parallel = true)
+    end
 
-#     s = [x for x in 1:3]
-#     _L = map(exp10, collect(s))
-#     L = @test_nowarn progressmap(exp10, collect(s))
-#     @test _L == L
-#     @test typeof(L) == typeof(_L)
+    s = [x for x in 1:3]
+    _L = map(exp10, collect(s))
+    L = @test_nowarn progressmap(exp10, collect(s))
+    @test _L == L
+    @test typeof(L) == typeof(_L)
 
-#     S = [stack(X(1:3), [colorednoise(0:0.1:100) for _ in 1:1000]) for _ in 1:3]
+    S = [stack(X(1:3), [colorednoise(0:0.1:100) for _ in 1:1000]) for _ in 1:3]
 
-#     _L = map(exp10, collect(S[1]))
-#     L = @test_nowarn progressmap(exp10, collect(S[1]))
-#     @test _L == L
-#     @test typeof(L) == typeof(_L)
+    _L = map(exp10, collect(S[1]))
+    L = @test_nowarn progressmap(exp10, collect(S[1]))
+    @test _L == L
+    @test typeof(L) == typeof(_L)
 
-#     _L = map(S) do s
-#         map(exp10, collect(s))
-#     end
-#     L = @test_nowarn progressmap(S) do s
-#         progressmap(exp10, collect(s))
-#     end
-#     @test _L == L
-#     @test L isa Vector{Any}
+    _L = map(S) do s
+        map(exp10, collect(s))
+    end
+    L = @test_nowarn progressmap(S) do s
+        progressmap(exp10, collect(s))
+    end
+    @test _L == L
+    @test L isa Vector{Any}
 
-#     _L = map(S) do s
-#         map(sum, collect(eachslice(s, dims = (2,))))
-#     end
-#     L = @test_nowarn progressmap(S) do s
-#         progressmap(sum, collect(eachslice(s, dims = (2,))))
-#     end
-#     @test _L == L
-#     @test L isa Vector{Any}
+    _L = map(S) do s
+        map(sum, collect(eachslice(s, dims = (2,))))
+    end
+    L = @test_nowarn progressmap(S) do s
+        progressmap(sum, collect(eachslice(s, dims = (2,))))
+    end
+    @test _L == L
+    @test L isa Vector{Any}
 
-#     _L = map(S) do s
-#         map(sum, eachslice(s, dims = (2,)))
-#     end
-#     L = @test_nowarn progressmap(S; parallel = false) do s
-#         progressmap(sum, eachslice(s, dims = (2,)); parallel = false)
-#     end
-#     @test _L == L
-#     @test typeof(L[1]) != typeof(_L[1]) # This is a limitation of the current implementation; does not handle rebuilding slices of a dim array
-#     L = @test_nowarn progressmap(S; parallel = false) do s
-#         map(sum, eachslice(s, dims = (2,)))
-#     end
-#     @test _L == L
-#     @test typeof(L[1]) == typeof(_L[1])
-# end
+    _L = map(S) do s
+        map(sum, eachslice(s, dims = (2,)))
+    end
+    L = @test_nowarn progressmap(S; parallel = false) do s
+        progressmap(sum, eachslice(s, dims = (2,)); parallel = false)
+    end
+    @test _L == L
+    @test typeof(L[1]) != typeof(_L[1]) # This is a limitation of the current implementation; does not handle rebuilding slices of a dim array
+    L = @test_nowarn progressmap(S; parallel = false) do s
+        map(sum, eachslice(s, dims = (2,)))
+    end
+    @test _L == L
+    @test typeof(L[1]) == typeof(_L[1])
+end
 
-# @testset "Central differences" begin
-#     x = colorednoise(0.01:0.01:10)
-#     X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+@testset "Central differences" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
 
-#     dx = @test_nowarn centraldiff(x)
-#     @test all(dx[2:(end - 1)] .== (x[3:end] - x[1:(end - 2)]) / 2)
-#     @test times(dx) == times(x)
+    dx = @test_nowarn centraldiff(x)
+    @test all(dx[2:(end - 1)] .== (x[3:end] - x[1:(end - 2)]) / 2)
+    @test times(dx) == times(x)
 
-#     dX = @test_nowarn centraldiff(X)
-#     @test all(dX[2:(end - 1), :] .== (X[3:end, :] - X[1:(end - 2), :]) / 2)
-#     @test times(dX) == times(X)
-#     @test dims(dX, Var) == dims(X, Var)
+    dX = @test_nowarn centraldiff(X)
+    @test all(dX[2:(end - 1), :] .== (X[3:end, :] - X[1:(end - 2), :]) / 2)
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
 
-#     dX = @test_nowarn centralderiv(X)
-#     @test all(dX[2:(end - 1), :] .==
-#               ((X[3:end, :] - X[1:(end - 2), :]) / 2) ./ samplingperiod(X))
+    dX = @test_nowarn centralderiv(X)
+    @test all(dX[2:(end - 1), :] .==
+              ((X[3:end, :] - X[1:(end - 2), :]) / 2) ./ samplingperiod(X))
 
-#     x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
-#     𝑓 = instantaneousfreq(x)
-#     @test std(𝑓[2500:(end - 2500)]) < 0.001
-#     @test mean(𝑓[2500:(end - 2500)])≈1 / 2π rtol=1e-5
+    x = @test_nowarn Timeseries(0.1:0.1:1000, sin)
+    𝑓 = instantaneousfreq(x)
+    @test std(𝑓[2500:(end - 2500)]) < 0.001
+    @test mean(𝑓[2500:(end - 2500)])≈1 / 2π rtol=1e-5
 
-#     ϕ = analyticphase(x)[1000:(end - 1000)]
-#     dϕ = @test_nowarn centraldiff(ϕ; grad = phasegrad)
-#     @test sum(dϕ .!= centraldiff(ϕ)) > 4000
-# end
+    ϕ = analyticphase(x)[1000:(end - 1000)]
+    dϕ = @test_nowarn centraldiff(ϕ; grad = phasegrad)
+    @test sum(dϕ .!= centraldiff(ϕ)) > 4000
+end
 
-# @testset "Left and right derivatives" begin
-#     x = colorednoise(0.01:0.01:10)
-#     X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+@testset "Left and right derivatives" begin
+    x = colorednoise(0.01:0.01:10)
+    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
 
-#     dx = @test_nowarn leftdiff(x)
-#     @test all(dx[2:(end)] .== (x[2:end] - x[1:(end - 1)]))
-#     @test times(dx) == times(x)
+    dx = @test_nowarn leftdiff(x)
+    @test all(dx[2:(end)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
 
-#     dX = @test_nowarn leftdiff(X)
-#     @test all(dX[2:(end), :] .== (X[2:end, :] - X[1:(end - 1), :]))
-#     @test times(dX) == times(X)
-#     @test dims(dX, Var) == dims(X, Var)
+    dX = @test_nowarn leftdiff(X)
+    @test all(dX[2:(end), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
 
-#     dx = @test_nowarn rightdiff(x)
-#     @test all(dx[1:(end - 1)] .== (x[2:end] - x[1:(end - 1)]))
-#     @test times(dx) == times(x)
+    dx = @test_nowarn rightdiff(x)
+    @test all(dx[1:(end - 1)] .== (x[2:end] - x[1:(end - 1)]))
+    @test times(dx) == times(x)
 
-#     dX = @test_nowarn rightdiff(X)
-#     @test all(dX[1:(end - 1), :] .== (X[2:end, :] - X[1:(end - 1), :]))
-#     @test times(dX) == times(X)
-#     @test dims(dX, Var) == dims(X, Var)
-# end
+    dX = @test_nowarn rightdiff(X)
+    @test all(dX[1:(end - 1), :] .== (X[2:end, :] - X[1:(end - 1), :]))
+    @test times(dX) == times(X)
+    @test dims(dX, Var) == dims(X, Var)
+end
 
-# # @testset "Irregular central derivative" begin
-# #     ts = 0.1:0.1:1000
-# #     x = TimeSeries(ts, sin)
-# #     y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, parent(x))
-# #     @test centralderiv(x) ≈ centralderiv(y)
-# # end
-
-# @testset "Unitful derivative" begin
+# @testset "Irregular central derivative" begin
 #     ts = 0.1:0.1:1000
 #     x = TimeSeries(ts, sin)
-#     y = set(x, Ti => ts .* u"s")
-#     @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
-#     @test unit(eltype(centralderiv(y))) == unit(u"1/s")
+#     y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, parent(x))
+#     @test centralderiv(x) ≈ centralderiv(y)
 # end
 
-# @testset "ND phase randomization" begin
-#     f = xy -> sin.(0.5 * 2π * sum(xy)) + cos.(0.1 * 2π * xy[2])
-
-#     # * Odd
-#     x = f.(Iterators.product(range(0, 1, length = 5), range(0, 1, length = 5)))
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
-
-#     x = randn(11, 11, 11)
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
-
-#     # * Even
-#     x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 6)))
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     matchn = sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0)
-#     @test matchn == length(ϕ[2:end, 2:end]) - 1
-
-#     x = randn(10, 10, 10)
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ))[2:end, 2:end, 2:end] .+
-#               reverse(fftshift((ϕ))[2:end, 2:end, 2:end]) .== 0) ==
-#           length(ϕ[2:end, 2:end, 2:end]) - 1
-
-#     # * Mixed
-#     x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 5)))
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ))[2:end, :] .+ reverse(fftshift((ϕ))[2:end, :]) .== 0) ==
-#           length(ϕ[2:end, :]) - 1
-
-#     x = randn(11, 10, 11)
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ))[:, 2:end, :] .+ reverse(fftshift((ϕ))[:, 2:end, :]) .== 0) ==
-#           length(ϕ[:, 2:end, :]) - 1
-# end
-
-# @testset "1D ND surrogates" begin
-#     x = loadtimeseries("./test_timeseries.tsv")[:, 1]
-#     x = bandpass(x, 1000, [1, 20])
-#     S = abs.(fft(x)) .^ 2
-#     s = spectrum(rectify(x, dims = Ti))
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), FT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     ŝ = spectrum(rectify(x̂, dims = Ti))
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-#     @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     ŝ = spectrum(rectify(x̂, dims = Ti))
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-#     @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDAAFT())
-#     ŝ = spectrum(rectify(x̂, dims = Ti))
-#     @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.15
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDIAAFT())
-
-#     ŝ = spectrum(rectify(x̂, dims = Ti))
-#     @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.1
-# end
-
-# @testset "2D ND surrogates" begin
-#     f = xy -> sin.(2 * 2π * sum(xy)) + cos.(1 * 2π * xy[2])
-
-#     # * Odd
-#     x = f.(Iterators.product(range(0, 1, length = 101), range(0, 1, length = 101)))
-
-#     S = abs.(fft(x)) .^ 2
-
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDAAFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDIAAFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), MVFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-10
-
-#     # * Even
-#     x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
-
-#     S = abs.(fft(x)) .^ 2
-
-#     ϕ = angle.(fft(x))
-#     phaserand!(ϕ)
-#     @test sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0) ==
-#           length(ϕ[2:end, 2:end]) - 1 # The zero frequency phase should be non-zero, although this doesn't matter
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(collect(x), NDFT())
-#     Ŝ = abs.(fft(x̂)) .^ 2
-#     @test length(Ŝ) == length(S)
-#     @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-# end
-
-# @testset "ND Fourier transform surrogates" begin
-#     xs = -0.6:0.01:0.6
-#     x = [stack(X(xs), [colorednoise(0:0.01:1) for _ in xs]) for _ in xs]
-#     x = stack(Y(xs), x)
-
-#     S = abs.(rfft(x)) .^ 2
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(x, NDFT())
-
-#     Ŝ = abs.(rfft(x̂)) .^ 2
-
-#     @test S≈Ŝ rtol=1e-10
-
-#     # * Larger array, smoothed
-#     xs = -0.6:0.01:0.6
-#     x = [stack(X(xs), [colorednoise(0:0.05:50) for _ in xs]) for _ in xs]
-#     x = stack(Y(xs), x)
-
-#     function G(x, μ, σ)
-#         d = length(μ)
-#         exponent = -0.5 * dot(x .- μ, (x .- μ) ./ σ)
-#         coeff = 1 / ((2π)^(d / 2) * σ)
-#         return coeff * exp(exponent)
-#     end
-#     G(μ, σ) = x -> G(x, μ, σ)
-
-#     G1(x) = G(x, [-0.25, -0.25], 0.05)
-#     G2(x) = G(x, [0.25, 0.25], 0.05)
-#     M1 = G1.(Iterators.product(lookup(x)[2:3]...))
-#     M2 = G2.(Iterators.product(lookup(x)[2:3]...))
-#     # x[X = 0 .. 0.5] .= reverse(x[X = 0 .. 0.5]) # A little boundary
-#     _x = 5.0 * mean(std(x, dims = 1)) .* sin.(times(x))  # A slowly varying "true" signal
-#     _x = zeros(size(x, 1), 1, 1) .+ _x
-#     MM1 = permutedims(stack([M1 for _ in 1:size(x, 1)]), [3, 1, 2])
-#     MM1 = mapslices(x -> x .* _x, MM1, dims = 1)
-
-#     _x = 10.0 * mean(std(x, dims = 1)) .* cos.(times(x .* 1.5))  # A slowly varying "true" signal
-#     _x = zeros(size(x, 1), 1, 1) .+ _x
-#     MM2 = permutedims(stack([M2 for _ in 1:size(x, 1)]), [3, 1, 2])
-#     MM2 = mapslices(x -> x .* _x, MM2, dims = 1)
-
-#     x = x .+ MM1 .+ MM2
-
-#     fg(x) = bandpass(x, 1 / step(xs), (1, 5))
-#     x = mapslices(fg, x, dims = 2)
-#     x = mapslices(fg, x, dims = 3)
-
-#     x = bandpass(x, 0.1 .. 0.5)
-#     y = angle.(hilbert(x))
-
-#     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-#     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-#     if !haskey(ENV, "CI")
-#         f = Figure()
-#         ax = Axis(f[1, 1])
-#         xx = Observable(x[Ti = 1])
-#         heatmap!(ax, xx; colorrange = extrema(x))
-#         record(f, "./MultidimModel_x.mp4", 1:2:900) do i
-#             xx[] = x[Ti = i]
-#         end
-#     end
-#     if !haskey(ENV, "CI")
-#         f = Figure()
-#         ax = Axis(f[1, 1])
-#         xx = Observable(y[Ti = 1])
-#         heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
-#         record(f, "./MultidimModel_phi.mp4", 1:2:900) do i
-#             xx[] = y[Ti = i]
-#         end
-#     end
-
-#     S = abs.(fft(x)) .^ 2
-
-#     x̂ = deepcopy(x)
-#     x̂ .= surrogate(x, NDFT())
-
-#     Ŝ = abs.(fft(x̂)) .^ 2
-
-#     # Ss = periodogram(collect(x[50, :, :]), radialavg = true)
-#     # plot(Ss.freq, Ss.power)
-#     # Ss = periodogram(collect(x̂[50, :, :]), radialavg = true)
-#     # plot!(Ss.freq, Ss.power)
-#     # current_figure()
-
-#     @test S≈Ŝ rtol=1e-10
-
-#     x = bandpass(x̂, 0.1 .. 0.5)
-#     y = angle.(hilbert(x))
-
-#     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-#     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-#     if !haskey(ENV, "CI")
-#         f = Figure()
-#         ax = Axis(f[1, 1])
-#         xx = Observable(x[Ti = 1])
-#         heatmap!(ax, xx; colorrange = extrema(x))
-#         record(f, "./MultidimModel_x_s.mp4", 1:2:900) do i
-#             xx[] = x[Ti = i]
-#         end
-#     end
-#     if !haskey(ENV, "CI")
-#         f = Figure()
-#         ax = Axis(f[1, 1])
-#         xx = Observable(y[Ti = 1])
-#         heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
-#         record(f, "./MultidimModel_phi_s.mp4", 1:2:900) do i
-#             xx[] = y[Ti = i]
-#         end
-#     end
-# end
-
-# @testset "IO" begin
-#     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-#                    name = "name")
-
-#     f = tempname() * ".jld2"
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test x == _x
-
-#     f = tempname() * ".tsv"
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test all(x .≈ _x)
-
-#     x = x[:, 1]
-#     savetimeseries(f, x)
-#     _x = @test_logs (:warn, "Cannot load refdims yet") loadtimeseries(f)
-#     @test refdims(_x) == ()
-#     @test all(x .≈ _x)
-
-#     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test))
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test x ≈ _x
-
-#     x = TimeSeries(0.001:0.001:1, X(1:3), rand(1000, 3); metadata = Dict(:a => :test))
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test x ≈ _x
-#     @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
-#     @test parent(lookup(_x, 1)) isa Vector{Float64}
-
-#     # Currently not the greatest way of handling non-serializable metadata
-#     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
-#                    metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
-#     @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
-#                                                                                                       x)
-#     _x = loadtimeseries(f)
-#     @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
-#     @test all(x .≈ _x)
-#     @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
-#     @test parent(lookup(_x, 1)) isa Vector{Float64}
-
-#     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
-#     @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-#                                                                                                   x)
-#     _x = loadtimeseries(f)
-#     @test name(_x) == DimensionalData.NoName()
-#     @test all(x .≈ _x)
-#     @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
-#     @test parent(lookup(_x, 1)) isa Vector{Float64}
-
-#     x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test all(parent(x) .≈ parent(_x))
-#     @test parent(lookup(_x, 1)) isa Vector{Float64}
-#     @test parent(lookup(_x, 2)) isa Vector{Symbol}
-
-#     x = TimeSeries(0.001:0.001:1, rand(1000))
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test all(x .≈ _x)
-#     @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
-#     @test parent(lookup(_x, 1)) isa Vector{Float64}
-
-#     x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
-#                    name = "name") * u"V"
-
-#     f = tempname() * ".jld2"
-#     savetimeseries(f, x)
-#     _x = loadtimeseries(f)
-#     @test x == _x
-# end
-
-# @testset "Dates" begin
-#     x = 1:100
-#     t = DateTime(1901):Year(1):DateTime(2000)
-#     y = @test_nowarn TimeSeries(t, x)
-
-#     @test samplingperiod(y) == Year(1)
-#     @test times(y) == t
-#     @test duration(y) == last(t) - first(t)
-# end
-
-# @testset "GeneralizedPhaseExt" begin
-#     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
-#     X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
-#     _ϕ = @test_nowarn _generalized_phase(x)
-#     ϕ = @test_nowarn _generalized_phase(X)
-
-#     x = set(x, Ti => lookup(x, Ti).data * u"s")
-#     X = set(X, Ti => lookup(X, Ti).data * u"s")
-
-#     ϕ = @test_nowarn _generalized_phase(x)
-#     ϕ = @test_nowarn _generalized_phase(X)
-# end
-
-# @testset "coarsegrain" begin
-#     X = repeat(1:11, 1, 100)
-#     C = coarsegrain(X, dims = 1)
-#     M = mean(C, dims = 3)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-#     @test size(C, 1) == size(X, 1) ÷ 2
-
-#     C = coarsegrain(X)
-#     @test size(C) == (5, 50, 4)
-#     M = mean(C, dims = 3)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-
-#     C = coarsegrain(X; newdim = 2)
-#     M = mean(C, dims = 2)
-#     @test size(C) == (5, 200)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-
-#     X = cat(X, X; dims = 3)
-#     C = coarsegrain(X; dims = 1, newdim = 2)
-#     @test size(C) == (5, 200, 2)
-
-#     X = TimeSeries(1:11, 1:100, repeat(1:11, 1, 100))
-#     C = coarsegrain(X, dims = 1)
-#     M = dropdims(mean(C, dims = 3), dims = 3)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-#     @test size(C, 1) == size(X, 1) ÷ 2
-
-#     C = coarsegrain(X)
-#     @test size(C) == (5, 50, 4)
-#     M = dropdims(mean(C, dims = 3), dims = 3)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-
-#     C = coarsegrain(X; dims = Ti, newdim = Var)
-#     @test length(lookup(C, 1)) == size(C, 1)
-#     @test length(lookup(C, 2)) == size(C, 2)
-#     M = mean(C.data, dims = 2)
-#     @test size(C) == (5, 200)
-#     @test all(M[:, 1] .== 1.5:2:9.5)
-
-#     X = cat(X, X; dims = 3)
-#     C = coarsegrain(X; dims = 1, newdim = 2)
-#     @test size(C) == (5, 200, 2)
-#     @test_nowarn C[Ti(Near(0.1))]
-# end
-
-# @testset "ComplexityMeasuresExt" begin
-#     μ = [1.0, -4.0]
-#     σ = [2.0, 2.0]
-#     𝒩 = MvNormal(μ, LinearAlgebra.Diagonal(map(abs2, σ)))
-#     N = 500
-#     D = Timeseries(1:N, 1:2, hcat(sort([rand(𝒩) for i in 1:N])...)')
-#     p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
-
-#     ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
-#                                StateSpaceSet(D))
-# end
-
-# @testset "Cat" begin
-#     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
-#     y = cat(Freq(1:2), x, x)
-#     @test dims(y, 3) == Freq(1:2)
-#     z = stack(Freq(1:2), [x, x])
-#     @test y == z
-#     y = stack(Freq(1:2), [x, x]; dims = 1)
-#     @test dims(y, 1) == Freq(1:2)
-# end
-
-# @testset "Upsampling" begin
-#     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
-#     itp = TimeseriesTools.interpolate(x)
-#     y = itp(dims(x)...)
-#     @test x ≈ y
-#     z = @test_nowarn upsample(x, 2)
-#     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
-# end
-
-# @testset "matchdim" begin
-#     ts = 0:1:100
-#     X = [Timeseries(ts .+ 1e-6 .* randn(101), sin) for _ in 1:10]
-#     X = TimeSeries(1:10, X)
-#     Y = matchdim(X)
-
-#     @test length(unique(dims.(Y))) == 1
-#     @test dims(Y[1], Ti) == Ti(ts)
-# end
-
-# @testset "findpeaks" begin
-#     x = TimeSeries(0.1:0.1:100, x -> sin(x .* 2π / 4))
-#     peaks = spiketrain(range(start = 1, stop = 100, step = 4))
-#     pks, proms = findpeaks(x)
-#     @test times(pks) == times(peaks)
-
-#     X = cat(Var(1:2), x, x .+ 1.0)
-#     pks, proms = findpeaks(X)
-#     @test pks isa DimArray{<:DimArray}
-#     @test proms isa DimArray{<:DimArray}
-#     @test times(pks[1]) == times(peaks)
-#     @test times(pks[2]) == times(peaks)
-#     @test all(proms[1][2:(end - 1)] .== 2)
-
-#     m = @test_nowarn maskpeaks(x)
-#     M = @test_nowarn maskpeaks(X)
-#     @test M[:, 2] == m
-
-#     # * With no-peak signal
-#     X[:, 2] .= 1
-#     @test_nowarn findpeaks(X)
-#     M = @test_nowarn maskpeaks(X)
-# end
-
-# @testset "TimeseriesTools.jl" begin
-#     ts = 1:100
-#     x = @test_nowarn TimeSeries(ts, randn(100))
-#     @test x isa AbstractTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test x isa UnivariateTimeSeries
-
-#     @test step(x) == step(ts)
-#     @test samplingrate(x) == 1 / step(ts)
-#     @test times(x) == ts
-#     @test duration(x) == -first(-(extrema(ts)...))
-#     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-#     @test x[Ti(1 .. 10)] == x[1:10]
-#     @test all(x[Ti(At(1:10))] .== x[1:10])
-#     # @test x[Ti(At(1:10))] != x[1:10]
-# end
-
-# @testset "Multivariate time series" begin
-#     ts = 1:100
-#     x = @test_nowarn TimeSeries(ts, 1:5, randn(100, 5))
-#     @test x isa AbstractTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test x isa MultivariateTimeSeries
-
-#     @test step(x) == step(ts)
-#     @test samplingrate(x) == 1 / step(ts)
-#     @test times(x) == ts
-#     @test duration(x) == -first(-(extrema(ts)...))
-#     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-#     @test x[Ti(1 .. 10)] == x[1:10, :]
-# end
-
-# @testset "Multidimensional time series" begin
-#     x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), randn(100, 10))
-#     @test x isa AbstractTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test x isa MultidimensionalTimeSeries
-
-#     x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
-#     @test x isa AbstractTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test x isa MultidimensionalTimeSeries
-#     @test_nowarn x[Ti(Near(4:10))]
-
-#     x = @test_nowarn TimeSeries(Ti(1:100), X(randn(10) |> sort), Y(1:10),
-#                                 randn(100, 10, 10))
-#     @test x isa AbstractTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test !(x isa MultidimensionalTimeSeries)
-
-#     x = @test_nowarn TimeSeries(Ti(sort(randn(100))), randn(100))
-#     @test x isa AbstractTimeSeries
-#     @test !(x isa RegularTimeSeries)
-#     @test !(x isa MultidimensionalTimeSeries)
-# end
-
-# @testset "Makie" begin
-#     x = TimeSeries(0.01:0.01:10, randn(1000))
-#     p = @test_nowarn plot(x)
-#     @test p.plot isa Lines
-#     @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
-#     x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
-#     p = @test_nowarn plot(x)
-#     @test p.plot isa Heatmap
-#     @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
-#     @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
-# end
-
-# @testset "Spectra" begin
-#     # Define a test time series
-#     fs = 1000
-#     t = range(0, stop = 1, length = fs + 1)
-#     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-#     ts = x = TimeseriesTools.TimeSeries(t, x)
-#     f_min = fs / 100
-#     Pxx = powerspectrum(ts, f_min)
-#     @test Pxx isa RegularSpectrum
-
-#     # Plotting
-#     p = @test_nowarn lines(Pxx)
-
-#     freqs = dims(Pxx, Freq)
-#     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-#     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
-
-#     X = hcat(ts, ts)
-#     mts = DimArray(X, (Ti(t), Var(:)))
-#     Pxx_mts = powerspectrum(mts, f_min)
-#     @test Pxx_mts isa MultivariateSpectrum
-#     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx
-
-#     for i in axes(Pxx_mts, 2)
-#         Pxx = Pxx_mts[:, i]
-#         freqs = dims(Pxx, Freq)
-#         peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-#         @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
-#     end
-
-#     #  !!!Test padding
-#     fs = 1000
-#     t = range(0, stop = 1, length = fs + 1)
-#     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-#     ts = x = TimeseriesTools.TimeSeries(t, x)
-#     f_min = fs / 100
-#     Pa = powerspectrum(ts, f_min; padding = 0)
-#     Pb = powerspectrum(ts, f_min / 10; padding = 100)
-#     @test Pb isa RegularSpectrum
-
-#     freqs = dims(Pb, Freq)
-#     peaks = findall(x -> x > maximum(Pb) / 2, Pb)
-#     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
-
-#     # @test 2 * sum(energyspectrum(x) .^ 2) .= sum(x .^ 2)
-#     @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pa) .* step(TimeseriesTools.freqs(Pa)) * 2 rtol=1e-3
-#     @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pb) .* step(TimeseriesTools.freqs(Pb)) * 2 rtol=1e-5
-#     # # Plotting
-#     # f = Figure() ax = Axis(f[1, 1]) @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
-#     # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
-# end
-
-# @testset "Unitful" begin
-#     ts = (1:1000)u"s"
-#     x = @test_nowarn TimeSeries(ts, randn(1000))
-#     @test TimeSeries(ustripall(ts), collect(x), u"s") == x
-#     @test x isa AbstractTimeSeries
-#     @test x isa UnitfulTimeSeries
-#     @test x isa RegularTimeSeries
-#     @test x isa UnivariateTimeSeries
-
-#     @test step(x) == step(ts)
-#     @test samplingrate(x) == 1 / step(ts)
-#     @test times(x) == ts
-#     @test duration(x) == -first(-(extrema(ts)...))
-#     @test x[Ti(1u"s" .. 10u"s")] == x[1:10]
-#     @test x[Ti = 1:10] == x[1:10]
-#     @test_nowarn spectrum(x, 0.1)
-
-#     @test_nowarn rectify(x; dims = Ti)
-# end
-
-# @testset "Twice unitful" begin
-#     ts = ((-100 + 0.01):0.0005:100) * u"s"
-#     f = rfftfreq(length(ts), 1 / step(ts))
-#     x = 4.2u"V" .* sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V" .* sin.(2 * π * 100u"Hz" * ts)
-#     x = TimeSeries(ts, x)
-#     S = energyspectrum(x, 0.0)
-#     P = powerspectrum(x, 0.0)
-
-#     @test sum(x .^ 2) .* samplingperiod(x) ≈ sum(S) .* step(dims(S, Freq)) * 2
-#     @test sum(x .^ 2) .* samplingperiod(x) ./ duration(x) ≈
-#           sum(S) .* step(dims(S, Freq)) ./ duration(x) * 2
-#     @test unit(eltype(S)) == u"V^2*s^2" # Units of energy spectrum
-
-#     peaks = findall(x -> x > maximum(P) / 3, P)
-#     peakfs = f[peaks]
-#     peakamps = P[peaks]
-#     @test all(round.(ustripall.(peakfs)) .∈ ([50, 100],))
-#     @test first(peakamps) / last(peakamps)≈4.2 / 3.1 rtol=1e-1
-
-#     x = exp.(-ustripall(ts) .^ 2)
-#     x = TimeSeries(ts, x * u"V")
-#     ℱ = sqrt(π) .* exp.(-π^2 .* ustripall(f) .^ 2)
-#     _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
-#     S = energyspectrum(x, 0.0)
-#     @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, Freq)) rtol=0.05
-
-#     lines(ustripall(f), ustripall(_S), axis = (; limits = ((0, 1), (0, 4))))
-#     plot!(collect(ustripall(dims(S, Freq))), collect(ustripall(S)))
-#     current_figure()
-# end
+@testset "Unitful derivative" begin
+    ts = 0.1:0.1:1000
+    x = TimeSeries(ts, sin)
+    y = set(x, Ti => ts .* u"s")
+    @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
+    @test unit(eltype(centralderiv(y))) == unit(u"1/s")
+end
+
+@testset "ND phase randomization" begin
+    f = xy -> sin.(0.5 * 2π * sum(xy)) + cos.(0.1 * 2π * xy[2])
+
+    # * Odd
+    x = f.(Iterators.product(range(0, 1, length = 5), range(0, 1, length = 5)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    x = randn(11, 11, 11)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    # * Even
+    x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 6)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    matchn = sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0)
+    @test matchn == length(ϕ[2:end, 2:end]) - 1
+
+    x = randn(10, 10, 10)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, 2:end, 2:end] .+
+              reverse(fftshift((ϕ))[2:end, 2:end, 2:end]) .== 0) ==
+          length(ϕ[2:end, 2:end, 2:end]) - 1
+
+    # * Mixed
+    x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 5)))
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, :] .+ reverse(fftshift((ϕ))[2:end, :]) .== 0) ==
+          length(ϕ[2:end, :]) - 1
+
+    x = randn(11, 10, 11)
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[:, 2:end, :] .+ reverse(fftshift((ϕ))[:, 2:end, :]) .== 0) ==
+          length(ϕ[:, 2:end, :]) - 1
+end
+
+@testset "1D ND surrogates" begin
+    x = loadtimeseries("./test_timeseries.tsv")[:, 1]
+    x = bandpass(x, 1000, [1, 20])
+    S = abs.(fft(x)) .^ 2
+    s = spectrum(rectify(x, dims = Ti))
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), FT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDAAFT())
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.15
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDIAAFT())
+
+    ŝ = spectrum(rectify(x̂, dims = Ti))
+    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.1
+end
+
+@testset "2D ND surrogates" begin
+    f = xy -> sin.(2 * 2π * sum(xy)) + cos.(1 * 2π * xy[2])
+
+    # * Odd
+    x = f.(Iterators.product(range(0, 1, length = 101), range(0, 1, length = 101)))
+
+    S = abs.(fft(x)) .^ 2
+
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ)) .+ reverse(fftshift((ϕ))) .== 0) == length(ϕ) - 1
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDAAFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDIAAFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), MVFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-10
+
+    # * Even
+    x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
+
+    S = abs.(fft(x)) .^ 2
+
+    ϕ = angle.(fft(x))
+    phaserand!(ϕ)
+    @test sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0) ==
+          length(ϕ[2:end, 2:end]) - 1 # The zero frequency phase should be non-zero, although this doesn't matter
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(collect(x), NDFT())
+    Ŝ = abs.(fft(x̂)) .^ 2
+    @test length(Ŝ) == length(S)
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+end
+
+@testset "ND Fourier transform surrogates" begin
+    xs = -0.6:0.01:0.6
+    x = [stack(X(xs), [colorednoise(0:0.01:1) for _ in xs]) for _ in xs]
+    x = stack(Y(xs), x)
+
+    S = abs.(rfft(x)) .^ 2
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(x, NDFT())
+
+    Ŝ = abs.(rfft(x̂)) .^ 2
+
+    @test S≈Ŝ rtol=1e-10
+
+    # * Larger array, smoothed
+    xs = -0.6:0.01:0.6
+    x = [stack(X(xs), [colorednoise(0:0.05:50) for _ in xs]) for _ in xs]
+    x = stack(Y(xs), x)
+
+    function G(x, μ, σ)
+        d = length(μ)
+        exponent = -0.5 * dot(x .- μ, (x .- μ) ./ σ)
+        coeff = 1 / ((2π)^(d / 2) * σ)
+        return coeff * exp(exponent)
+    end
+    G(μ, σ) = x -> G(x, μ, σ)
+
+    G1(x) = G(x, [-0.25, -0.25], 0.05)
+    G2(x) = G(x, [0.25, 0.25], 0.05)
+    M1 = G1.(Iterators.product(lookup(x)[2:3]...))
+    M2 = G2.(Iterators.product(lookup(x)[2:3]...))
+    # x[X = 0 .. 0.5] .= reverse(x[X = 0 .. 0.5]) # A little boundary
+    _x = 5.0 * mean(std(x, dims = 1)) .* sin.(times(x))  # A slowly varying "true" signal
+    _x = zeros(size(x, 1), 1, 1) .+ _x
+    MM1 = permutedims(stack([M1 for _ in 1:size(x, 1)]), [3, 1, 2])
+    MM1 = mapslices(x -> x .* _x, MM1, dims = 1)
+
+    _x = 10.0 * mean(std(x, dims = 1)) .* cos.(times(x .* 1.5))  # A slowly varying "true" signal
+    _x = zeros(size(x, 1), 1, 1) .+ _x
+    MM2 = permutedims(stack([M2 for _ in 1:size(x, 1)]), [3, 1, 2])
+    MM2 = mapslices(x -> x .* _x, MM2, dims = 1)
+
+    x = x .+ MM1 .+ MM2
+
+    fg(x) = bandpass(x, 1 / step(xs), (1, 5))
+    x = mapslices(fg, x, dims = 2)
+    x = mapslices(fg, x, dims = 3)
+
+    x = bandpass(x, 0.1 .. 0.5)
+    y = angle.(hilbert(x))
+
+    x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(x[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(x))
+        record(f, "./MultidimModel_x.mp4", 1:2:900) do i
+            xx[] = x[Ti = i]
+        end
+    end
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(y[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+        record(f, "./MultidimModel_phi.mp4", 1:2:900) do i
+            xx[] = y[Ti = i]
+        end
+    end
+
+    S = abs.(fft(x)) .^ 2
+
+    x̂ = deepcopy(x)
+    x̂ .= surrogate(x, NDFT())
+
+    Ŝ = abs.(fft(x̂)) .^ 2
+
+    # Ss = periodogram(collect(x[50, :, :]), radialavg = true)
+    # plot(Ss.freq, Ss.power)
+    # Ss = periodogram(collect(x̂[50, :, :]), radialavg = true)
+    # plot!(Ss.freq, Ss.power)
+    # current_figure()
+
+    @test S≈Ŝ rtol=1e-10
+
+    x = bandpass(x̂, 0.1 .. 0.5)
+    y = angle.(hilbert(x))
+
+    x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(x[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(x))
+        record(f, "./MultidimModel_x_s.mp4", 1:2:900) do i
+            xx[] = x[Ti = i]
+        end
+    end
+    if !haskey(ENV, "CI")
+        f = Figure()
+        ax = Axis(f[1, 1])
+        xx = Observable(y[Ti = 1])
+        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+        record(f, "./MultidimModel_phi_s.mp4", 1:2:900) do i
+            xx[] = y[Ti = i]
+        end
+    end
+end
+
+@testset "IO" begin
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
+                   name = "name")
+
+    f = tempname() * ".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+
+    f = tempname() * ".tsv"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test all(x .≈ _x)
+
+    x = x[:, 1]
+    savetimeseries(f, x)
+    _x = @test_logs (:warn, "Cannot load refdims yet") loadtimeseries(f)
+    @test refdims(_x) == ()
+    @test all(x .≈ _x)
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+
+    x = TimeSeries(0.001:0.001:1, X(1:3), rand(1000, 3); metadata = Dict(:a => :test))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x ≈ _x
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+
+    # Currently not the greatest way of handling non-serializable metadata
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3);
+                   metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
+                                                                                                      x)
+    _x = loadtimeseries(f)
+    @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+
+    x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
+    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
+                                                                                                  x)
+    _x = loadtimeseries(f)
+    @test name(_x) == DimensionalData.NoName()
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+
+    x = TimeSeries(0.001:0.001:1, [TimeSeries, TimeSeries, TimeSeries], rand(1000, 3))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test all(parent(x) .≈ parent(_x))
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+    @test parent(lookup(_x, 2)) isa Vector{Symbol}
+
+    x = TimeSeries(0.001:0.001:1, rand(1000))
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test all(x .≈ _x)
+    @test [all(d .≈ _d) for (d, _d) in zip(dims(x), dims(_x))] |> all
+    @test parent(lookup(_x, 1)) isa Vector{Float64}
+
+    x = TimeSeries((0.001:0.001:1) * u"s", 1:3, rand(1000, 3); metadata = Dict(:a => :test),
+                   name = "name") * u"V"
+
+    f = tempname() * ".jld2"
+    savetimeseries(f, x)
+    _x = loadtimeseries(f)
+    @test x == _x
+end
+
+@testset "Dates" begin
+    x = 1:100
+    t = DateTime(1901):Year(1):DateTime(2000)
+    y = @test_nowarn TimeSeries(t, x)
+
+    @test samplingperiod(y) == Year(1)
+    @test times(y) == t
+    @test duration(y) == last(t) - first(t)
+end
+
+@testset "GeneralizedPhaseExt" begin
+    x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
+    X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
+    _ϕ = @test_nowarn _generalized_phase(x)
+    ϕ = @test_nowarn _generalized_phase(X)
+
+    x = set(x, Ti => lookup(x, Ti).data * u"s")
+    X = set(X, Ti => lookup(X, Ti).data * u"s")
+
+    ϕ = @test_nowarn _generalized_phase(x)
+    ϕ = @test_nowarn _generalized_phase(X)
+end
+
+@testset "coarsegrain" begin
+    X = repeat(1:11, 1, 100)
+    C = coarsegrain(X, dims = 1)
+    M = mean(C, dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+    @test size(C, 1) == size(X, 1) ÷ 2
+
+    C = coarsegrain(X)
+    @test size(C) == (5, 50, 4)
+    M = mean(C, dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    C = coarsegrain(X; newdim = 2)
+    M = mean(C, dims = 2)
+    @test size(C) == (5, 200)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    X = cat(X, X; dims = 3)
+    C = coarsegrain(X; dims = 1, newdim = 2)
+    @test size(C) == (5, 200, 2)
+
+    X = TimeSeries(1:11, 1:100, repeat(1:11, 1, 100))
+    C = coarsegrain(X, dims = 1)
+    M = dropdims(mean(C, dims = 3), dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+    @test size(C, 1) == size(X, 1) ÷ 2
+
+    C = coarsegrain(X)
+    @test size(C) == (5, 50, 4)
+    M = dropdims(mean(C, dims = 3), dims = 3)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    C = coarsegrain(X; dims = Ti, newdim = Var)
+    @test length(lookup(C, 1)) == size(C, 1)
+    @test length(lookup(C, 2)) == size(C, 2)
+    M = mean(C.data, dims = 2)
+    @test size(C) == (5, 200)
+    @test all(M[:, 1] .== 1.5:2:9.5)
+
+    X = cat(X, X; dims = 3)
+    C = coarsegrain(X; dims = 1, newdim = 2)
+    @test size(C) == (5, 200, 2)
+    @test_nowarn C[Ti(Near(0.1))]
+end
+
+@testset "ComplexityMeasuresExt" begin
+    μ = [1.0, -4.0]
+    σ = [2.0, 2.0]
+    𝒩 = MvNormal(μ, LinearAlgebra.Diagonal(map(abs2, σ)))
+    N = 500
+    D = Timeseries(1:N, 1:2, hcat(sort([rand(𝒩) for i in 1:N])...)')
+    p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
+
+    ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
+                               StateSpaceSet(D))
+end
+
+@testset "Cat" begin
+    x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    y = cat(Freq(1:2), x, x)
+    @test dims(y, 3) == Freq(1:2)
+    z = stack(Freq(1:2), [x, x])
+    @test y == z
+    y = stack(Freq(1:2), [x, x]; dims = 1)
+    @test dims(y, 1) == Freq(1:2)
+end
+
+@testset "Upsampling" begin
+    x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    itp = TimeseriesTools.interpolate(x)
+    y = itp(dims(x)...)
+    @test x ≈ y
+    z = @test_nowarn upsample(x, 2)
+    @test length(dims(z, 1)) == length(dims(z, 2)) == 199
+end
+
+@testset "matchdim" begin
+    ts = 0:1:100
+    X = [Timeseries(ts .+ 1e-6 .* randn(101), sin) for _ in 1:10]
+    X = TimeSeries(1:10, X)
+    Y = matchdim(X)
+
+    @test length(unique(dims.(Y))) == 1
+    @test dims(Y[1], Ti) == Ti(ts)
+end
+
+@testset "findpeaks" begin
+    x = TimeSeries(0.1:0.1:100, x -> sin(x .* 2π / 4))
+    peaks = spiketrain(range(start = 1, stop = 100, step = 4))
+    pks, proms = findpeaks(x)
+    @test times(pks) == times(peaks)
+
+    X = cat(Var(1:2), x, x .+ 1.0)
+    pks, proms = findpeaks(X)
+    @test pks isa DimArray{<:DimArray}
+    @test proms isa DimArray{<:DimArray}
+    @test times(pks[1]) == times(peaks)
+    @test times(pks[2]) == times(peaks)
+    @test all(proms[1][2:(end - 1)] .== 2)
+
+    m = @test_nowarn maskpeaks(x)
+    M = @test_nowarn maskpeaks(X)
+    @test M[:, 2] == m
+
+    # * With no-peak signal
+    X[:, 2] .= 1
+    @test_nowarn findpeaks(X)
+    M = @test_nowarn maskpeaks(X)
+end
+
+@testset "TimeseriesTools.jl" begin
+    ts = 1:100
+    x = @test_nowarn TimeSeries(ts, randn(100))
+    @test x isa AbstractTimeSeries
+    @test x isa RegularTimeSeries
+    @test x isa UnivariateTimeSeries
+
+    @test step(x) == step(ts)
+    @test samplingrate(x) == 1 / step(ts)
+    @test times(x) == ts
+    @test duration(x) == -first(-(extrema(ts)...))
+    @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
+    @test x[Ti(1 .. 10)] == x[1:10]
+    @test all(x[Ti(At(1:10))] .== x[1:10])
+    # @test x[Ti(At(1:10))] != x[1:10]
+end
+
+@testset "Multivariate time series" begin
+    ts = 1:100
+    x = @test_nowarn TimeSeries(ts, 1:5, randn(100, 5))
+    @test x isa AbstractTimeSeries
+    @test x isa RegularTimeSeries
+    @test x isa MultivariateTimeSeries
+
+    @test step(x) == step(ts)
+    @test samplingrate(x) == 1 / step(ts)
+    @test times(x) == ts
+    @test duration(x) == -first(-(extrema(ts)...))
+    @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
+    @test x[Ti(1 .. 10)] == x[1:10, :]
+end
+
+@testset "Multidimensional time series" begin
+    x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), randn(100, 10))
+    @test x isa AbstractTimeSeries
+    @test x isa RegularTimeSeries
+    @test x isa MultidimensionalTimeSeries
+
+    x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
+    @test x isa AbstractTimeSeries
+    @test x isa RegularTimeSeries
+    @test x isa MultidimensionalTimeSeries
+    @test_nowarn x[Ti(Near(4:10))]
+
+    x = @test_nowarn TimeSeries(Ti(1:100), X(randn(10) |> sort), Y(1:10),
+                                randn(100, 10, 10))
+    @test x isa AbstractTimeSeries
+    @test x isa RegularTimeSeries
+    @test !(x isa MultidimensionalTimeSeries)
+
+    x = @test_nowarn TimeSeries(Ti(sort(randn(100))), randn(100))
+    @test x isa AbstractTimeSeries
+    @test !(x isa RegularTimeSeries)
+    @test !(x isa MultidimensionalTimeSeries)
+end
+
+@testset "Makie" begin
+    x = TimeSeries(0.01:0.01:10, randn(1000))
+    p = @test_nowarn plot(x)
+    @test p.plot isa Lines
+    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
+    p = @test_nowarn plot(x)
+    @test p.plot isa Heatmap
+    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
+end
+
+@testset "Spectra" begin
+    # Define a test time series
+    fs = 1000
+    t = range(0, stop = 1, length = fs + 1)
+    x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
+    ts = x = TimeseriesTools.TimeSeries(t, x)
+    f_min = fs / 100
+    Pxx = powerspectrum(ts, f_min)
+    @test Pxx isa RegularSpectrum
+
+    # Plotting
+    p = @test_nowarn lines(Pxx)
+
+    freqs = dims(Pxx, Freq)
+    peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
+    @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+
+    X = hcat(ts, ts)
+    mts = DimArray(X, (Ti(t), Var(:)))
+    Pxx_mts = powerspectrum(mts, f_min)
+    @test Pxx_mts isa MultivariateSpectrum
+    @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx
+
+    for i in axes(Pxx_mts, 2)
+        Pxx = Pxx_mts[:, i]
+        freqs = dims(Pxx, Freq)
+        peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
+        @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+    end
+
+    #  !!!Test padding
+    fs = 1000
+    t = range(0, stop = 1, length = fs + 1)
+    x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
+    ts = x = TimeseriesTools.TimeSeries(t, x)
+    f_min = fs / 100
+    Pa = powerspectrum(ts, f_min; padding = 0)
+    Pb = powerspectrum(ts, f_min / 10; padding = 100)
+    @test Pb isa RegularSpectrum
+
+    freqs = dims(Pb, Freq)
+    peaks = findall(x -> x > maximum(Pb) / 2, Pb)
+    @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+
+    # @test 2 * sum(energyspectrum(x) .^ 2) .= sum(x .^ 2)
+    @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pa) .* step(TimeseriesTools.freqs(Pa)) * 2 rtol=1e-3
+    @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pb) .* step(TimeseriesTools.freqs(Pb)) * 2 rtol=1e-5
+    # # Plotting
+    # f = Figure() ax = Axis(f[1, 1]) @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
+    # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
+end
+
+@testset "Unitful" begin
+    ts = (1:1000)u"s"
+    x = @test_nowarn TimeSeries(ts, randn(1000))
+    @test TimeSeries(ustripall(ts), collect(x), u"s") == x
+    @test x isa AbstractTimeSeries
+    @test x isa UnitfulTimeSeries
+    @test x isa RegularTimeSeries
+    @test x isa UnivariateTimeSeries
+
+    @test step(x) == step(ts)
+    @test samplingrate(x) == 1 / step(ts)
+    @test times(x) == ts
+    @test duration(x) == -first(-(extrema(ts)...))
+    @test x[Ti(1u"s" .. 10u"s")] == x[1:10]
+    @test x[Ti = 1:10] == x[1:10]
+    @test_nowarn spectrum(x, 0.1)
+
+    @test_nowarn rectify(x; dims = Ti)
+end
+
+@testset "Twice unitful" begin
+    ts = ((-100 + 0.01):0.0005:100) * u"s"
+    f = rfftfreq(length(ts), 1 / step(ts))
+    x = 4.2u"V" .* sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V" .* sin.(2 * π * 100u"Hz" * ts)
+    x = TimeSeries(ts, x)
+    S = energyspectrum(x, 0.0)
+    P = powerspectrum(x, 0.0)
+
+    @test sum(x .^ 2) .* samplingperiod(x) ≈ sum(S) .* step(dims(S, Freq)) * 2
+    @test sum(x .^ 2) .* samplingperiod(x) ./ duration(x) ≈
+          sum(S) .* step(dims(S, Freq)) ./ duration(x) * 2
+    @test unit(eltype(S)) == u"V^2*s^2" # Units of energy spectrum
+
+    peaks = findall(x -> x > maximum(P) / 3, P)
+    peakfs = f[peaks]
+    peakamps = P[peaks]
+    @test all(round.(ustripall.(peakfs)) .∈ ([50, 100],))
+    @test first(peakamps) / last(peakamps)≈4.2 / 3.1 rtol=1e-1
+
+    x = exp.(-ustripall(ts) .^ 2)
+    x = TimeSeries(ts, x * u"V")
+    ℱ = sqrt(π) .* exp.(-π^2 .* ustripall(f) .^ 2)
+    _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
+    S = energyspectrum(x, 0.0)
+    @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, Freq)) rtol=0.05
+
+    lines(ustripall(f), ustripall(_S), axis = (; limits = ((0, 1), (0, 4))))
+    plot!(collect(ustripall(dims(S, Freq))), collect(ustripall(S)))
+    current_figure()
+end
 
 @testset "Readme" begin
     using TimeseriesTools, CairoMakie, Unitful
