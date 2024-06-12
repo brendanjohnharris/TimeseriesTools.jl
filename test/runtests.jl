@@ -26,6 +26,65 @@ using ComplexityMeasures
 using Distributions
 using LinearAlgebra
 
+@testset "Bispectrum" begin
+    ts = 0.001:0.001:10
+    x = TimeSeries(ts,
+                   sqrt(0.125) * cos.(2 * pi * 15 .* ts .+ 1) .+ sin.(2 * pi * 5 .* ts))
+    b = bispectrum(x, f_min = 0.1)[1:250, 1:250]
+    lines(decompose(powerspectrum(x; f_min = 0.1)[Freq = 0.1 .. maximum(dims(b, 1))])...;
+          axis = (; yscale = log10))
+    heatmap(b)
+
+    f = Figure(size = (800, 800))
+    x = TimeSeries(ts,
+                   sin.(2 * pi * 1 .* ts) .+
+                   min.(sin.(2 * pi * 1 .* ts), 0) .* 0.1 .* cos.(2 * pi * 20 .* ts)) +
+        0.001 .* randn(size(x))
+    b = bispectrum(x, f_min = 0.1)[1:250, 1:250]
+    lines!(Axis(f[1, 1]; yscale = log10),
+           decompose(powerspectrum(x; f_min = 0.1)[Freq = 0.1 .. maximum(dims(b, 1))])...)
+    heatmap!(Axis(f[1, 2]), b)
+
+    s = set(x, surrogate(collect(x), FT()))
+    b = bispectrum(s, f_min = 0.1)[1:250, 1:250]
+    lines!(Axis(f[2, 1]; yscale = log10),
+           decompose(powerspectrum(s; f_min = 0.1)[Freq = 0.1 .. maximum(dims(b, 1))])...)
+    heatmap!(Axis(f[2, 2]), b)
+    f
+
+    f = Figure(size = (800, 800))
+    x = TimeSeries(ts,
+                   (1.0 .+ sin.(2 * pi * 5 .* ts)) .^ 9) .+ 0.01 * randn(size(ts))
+    b = bispectrum(x, f_min = 0.1)[1:200, 1:200]
+    lines!(Axis(f[1, 1]; yscale = log10),
+           decompose(powerspectrum(x; f_min = 0.1)[Freq = 0.1 .. maximum(dims(b, 1))])...)
+    heatmap!(Axis(f[1, 2]), abs.(b))
+
+    s = set(x, surrogate(collect(x), FT()))
+    b = bispectrum(s, f_min = 0.1)[1:200, 1:200]
+    lines!(Axis(f[2, 1]; yscale = log10),
+           decompose(powerspectrum(s; f_min = 0.1)[Freq = 0.1 .. maximum(dims(b, 1))])...)
+    heatmap!(Axis(f[2, 2]), abs.(b))
+    f
+
+    x = loadtimeseries("./test_timeseries.tsv")[:, 1]
+    x = rectify(x; dims = Ti)
+    f = Figure(size = (800, 800))
+    f_min = 0.1
+    b1 = bispectrum(x, f_min)
+    lines!(Axis(f[1, 1]; yscale = log10),
+           decompose(powerspectrum(x; f_min)[Freq = 0.1 .. maximum(dims(b1, 1))])...)
+    heatmap!(Axis(f[1, 2]), abs.(b1)[2:50, 2:50])
+
+    s = set(x, surrogate(collect(x), FT()))
+    b = bispectrum(s, f_min)
+    lines!(Axis(f[2, 1]; yscale = log10),
+           decompose(powerspectrum(s; f_min)[Freq = 0.1 .. maximum(dims(b, 1))])...)
+    heatmap!(Axis(f[2, 2]), abs.(b)[2:50, 2:50],
+             colorrange = extrema(b1))
+    f
+end
+
 @testset "progressmap" begin
     S = [1:1000 for _ in 1:3]
     L = @test_nowarn progressmap(S; description = "outer") do s
