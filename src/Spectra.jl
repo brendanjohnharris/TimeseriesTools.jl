@@ -8,7 +8,8 @@ export FrequencyDim, Freq, freqs,
        spectrum, energyspectrum, powerspectrum,
        _energyspectrum, _powerspectrum,
        FreqIndex, RegularFreqIndex,
-       colorednoise
+       colorednoise,
+       AbstractBispectrum, Bispectrum, BifreqIndex, RegularBifreqIndex, bispectrum
 
 abstract type FrequencyDim{T} <: DimensionalData.IndependentDim{T} end
 
@@ -66,7 +67,7 @@ const MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 """
     Spectrum(f, x)
 
-Constructs a univariate time series with frequencies `f` and data `x`.
+Constructs a univariate spectrum with frequencies `f` and data `x`.
 """
 Spectrum(f, x; kwargs...) = DimArray(x, (Freq(f),); kwargs...)
 
@@ -105,7 +106,7 @@ function _energyspectrum(x::AbstractVector, fs::Number,
     n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
 
     # Get the type of the spectrum
-    u = unit(eltype(x)) * unit(eltype(dims(x, Ti)))
+    u = unit(eltype(x)) / unit(fs)
     S̄ = zeros((nfft + padding) ÷ 2 + 1, n_segments) * u^2
     @debug "Calculating spectrum for $n_segments segments of length $(nfft + padding)"
     for i in 1:n_segments
@@ -141,8 +142,8 @@ end
 
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
-function _energyspectrum(x::typeintersect(RegularTimeSeries, UnivariateTimeSeries),
-                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
+function _energyspectrum(x::typeintersect(RegularTimeSeries, UnivariateTimeSeries);
+                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000),
                          kwargs...)
     return _energyspectrum(x, samplingrate(x), f_min; kwargs...)
 end
@@ -168,8 +169,8 @@ julia> S = _energyspectrum(ts);
 julia> S isa MultivariateSpectrum
 ```
 """
-function _energyspectrum(x::MultivariateTS, args...; kwargs...)
-    cat([_energyspectrum(_x, args...; kwargs...)
+function _energyspectrum(x::MultivariateTS; kwargs...)
+    cat([_energyspectrum(_x; kwargs...)
          for _x in eachslice(x, dims = 2)]..., dims = dims(x, 2))
 end
 
@@ -180,8 +181,8 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 `f_min` determines the minimum frequency that will be resolved in the spectrum.
 See [`_energyspectrum`](@ref).
 """
-function energyspectrum(x, args...; kwargs...)
-    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
+function energyspectrum(x; kwargs...)
+    dropdims(mean(_energyspectrum(x; kwargs...), dims = Dim{:window});
              dims = Dim{:window})
 end
 
@@ -192,8 +193,8 @@ Computes the power spectrum of a time series `x` in Welch periodogram windows.
 Note that the `_powerspectrum` is simply the [`_energyspectrum`](@ref) divided by the duration of each window.
 See [`_energyspectrum`](@ref).
 """
-function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
-    S̄ = _energyspectrum(x, args...; kwargs...)
+function _powerspectrum(x::AbstractTimeSeries; kwargs...)
+    S̄ = _energyspectrum(x; kwargs...)
     return S̄ ./ duration(x)
 end
 
@@ -202,8 +203,8 @@ end
 
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
-function powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
-    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
+function powerspectrum(x::AbstractTimeSeries; kwargs...)
+    dropdims(mean(_powerspectrum(x; kwargs...), dims = Dim{:window});
              dims = Dim{:window})
 end
 
@@ -287,4 +288,102 @@ end
 
 function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)
     _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
+end
+
+"""
+    BifreqIndex
+
+A type alias for a tuple of dimensions, where the first and second dimensions are of type `FrequencyDim`.
+"""
+const BifreqIndex = Tuple{A, A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
+
+"""
+    RegularBifreqIndex
+
+A type alias for a tuple of dimensions, where the first and second dimensions are a regularly sampled [`Freq`](@ref)uencies.
+"""
+const RegularBifreqIndex = Tuple{A, A,
+                                 Vararg{DimensionalData.Dimension}} where {A <:
+                                                                           FrequencyDim{<:RegularIndex}}
+
+"""
+    AbstractBispectrum{T, N, B}
+
+A type alias for an `AbstractDimArray` in which the first and second dimensions are [`Freq`](@ref)uency.
+"""
+const AbstractBispectrum = AbstractDimArray{T, N, <:BifreqIndex, B} where {T, N, B}
+freqs(x::AbstractBispectrum) = (dims(x, 1).val.data, dims(x, 2).val.data)
+
+"""
+    RegularBispectrum{T, N, B}
+
+A type alias for a spectrum with a regularly sampled frequency index.
+"""
+const RegularBispectrum = AbstractDimArray{T, N, <:RegularBifreqIndex, B} where {T, N, B}
+
+"""
+    Bispectrum(f1, f2, x)
+
+Constructs a univariate bispectrum with frequencies `f1` and `f2` and data `x`.
+"""
+Bispectrum(f1, f2, x; kwargs...) = DimArray(x, (Freq(f2), Freq(f2)); kwargs...)
+
+"""
+    Bispectrum(f1, f2, v, x)
+
+Constructs a multivariate spectrum with frequencies `f1` and `f2`, variables `v`, and data `x`.
+"""
+Bispectrum(f1, f2, v, x; kwargs...) = DimArray(x, (Freq(f1), Freq(f2), Var(v)); kwargs...)
+function Bispectrum(f1, f2, v::DimensionalData.Dimension, x; kwargs...)
+    DimArray(x, (Freq(f1), Freq(f2), v); kwargs...)
+end
+
+function _bispectrum(x::AbstractVector, fs::Number,
+                     f_min::Number = fs / min(length(x) ÷ 4, 1000); kwargs...)
+    n = length(x)
+    validfreqs = rfftfreq(n, fs)
+    if f_min == 0
+        f_min = validfreqs[2]
+        nfft = floor(Int, n / 2) * 2
+    else
+        nfft = ceil(Int, ustripall(fs) / ustripall(f_min))
+    end
+    if ustripall(f_min) < ustripall(validfreqs[2])
+        error("Cannot resolve an `f_min` of $f_min")
+    end
+
+    isodd(nfft) && (nfft += 1)
+    overlap = nfft ÷ 2
+    (nfft - overlap ≤ 0) && error("FFT padding is too high")
+    n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
+
+    # Get the type of the spectrum
+    nfreqs = ((nfft) ÷ 2 + 1) ÷ 2
+    S̄ = zeros(nfreqs, nfreqs, n_segments) .|> Complex
+    @debug "Calculating spectrum for $n_segments segments of length $(nfft + padding)"
+    for i in 1:n_segments
+        start_idx = (i - 1) * (nfft - overlap) + 1
+        end_idx = start_idx + nfft - 1
+        segment = x[start_idx:end_idx] #.* hann_window
+        segment = segment .- mean(segment)
+        y = rfft(segment) / (nfft)
+        yh = y[1:nfreqs]
+        # * Compute F⁺(fs+f2) by assuming the frequencies are evenly spaced, monotonically increasing
+        idxs = Iterators.product(eachindex(yh), eachindex(yh)) .|> sum
+        S̄[:, :, i] .= ((yh * yh') .* conj(getindex.([y], idxs)))  # F(f1) * F(F2) * F⁺(fs+f2)
+    end
+
+    # Calculate the frequencies
+    freqs = range(convertconst(0, fs), stop = fs / 4, length = size(S̄, 1))
+    Bispectrum(freqs, freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
+end
+
+function _bispectrum(x::AbstractTimeSeries;
+                     f_min = samplingrate(x) / min(length(x) ÷ 4, 1000),
+                     kwargs...)
+    _bispectrum(x, samplingrate(x), f_min; kwargs...) ./ duration(x)
+end
+function bispectrum(x::AbstractTimeSeries, args...; kwargs...)
+    S̄ = _bispectrum(x; kwargs...) ./ duration(x)
+    dropdims(mean(S̄, dims = Dim{:window}); dims = Dim{:window}) .|> abs
 end
