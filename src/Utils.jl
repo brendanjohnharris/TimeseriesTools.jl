@@ -331,6 +331,22 @@ function _buffer(x::AbstractMatrix, n::Integer, p::Integer = 0; discard::Bool = 
     y
 end
 buffer(x::AbstractVector, args...; kwargs...) = _buffer(x, args...; kwargs...)
+
+"""
+    buffer(x::RegularTimeSeries, n::Integer, p::Integer; kwargs...)
+
+Buffer a time series `x` with a given window length and overlap between successive buffers.
+
+## Arguments
+- `x`: The regular time series to be buffered.
+- `n`: The number of samples in each buffer.
+- `p`: The number of samples of overlap betweeen the buffers.
+    - `0` indicates no overlap
+    - +`2` indicates `2` samples of overlap between successive buffers
+    - -`2` indicates `2` samples of gap between buffers
+
+See also: [`window`](@ref), [`delayembed`](@ref), [`coarsegrain`](@ref)
+"""
 function buffer(x::RegularTimeSeries, args...; kwargs...)
     y = _buffer(x, args...; kwargs...)
     t = _buffer(times(x), args...; kwargs...) .|> mean
@@ -338,6 +354,19 @@ function buffer(x::RegularTimeSeries, args...; kwargs...)
     ts = range(first(t), last(t), length(y))
     y = TimeSeries(ts, y)
 end
+
+"""
+    window(x::RegularTimeSeries, n::Integer, p::Integer; kwargs...)
+
+Window a time series `x` with a given window length and step between successive windows.
+
+## Arguments
+- `x`: The regular time series to be windows.
+- `n`: The number of samples in each window.
+- `p`: The number of samples to slide each successive window.
+
+See also: [`buffer`](@ref), [`delayembed`](@ref), [`coarsegrain`](@ref)
+"""
 window(x, n, p = n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
 
 function _delayembed(x::AbstractVector, n, τ, p = 1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
@@ -347,6 +376,20 @@ function _delayembed(x::AbstractVector, n, τ, p = 1; kwargs...) # A delay embed
     end
 end
 delayembed(x::AbstractVector, args...; kwargs...) = _delayembed(x, args...; kwargs...)
+
+"""
+    delayembed(x::UnivariateRegular, n::Integer, τ::Integer, p::Integer=1; kwargs...)
+
+Delay embed a univariate time series `x` with a given dimension `n`, delay `τ`, and skip length of `p`
+
+## Arguments
+- `x`: The regular time series to be delay embedded.
+- `n`: The embedding dimension, i.e., the number of samples in each embedded vector.
+- `τ`: The number of original sampling periods between each sample in the embedded vectors.
+- `p`: The number of samples to skip between each successive embedded vector.
+
+See also: [`buffer`](@ref), [`window`](@ref)
+"""
 function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     y = _delayembed(x, n, τ, p, args...; kwargs...)
     ts = last.(times.(y))  # Time of the head of the vector

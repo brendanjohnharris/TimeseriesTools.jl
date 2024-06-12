@@ -200,7 +200,7 @@ end
 # ? -------------------------- Colored trajectory -------------------------- ? #
 @recipe(Trajectory, x, y, z) do scene
     Attributes(colormode = :velocity,
-               linewidth = theme(scene, :line_width),
+               linewidth = theme(scene, :linewidth),
                alpha = 0.8,
                colormap = :viridis,
                colorscale = identity,
@@ -272,6 +272,11 @@ function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kw
     end
     ax.finallimits[] = _limits
     return ax
+end
+
+function Makie.convert_arguments(::Type{<:Trajectory},
+                                 x::MultivariateTimeSeries)
+    x |> eachcol .|> collect |> Tuple
 end
 
 # ? ------------------------------- # Traces ------------------------------- ? #

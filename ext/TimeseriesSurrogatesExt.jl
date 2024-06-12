@@ -2,9 +2,9 @@
 import ..TimeseriesSurrogates
 import ..TimeseriesSurrogates: Surrogate, SurrogateGenerator, surrogenerator
 using TimeseriesTools
-using Statistics
-using Distributions
-using DimensionalData
+using TimeseriesTools.Statistics
+using TimeseriesTools.Distributions
+using TimeseriesTools.DimensionalData
 
 export RandomJitter, GammaRenewal, phaserand!, NDFT
 
