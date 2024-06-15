@@ -23,8 +23,3 @@ Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[compat]
-CairoMakie = "0.11"
-Makie = "0.20"
-MakieCore = "0.7"

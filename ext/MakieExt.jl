@@ -17,9 +17,6 @@ using Peaks
 
 export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!
 
-Base.iterate(s::Makie.RichText, i::Integer) = iterate(String(s), i)
-Base.iterate(s::Makie.RichText) = iterate(String(s))
-
 """
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and other niceties.
@@ -74,7 +71,8 @@ end
     spectrumplot!(ax::Axis, x::MultivariateSpectrum)
 Plot the given spectrum, labelling the axes, adding units if appropriate, and adding a band to show the iqr
 """
-function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
+function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum;
+                       peaks = false,
                        bandcolor = nothing,
                        percentile = 0.25, kwargs...)
     uf = frequnit(x)
@@ -99,7 +97,10 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum; peaks = false,
     end
     p = spectrumplot!(ax, DimArray(xmed[idxs], (Freq(f[idxs]))); peaks, kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
-    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency = true, kwargs..., color)
+    lineattrs = [:linewidth, :alpha, :linestyle, :linecap, :joinstyle]
+    bandattrs = [k => v for (k, v) in kwargs if !(k ∈ lineattrs)]
+    _p = Makie.band!(ax, f[idxs], σₗ[idxs], σᵤ[idxs]; transparency = true, bandattrs...,
+                     color)
     Makie.translate!(_p, 0, 0, -1.0)
     p
 end
@@ -112,40 +113,12 @@ function spectrumplot(x::AbstractSpectrum; peaks = false, kwargs...)
                           ax,
                           p))
 end
-Makie.plot!(ax::Axis, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
+Makie.plot!(ax, x::AbstractSpectrum; kwargs...) = spectrumplot!(ax, x; kwargs...)
 Makie.plot(x::AbstractSpectrum; kwargs...) = spectrumplot(x; kwargs...)
-function Makie.plot!(ax::Axis, x::AbstractSpectrum{T, 2}; kwargs...) where {T}
+function Makie.plot!(ax, x::AbstractSpectrum{T, 2}; kwargs...) where {T}
     spectrumplot!(ax, x; kwargs...)
 end
 Makie.plot(x::AbstractSpectrum{T, 2}; kwargs...) where {T} = spectrumplot(x; kwargs...)
-
-function Makie.plot!(ax::Makie.Axis, x::UnivariateTimeSeries; kwargs...)
-    ut = timeunit(x)
-    ux = unit(x)
-    t, x = decompose(x)
-    t = ustripall.(t) |> collect
-    x = ustripall.(x) |> collect
-    p = lines!(ax, t, x; kwargs...)
-    if isempty(ax.xlabel[])
-        ut == NoUnits ? (ax.xlabel = "Time") : (ax.xlabel = "Time ($ut)")
-    end
-    if isempty(ax.ylabel[])
-        ux == NoUnits ? (ax.ylabel = "Values") : (ax.ylabel = "Values ($ux)")
-    end
-    p
-end
-
-function Makie.plot!(x::UnivariateTimeSeries; kwargs...)
-    Makie.plot!(Makie.current_axis(), x; kwargs...)
-end
-function Makie.plot(x::UnivariateTimeSeries; kwargs...)
-    (f = Makie.Figure();
-     ax = Makie.Axis(f[1, 1]);
-     p = plot!(ax, x; kwargs...);
-     Makie.FigureAxisPlot(f,
-                          ax,
-                          p))
-end
 
 """
     spectrumplot!(ax::Axis, x::AbstractVector, y::AbstractVector)
@@ -284,7 +257,7 @@ end
     Attributes(colormap = nothing,
                normalize = false, # Can be any normalization type from Normalizations.jl
                colorrange = nothing,
-               linewidth = theme(scene, :line_width),
+               linewidth = theme(scene, :linewidth),
                alpha = 0.8,
                colorscale = identity,
                linestyle = theme(scene, :linestyle),
@@ -292,7 +265,7 @@ end
                joinstyle = theme(scene, :joinstyle))
 end
 
-function Makie.convert_arguments(::Type{<:Plot{<:TimeseriesTools.Traces}},
+function Makie.convert_arguments(::Type{<:TimeseriesTools.Traces},
                                  x::AbstractDimArray)
     (x.dims[1].val.data, x.dims[2].val.data, x.data)
 end
@@ -331,39 +304,13 @@ function Makie.plot!(plot::Traces)
     for i in axes(z[], 2)
         _z = lift(x -> x[:, i], z)
         if isnothing(colormap[])
-            lines!(plot, x, _z, [a => plot.attributes[a] for a in lineattrs]...)
+            lines!(plot, x, _z; [a => plot.attributes[a] for a in lineattrs]...)
         else
             color = lift(c -> c[i], colormap)
             lines!(plot, x, _z; color, [a => plot.attributes[a] for a in lineattrs]...)
         end
     end
     plot
-end
-
-function Makie.convert_arguments(P::Traces, x::MultivariateSpectrum)
-    Makie.convert_arguments(P, decompose(x)...)
-end
-function Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateSpectrum)
-    Makie.convert_arguments(P, decompose(x)...)
-end
-function Makie.convert_single_argument(x::MultivariateSpectrum)
-    Makie.convert_arguments(P, decompose(x)...)
-end
-function Makie.convert_arguments(P::Traces, x::MultivariateTimeSeries)
-    Makie.convert_arguments(P, decompose(x)...)
-end
-function Makie.convert_arguments(P::Type{<:AbstractPlot}, x::MultivariateTimeSeries)
-    Makie.convert_arguments(P, decompose(x)...)
-end
-# function Makie.convert_single_argument(x::MultivariateTimeSeries)
-#     Makie.convert_arguments(P, decompose(x)...)
-# end
-function Makie.convert_arguments(P::Type{<:PointLike}, x::MultivariateTimeSeries)
-    if size(x, 2) < 4
-        Makie.convert_arguments(P, (x |> eachcol |> collect .|> collect)...)
-    else
-        Makie.convert_arguments(P, decompose(x)...)
-    end
 end
 
 function traces!(ax, S::MultivariateSpectrum; kwargs...)
@@ -387,13 +334,35 @@ function traces!(ax, S::MultivariateTimeSeries; kwargs...)
     isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
     traces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
+function traces(S::MultivariateTimeSeries; figure = (;), axis = (;), kwargs...)
+    f = Figure(; figure...)
+    ax = Axis(f[1, 1]; axis...)
+    p = traces!(ax, S; kwargs...)
+    return Makie.FigureAxisPlot(f, ax, p)
+end
+
+MVIrregular = AbstractDimMatrix{T,
+                                <:Tuple{A, B}} where {A <: TimeDim{<:RegularIndex},
+                                                      B <: Dimension{<:RegularIndex}, T}
+function Makie.plot(x::MVIrregular; kwargs...)
+    traces(x; kwargs...)
+end
+function Makie.plot!(ax, x::MVIrregular; kwargs...)
+    traces!(ax, x; kwargs...)
+end
+function Makie.plot(x::MultivariateTimeSeries; kwargs...)
+    Makie.heatmap(x; kwargs...)
+end
+function Makie.plot!(ax, x::MultivariateTimeSeries; kwargs...)
+    Makie.heatmap!(ax, x; kwargs...)
+end
 
 # ? --------------------------- # Stacked traces --------------------------- ? #
 @recipe(StackedTraces, x, y, z) do scene
     Attributes(offset = 1,
                normalize = false,
                spacing = :close,
-               linewidth = theme(scene, :line_width),
+               linewidth = theme(scene, :linewidth),
                alpha = 0.8,
                colormap = :viridis,
                colorscale = identity,

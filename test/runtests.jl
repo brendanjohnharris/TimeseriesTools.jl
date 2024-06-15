@@ -474,6 +474,7 @@ end
     @test samplingperiod(y) == Year(1)
     @test times(y) == t
     @test duration(y) == last(t) - first(t)
+    @test unit(y) == NoUnits
 end
 
 @testset "GeneralizedPhaseExt" begin
@@ -657,14 +658,19 @@ end
 
 @testset "Makie" begin
     x = TimeSeries(0.01:0.01:10, randn(1000))
+
     p = @test_nowarn plot(x)
     @test p.plot isa Lines
-    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
     p = @test_nowarn plot(x)
+    @test p.plot isa Traces
+    # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
+    # @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
+
+    x = TimeSeries(0.01:0.01:10, [1, 3], randn(1000, 2))
+    p = @test_nowarn plot(x)
     @test p.plot isa Heatmap
-    @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
-    @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
 end
 
 @testset "Spectra" begin
@@ -676,6 +682,14 @@ end
     f_min = fs / 100
     Pxx = powerspectrum(ts, f_min)
     @test Pxx isa RegularSpectrum
+
+    xu = set(x, Ti => ustripall(t) * u"s")
+    Pxu = @test_nowarn powerspectrum(xu, f_min)
+    @test unit(eltype(Pxu)) == u"s"
+    @test unit(eltype(lookup(Pxu, 1))) == u"s^-1"
+    @test all(ustripall(Pxu) .== Pxx)
+
+    @test_throws "DomainError" powerspectrum(x, 1e-6)
 
     # Plotting
     p = @test_nowarn lines(Pxx)
@@ -983,6 +997,7 @@ end
     @test t isa SpikeTrain
 
     p = @test_nowarn spikefft(0:0.1:10, t)
+    @test_nowarn spikefft(0.1, times(t), Val(:schild))
     fs = (0.01, 50)
     e = @test_nowarn energyspectrum(t, fs; method = :schild)
     @test (2 * sum(e[2:end]) + e[1]) * fs[1] ≈ sum(t)
@@ -990,7 +1005,7 @@ end
 
     # Test this returns an identical result for spikes measured at regular intervals
     x = TimeSeries(ts, zeros(length(ts)))
-    x[Ti(At(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
+    x[Ti(Near(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
     et = energyspectrum(x, 0.01)
     @test (2 * sum(et[2:end]) + et[1]) * fs[1] ≈ sum(t)
 

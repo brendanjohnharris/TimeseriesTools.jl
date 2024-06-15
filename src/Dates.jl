@@ -12,4 +12,4 @@ DateTimeIndex = Tuple{A,
 
 DateTimeSeries = AbstractDimArray{T, N, <:DateTimeIndex, B} where {T, N, B}
 
-unit(x::DateTimeSeries) = NoUnits
+unit(::DateTimeSeries) = NoUnits

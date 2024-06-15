@@ -80,9 +80,9 @@ function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
     DimArray(x, (Freq(f), v); kwargs...)
 end
 
-function _energyspectrum(x::AbstractVector, fs::Number,
-                         f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
-                         kwargs...)
+function _periodogram(x::AbstractVector, fs::Number,
+                      f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
+                      kwargs...)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
     if f_min == 0
@@ -92,7 +92,7 @@ function _energyspectrum(x::AbstractVector, fs::Number,
         nfft = ceil(Int, ustripall(fs) / ustripall(f_min))
     end
     if ustripall(f_min) < ustripall(validfreqs[2])
-        error("Cannot resolve an `f_min` of $f_min")
+        throw(DomainError(f_min, "Cannot resolve an `f_min` of $f_min"))
     end
 
     isodd(nfft) && (nfft += 1)
@@ -141,10 +141,9 @@ end
 
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
-function _energyspectrum(x::typeintersect(RegularTimeSeries, UnivariateTimeSeries);
-                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000),
+function _energyspectrum(x::typeintersect(RegularTimeSeries, UnivariateTimeSeries), args...;
                          kwargs...)
-    return _energyspectrum(x, samplingrate(x), f_min; kwargs...)
+    return _periodogram(x, samplingrate(x), args...; kwargs...)
 end
 
 """
@@ -168,8 +167,8 @@ julia> S = _energyspectrum(ts);
 julia> S isa MultivariateSpectrum
 ```
 """
-function _energyspectrum(x::MultivariateTS; kwargs...)
-    cat([_energyspectrum(_x; kwargs...)
+function _energyspectrum(x::MultivariateTS, args...; kwargs...)
+    cat([_energyspectrum(_x, args...; kwargs...)
          for _x in eachslice(x, dims = 2)]..., dims = dims(x, 2))
 end
 
@@ -180,8 +179,8 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 `f_min` determines the minimum frequency that will be resolved in the spectrum.
 See [`_energyspectrum`](@ref).
 """
-function energyspectrum(x; kwargs...)
-    dropdims(mean(_energyspectrum(x; kwargs...), dims = Dim{:window});
+function energyspectrum(x, args...; kwargs...)
+    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
              dims = Dim{:window})
 end
 
@@ -192,8 +191,8 @@ Computes the power spectrum of a time series `x` in Welch periodogram windows.
 Note that the `_powerspectrum` is simply the [`_energyspectrum`](@ref) divided by the duration of each window.
 See [`_energyspectrum`](@ref).
 """
-function _powerspectrum(x::AbstractTimeSeries; kwargs...)
-    S̄ = _energyspectrum(x; kwargs...)
+function _powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
+    S̄ = _energyspectrum(x, args...; kwargs...)
     return S̄ ./ duration(x)
 end
 
@@ -202,8 +201,8 @@ end
 
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
-function powerspectrum(x::AbstractTimeSeries; kwargs...)
-    dropdims(mean(_powerspectrum(x; kwargs...), dims = Dim{:window});
+function powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
+    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
              dims = Dim{:window})
 end
 

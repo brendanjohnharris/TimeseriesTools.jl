@@ -10,7 +10,7 @@ MakieCore.@recipe(SpectrumPlot, x, y) do scene
     MakieCore.Attributes(;
                          color = :cornflowerblue,
                          peaks = false,
-                         linewidth = theme(scene, :line_width),
+                         linewidth = theme(scene, :linewidth),
                          alpha = 1,
                          linestyle = theme(scene, :linestyle),
                          linecap = theme(scene, :linecap),
@@ -34,39 +34,18 @@ Convert a time series or spectrum to a tuple of the dimensions and the data (as 
 """
 decompose(x::Union{<:AbstractTimeSeries, <:AbstractSpectrum}) = (lookup(x)...,
                                                                  x.data)
-# function decompose(x::MultivariateTimeSeries)
-#     if size(x)[2] < 3
-#         x |> eachcol |> collect .|> collect |> Tuple
-#     else
-#         ((dims(x) .|> collect)..., x.data)
-#     end
-# end
-function MakieCore.convert_arguments(P::MakieCore.PointBased, x::UnivariateTimeSeries)
+function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
+                                     x::Union{<:AbstractTimeSeries, <:AbstractSpectrum})
     MakieCore.convert_arguments(P, decompose(x)...)
 end
-function MakieCore.convert_arguments(P::MakieCore.ImageLike, x::MultivariateTimeSeries)
-    MakieCore.convert_arguments(P, decompose(x)...)
-end
-function MakieCore.convert_arguments(P::Type{<:MakieCore.Heatmap},
-                                     x::MultivariateTimeSeries)
-    MakieCore.convert_arguments(P, decompose(x)...)
-end
+MakieCore.plottype(::AbstractTimeSeries) = Lines
 
-function MakieCore.convert_arguments(t::Type{<:MakieCore.AbstractPlot},
-                                     D, A::DimensionalData.AbstractDimMatrix)
-    xs = parent(lookup(A, D))
-    dim = dims(A, D)
-    ys = parent(first(lookup(A)[dims(A) .!= [dim]]))
-    return xs, ys, A.data
+function MakieCore.plot!(ax, x::UnivariateTimeSeries; kwargs...)
+    MakieCore.lines!(ax, x; kwargs...)
 end
-function MakieCore.convert_arguments(t::Type{<:MakieCore.AbstractPlot},
-                                     D, ys,
-                                     A::DimensionalData.AbstractDimMatrix)
-    xs = parent(lookup(A, D))
-    return xs, ys, A.data
+function MakieCore.plot(x::UnivariateTimeSeries; kwargs...)
+    MakieCore.lines(x; kwargs...)
 end
-
-# GeometryBasics.decompose(x::AN.DimensionalData.AbstractDimArray, dims...) = (getindex.((dims(x).|>collect), dims)..., x.data[dims...])
 
 function formataxislabels(x::UnivariateTimeSeries)
     (; xlabel = describedims(x, 1), ylabel = describename(x))
@@ -74,5 +53,3 @@ end
 function formataxislabels(x::MultivariateTimeSeries)
     (; xlabel = describedims(x, 1), ylabel = describedims(x, 2))
 end
-
-# TODO Stacked traces, traces recipe
