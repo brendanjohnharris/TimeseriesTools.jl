@@ -45,7 +45,7 @@ UnitfulTimeIndex = Tuple{A,
 """
     UnitfulTimeSeries{T, N, B}
 
-A type alias for an `AbstractDimArray` with a [`UnitfulTimeIndex`](@ref).
+A type alias for an `AbstractToolsArray` with a [`UnitfulTimeIndex`](@ref).
 
 ## Examples
 ```@example 1
@@ -56,7 +56,7 @@ julia> uts = TimeSeries(t, x);
 julia> uts isa UnitfulTimeSeries
 ```
 """
-UnitfulTimeSeries = AbstractDimArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B}
+UnitfulTimeSeries = AbstractToolsArray{T, N, <:UnitfulTimeIndex, B} where {T, N, B}
 
 UnitfulFIndex = Union{AbstractArray{<:Unitful.Frequency},
                       AbstractRange{<:Unitful.Frequency}, Tuple{<:Unitful.Frequency}}
@@ -69,15 +69,15 @@ UnitfulFreqIndex = Tuple{A,
 
 A type representing spectra with unitful frequency units.
 """
-UnitfulSpectrum = AbstractDimArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
+UnitfulSpectrum = AbstractToolsArray{T, N, <:UnitfulFreqIndex, B} where {T, N, B}
 
 function unitfultimeseries(x::AbstractTimeSeries, u::Unitful.Units)
     t = x |> times
     t = timeunit(x) == NoUnits ? t : ustrip(t)
     t = t * u
     ds = dims(x)
-    return DimArray(x.data, (Ti(t), ds[2:end]...); metadata = DimensionalData.metadata(x),
-                    name = DimensionalData.name(x), refdims = DimensionalData.refdims(x))
+    return ToolsArray(x.data, (Ti(t), ds[2:end]...); metadata = DimensionalData.metadata(x),
+                      name = DimensionalData.name(x), refdims = DimensionalData.refdims(x))
 end
 
 function unitfultimeseries(x::AbstractTimeSeries)
@@ -121,7 +121,7 @@ julia> ts = TimeSeries(t, x, u"ms");
 julia> TimeseriesTools.dimunit(ts, Ti) == u"ms"
 ```
 """
-dimunit(x::AbstractDimArray, dim) = dims(x, dim) |> eltype |> unit
+dimunit(x::AbstractToolsArray, dim) = dims(x, dim) |> eltype |> unit
 
 """
     timeunit(x::UnitfulTimeSeries)

@@ -29,9 +29,9 @@ const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
 """
     AbstractSpectrum{T, N, B}
 
-A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](@ref)uency.
+A type alias for an `AbstractToolsArray` in which the first dimension is [`Freq`](@ref)uency.
 """
-const AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
+const AbstractSpectrum = AbstractToolsArray{T, N, <:FreqIndex, B} where {T, N, B}
 freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
 
 """
@@ -48,7 +48,7 @@ const RegularFreqIndex = Tuple{A,
 
 A type alias for a spectrum with a regularly sampled frequency index.
 """
-const RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
+const RegularSpectrum = AbstractToolsArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
 
 """
     UnivariateSpectrum{T} = AbstractSpectrum{T, 1} where T
@@ -68,16 +68,16 @@ const MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 
 Constructs a univariate spectrum with frequencies `f` and data `x`.
 """
-Spectrum(f, x; kwargs...) = DimArray(x, (Freq(f),); kwargs...)
+Spectrum(f, x; kwargs...) = ToolsArray(x, (Freq(f),); kwargs...)
 
 """
     Spectrum(f, v, x)
 
 Constructs a multivariate spectrum with frequencies `f`, variables `v`, and data `x`.
 """
-Spectrum(f, v, x; kwargs...) = DimArray(x, (Freq(f), Var(v)); kwargs...)
+Spectrum(f, v, x; kwargs...) = ToolsArray(x, (Freq(f), Var(v)); kwargs...)
 function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
-    DimArray(x, (Freq(f), v); kwargs...)
+    ToolsArray(x, (Freq(f), v); kwargs...)
 end
 
 function _periodogram(x::AbstractVector, fs::Number,

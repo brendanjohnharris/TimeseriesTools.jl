@@ -1,6 +1,7 @@
-import DimensionalData: Dimension, TimeDim
+import DimensionalData: Dimension, TimeDim, NoName, NoMetadata, format
 
-export AbstractTimeSeries, AbstractTS,
+export AbstractToolsArray, ToolsArray,
+       AbstractTimeSeries, AbstractTS,
        UnivariateTimeSeries, UnivariateTS,
        MultivariateTimeSeries, MultivariateTS,
        RegularTimeSeries, RegularTS,
@@ -14,6 +15,39 @@ export AbstractTimeSeries, AbstractTS,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS
 
 """
+A local type to avoid overloading and piracy issues with DimensionalData.jl
+"""
+abstract type AbstractToolsArray{T, N, D, A} <: DimensionalData.AbstractDimArray{T, N, D, A} end
+
+AbstractDimVector = AbstractToolsArray{T, 1} where {T}
+AbstractDimMatrix = AbstractToolsArray{T, 2} where {T}
+
+struct ToolsArray{T, N, D <: Tuple, R <: Tuple, A <: AbstractArray{T, N}, Na, Me} <:
+       AbstractToolsArray{T, N, D, A}
+    data::A
+    dims::D
+    refdims::R
+    name::Na
+    metadata::Me
+end
+
+function ToolsArray(data::A, dims::Tuple{D, Vararg};
+                    refdims::R = (), name::Na = NoName(),
+                    metadata::M = NoMetadata()) where {D <: DimensionalData.Dimension,
+                                                       R, A, Na, M}
+    ToolsArray(data, format(dims, data), refdims, name, metadata)
+end
+
+function ToolsArray(D::DimensionalData.DimArray)
+    ToolsArray(D.data, D.dims, D.refdims, D.name, D.metadata)
+end
+
+@inline function DimensionalData.rebuild(A::ToolsArray, data::AbstractArray, dims::Tuple,
+                                         refdims::Tuple, name, metadata)
+    ToolsArray(data, dims, refdims, name, metadata)
+end
+
+"""
     TimeIndex
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
@@ -25,8 +59,8 @@ const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim}
 
 A type alias for an [AbstractDimArray](https://rafaqz.github.io/DimensionalData.jl/stable/api/#DimensionalData.AbstractDimArray) with a time index.
 """
-const AbstractTimeSeries = AbstractTS = AbstractDimArray{T, N, <:TimeIndex,
-                                                         B} where {T, N, B}
+const AbstractTimeSeries = AbstractTS = AbstractToolsArray{T, N, <:TimeIndex,
+                                                           B} where {T, N, B}
 
 """
     UnivariateTimeSeries{T}
@@ -71,8 +105,8 @@ const RegularTimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim{<:Regul
 
 A type alias for a regularly sampled time series.
 """
-const RegularTimeSeries = RegularTS = AbstractDimArray{T, N, <:RegularTimeIndex,
-                                                       B} where {T, N, B}
+const RegularTimeSeries = RegularTS = AbstractToolsArray{T, N, <:RegularTimeIndex,
+                                                         B} where {T, N, B}
 
 const MultidimensionalIndex = Tuple{A,
                                     Vararg{Dimension{B}}} where {
@@ -85,8 +119,8 @@ const MultidimensionalIndex = Tuple{A,
 """
 A multidimensional time series has a regular sampling over a dimension other than time; a one-dimensional time series can be thought of as a field over an even grid in 1 dimension that fluctuates over time.
 """
-const MultidimensionalTimeSeries = AbstractDimArray{T, N, <:MultidimensionalIndex,
-                                                    B} where {T, N, B}
+const MultidimensionalTimeSeries = AbstractToolsArray{T, N, <:MultidimensionalIndex,
+                                                      B} where {T, N, B}
 const MultidimensionalTS = MultidimensionalTimeSeries
 
 """
@@ -114,16 +148,17 @@ const IrregularTimeIndex = Tuple{A,
 
 A type alias for a potentially irregularly sampled time series.
 """
-const IrregularTimeSeries = IrregularTS = AbstractDimArray{T, N, <:IrregularTimeIndex,
-                                                           B} where {T, N, B}
+const IrregularTimeSeries = IrregularTS = AbstractToolsArray{T, N, <:IrregularTimeIndex,
+                                                             B} where {T, N, B}
 
 """
     BinaryTimeSeries
 
 A type alias for a time series of bits.
 """
-const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractDimArray{T, N, <:TimeIndex,
-                                                                  B} where {T <: Bool, N, B}
+const BinaryTimeSeries = SpikeTrain = BinaryTS = AbstractToolsArray{T, N, <:TimeIndex,
+                                                                    B} where {T <: Bool, N,
+                                                                              B}
 
 """
     SpikeTrain
@@ -150,8 +185,8 @@ julia> ts = TimeSeries(t, x)
 julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
-TimeSeries(t, x; kwargs...) = DimArray(x, (Ti(t),); kwargs...)
-TimeSeries(t::TimeDim, x; kwargs...) = DimArray(x, (t,); kwargs...)
+TimeSeries(t, x; kwargs...) = ToolsArray(x, (Ti(t),); kwargs...)
+TimeSeries(t::TimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -168,23 +203,23 @@ julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 ```
 """
 function TimeSeries(t::TimeDim, v::Dimension, x; kwargs...)
-    DimArray(x, (t, v); kwargs...)
+    ToolsArray(x, (t, v); kwargs...)
 end
 function TimeSeries(t::TimeDim, v, x; kwargs...)
-    DimArray(x, (t, Var(v)); kwargs...)
+    ToolsArray(x, (t, Var(v)); kwargs...)
 end
 function TimeSeries(t, v::Dimension, x; kwargs...)
-    DimArray(x, (Ti(t), v); kwargs...)
+    ToolsArray(x, (Ti(t), v); kwargs...)
 end
-TimeSeries(t, v, x; kwargs...) = DimArray(x, (Ti(t), Var(v)); kwargs...)
+TimeSeries(t, v, x; kwargs...) = ToolsArray(x, (Ti(t), Var(v)); kwargs...)
 
 function TimeSeries(t::TimeDim, a::Dimension,
                     b::Dimension, x; kwargs...)
-    DimArray(x, (t, a, b); kwargs...)
+    ToolsArray(x, (t, a, b); kwargs...)
 end
 function TimeSeries(t, a::Dimension,
                     b::Dimension, x; kwargs...)
-    DimArray(x, (Ti(t), a, b); kwargs...)
+    ToolsArray(x, (Ti(t), a, b); kwargs...)
 end
 
 import DimensionalData.data

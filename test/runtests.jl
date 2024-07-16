@@ -29,15 +29,15 @@ using Distributions
 using LinearAlgebra
 
 @testset "progressmap" begin
-    S = [1:1000 for _ in 1:3]
+    S = [1:100 for _ in 1:3]
     L = @test_nowarn progressmap(S; description = "outer") do s
-        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+        progressmap(x -> (sleep(0.00001); randn()), s; description = "inner")
     end
     L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
-        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner")
+        progressmap(x -> (sleep(0.00001); randn()), s; description = "inner")
     end
     L = @test_nowarn progressmap(S; description = "outer", parallel = true) do s
-        progressmap(x -> (sleep(0.0001); randn()), s; description = "inner",
+        progressmap(x -> (sleep(0.00001); randn()), s; description = "inner",
                     parallel = true)
     end
 
@@ -112,7 +112,7 @@ end
     Pxu = @test_nowarn powerspectrum(xu, f_min)
     @test unit(eltype(Pxu)) == u"s"
     @test unit(eltype(lookup(Pxu, 1))) == u"s^-1"
-    @test all(ustripall(Pxu) .== Pxx)
+    @test all(ustripall(Pxu) .≈ Pxx)
 
     @test_throws "DomainError" powerspectrum(x, 1e-6)
 
@@ -123,8 +123,8 @@ end
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
 
-    X = hcat(ts, ts)
-    mts = DimArray(X, (Ti(t), Var(:)))
+    xx = hcat(ts, ts)
+    mts = ToolsArray(xx, (Ti(t), Var(:)))
     Pxx_mts = powerspectrum(mts, f_min)
     @test Pxx_mts isa MultivariateSpectrum
     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx

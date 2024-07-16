@@ -1,3 +1,50 @@
+@testset "DimArrays" begin
+    x = ToolsArray(randn(10), (DimensionalData.Ti(1:10),))
+    @test x isa ToolsArray
+    @test !(x isa DimensionalData.DimArray)
+    @test x isa DimensionalData.AbstractDimArray
+
+    using DimensionalData
+    import DimensionalData: ForwardOrdered, Regular, Points, Sampled, Metadata, order,
+                            sampling, layerdims, index, locus, Intervals, intervalbounds
+    a = [1 2; 3 4]
+    a2 = [1 2 3 4
+          3 4 5 6
+          4 5 6 7]
+    xmeta = Metadata(:meta => "X")
+    ymeta = Metadata(:meta => "Y")
+    tmeta = Metadata(:meta => "T")
+    ameta = Metadata(:meta => "da")
+    dimz = (X(Sampled(143.0:2.0:145.0; order = ForwardOrdered(), metadata = xmeta)),
+            Y(Sampled(-38.0:2.0:-36.0; order = ForwardOrdered(), metadata = ymeta)))
+    dimz2 = (Dim{:row}(10:10:30), Dim{:column}(-20:10:10))
+
+    refdimz = (Ti(1:1; metadata = tmeta),)
+    da = @test_nowarn ToolsArray(a, dimz; refdims = refdimz, name = :test, metadata = ameta)
+    val(dims(da, 1)) |> typeof
+    da2 = ToolsArray(a2, dimz2; refdims = refdimz, name = :test2)
+    lx = Sampled(143.0:2.0:145.0, ForwardOrdered(), Regular(2.0), Points(), xmeta)
+    ly = Sampled(-38.0:2.0:-36.0, ForwardOrdered(), Regular(2.0), Points(), ymeta)
+    db = DimArray(da)
+    @test db isa DimArray
+    @test dims(da) == dims(db)
+    @test dims(db, X) == dims(da, X)
+    @test refdims(db) == refdims(da)
+    @test name(db) == name(da)
+    @test metadata(db) == metadata(da)
+    @test lookup(db) == lookup(da)
+    @test order(db) == order(da)
+    @test sampling(db) == sampling(da)
+    @test span(db) == span(da)
+    @test locus(db) == locus(da)
+    @test bounds(db) == bounds(da)
+    @test layerdims(db) == layerdims(da)
+    @test index(db, Y) == index(da, Y)
+    da_intervals = set(da, X => Intervals, Y => Intervals)
+    db_intervals = set(db, X => Intervals, Y => Intervals)
+    @test intervalbounds(da_intervals) == intervalbounds(db_intervals)
+end
+
 @testset "TimeseriesTools.jl" begin
     ts = 1:100
     x = @test_nowarn TimeSeries(ts, randn(100))

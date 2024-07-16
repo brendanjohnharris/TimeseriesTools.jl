@@ -10,7 +10,7 @@ import ContinuousWavelets: cwt, ensureComplex, getNWavelets, prepSignalAndPlans,
 CUDA.CuArray(x::AbstractTimeSeries) = set(x, CuArray(x.data))
 
 function Base.show(io::IO, mime,
-                   X::DimArray{T, N, Tp, F, C} where {T, N, Tp, F, C <: CuArray})
+                   X::ToolsArray{T, N, Tp, F, C} where {T, N, Tp, F, C <: CuArray})
     Base.show(X.data)
 end
 

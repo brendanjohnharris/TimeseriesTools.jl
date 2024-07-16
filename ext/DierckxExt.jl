@@ -18,10 +18,10 @@ end
 
 function (itp::Spline2D)(x::DimensionalData.Dimension,
                          y::DimensionalData.Dimension; kwargs...)
-    DimArray(evalgrid(itp, lookup(x), lookup(y)), (x, y); kwargs...)
+    ToolsArray(evalgrid(itp, lookup(x), lookup(y)), (x, y); kwargs...)
 end
 function (itp::Spline1D)(x::DimensionalData.Dimension; kwargs...)
-    DimArray(evaluate(itp, lookup(x)), (x,); kwargs...)
+    ToolsArray(evaluate(itp, lookup(x)), (x,); kwargs...)
 end
 
 function upsample(x::DimensionalData.AbstractDimMatrix, factor; kwargs...)
@@ -46,7 +46,7 @@ function upsample(x::DimensionalData.AbstractDimMatrix, factor::Number,
         x = x'
     end
     u = unit(eltype(x))
-    z = DimArray(zeros(length(d), size(x, 2)), (d, dims(x, 2)))
+    z = ToolsArray(zeros(length(d), size(x, 2)), (d, dims(x, 2)))
     itp = Spline1D.([ustrip(lookup(x, 1))], eachslice(ustrip.(x.data), dims = 2);
                     kwargs...)
     Threads.@threads for (i, I) in collect(enumerate(itp))

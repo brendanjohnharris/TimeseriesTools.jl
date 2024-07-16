@@ -26,13 +26,13 @@ description(x) = "$(size(x)) $(typeof(x).name.name)"
 function print_array(io::IO, mime, A::AbstractDimArray{T, 0}) where {T <: AbstractArray}
     print(_print_array_ctx(io, T), "\n", description.(A[]))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 1}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T, 1}) where {T <: AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 2}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T, 2}) where {T <: AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, 3}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T, 3}) where {T <: AbstractArray}
     i3 = firstindex(A, 3)
     frame = view(parent(A), :, :, i3)
     println(io, "[:, :, $i3]")
@@ -41,7 +41,8 @@ function print_array(io::IO, mime, A::AbstractDimArray{T, 3}) where {T <: Abstra
     nremaining > 0 &&
         printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
 end
-function print_array(io::IO, mime, A::AbstractDimArray{T, N}) where {T <: AbstractArray, N}
+function print_array(io::IO, mime,
+                     A::AbstractToolsArray{T, N}) where {T <: AbstractArray, N}
     o = ntuple(x -> firstindex(A, x + 2), N - 2)
     frame = view(A, :, :, o...)
     onestring = join(o, ", ")
@@ -55,7 +56,8 @@ function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
     _print_array_ctx(io, Bool)
 end
 
-function Base.stack(D::DimensionalData.Dimension, args::AbstractVector{<:AbstractDimArray};
+function Base.stack(D::DimensionalData.Dimension,
+                    args::AbstractVector{<:AbstractToolsArray};
                     dims = nothing, kwargs...)
     x = first(args) # Is this allocating?
 
@@ -87,8 +89,8 @@ function Base.stack(D::DimensionalData.Dimension, args::AbstractVector{<:Abstrac
 
     ds = Vector{Any}([DimensionalData.dims(x)...])
     insert!(ds, dims, D)
-    y = DimArray(X, (ds...,); refdims = refdims(x), name = name(x),
-                 metadata = metadata(x))
+    y = ToolsArray(X, (ds...,); refdims = refdims(x), name = name(x),
+                   metadata = metadata(x))
     return y
 end
 
@@ -96,9 +98,10 @@ end
     Base.cat(D::DimensionalData.Dimension, args...; kwargs...)
 Concatenate the arrays given in `args...`, and give the resulting extra axis dimensions `D`.
 Note that unlike `Base.cat` without the first `Dim` argument, this increments all existing dimensions greater than `dims` by one (so N n×n arrays concatenated at `dims=1` will result in an N×n×n array).
-`args...` can be a splatted collection of `DimArray`s, but this will give the same behaviour as if `args...` is a single vector of `DimArray`s; the latter is much more performant.
+`args...` can be a splatted collection of `ToolsArray`s, but this will give the same behaviour as if `args...` is a single vector of `ToolsArray`s; the latter is much more performant.
 """
-function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, y::AbstractDimArray,
+function Base.cat(D::DimensionalData.Dimension, x::AbstractToolsArray,
+                  y::AbstractToolsArray,
                   args...;
                   dims = nothing,
                   kwargs...) # TODO Refactor this method, to call the method above.
@@ -126,8 +129,8 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractDimArray, y::Abstract
     x′ = cat(_x, _y, _args...; dims, kwargs...)
     ds = Vector{Any}([DimensionalData.dims(x)...])
     insert!(ds, dims, D)
-    y = DimArray(x′, (ds...,); refdims = refdims(x), name = name(x),
-                 metadata = metadata(x))
+    y = ToolsArray(x′, (ds...,); refdims = refdims(x), name = name(x),
+                   metadata = metadata(x))
     # if hasdim(y, Ti)
     #     ts = times(y)
     #     y = set(y, Ti => ts .- minimum(ts))
@@ -840,8 +843,8 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
             newdims = [newdims..., DimensionalData.AnonDim(1:size(_X, _newdim))]
             newdim = newdims[newdim]
         end
-        X = DimArray(_X, Tuple(newdims); refdims = refdims(X), name = name(X),
-                     metadata = metadata(X))
+        X = ToolsArray(_X, Tuple(newdims); refdims = refdims(X), name = name(X),
+                       metadata = metadata(X))
     end
 
     return X

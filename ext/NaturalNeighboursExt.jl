@@ -23,7 +23,7 @@ function (itp::NaturalNeighboursInterpolant)(x::DimensionalData.Dimension,
     points = Iterators.product((collect.((x, y)) .|> N)...) |> collect |> vec
     X = itp(Float64.(first.(points)), Float64.(last.(points)); kwargs...)
     X = reshape(X, (length(x), length(y)))
-    DimArray(X, (x, y))
+    ToolsArray(X, (x, y))
 end
 
 # function upsample(x::DimensionalData.AbstractDimMatrix, factor; derivatives = true,
