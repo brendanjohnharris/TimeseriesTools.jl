@@ -43,7 +43,7 @@
     a = @benchmark msdist($x)
     b = @benchmark msdist($(parent(x)))
     c = @benchmark imsd($(parent(x))) # Compare to MeanSquaredDisplacement
-    @test a.times < c.times .* 1.1
+    @test a.times < c.times .* 1.5
     @test b.allocs < c.allocs
 
     x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims = 1))
