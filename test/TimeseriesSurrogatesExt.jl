@@ -180,24 +180,24 @@ end
 
     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-    if !haskey(ENV, "CI")
-        f = Figure()
-        ax = Axis(f[1, 1])
-        xx = Observable(x[Ti = 1])
-        heatmap!(ax, xx; colorrange = extrema(x))
-        record(f, "./MultidimModel_x.mp4", 1:2:900) do i
-            xx[] = parent(x[Ti = i])
-        end
-    end
-    if !haskey(ENV, "CI")
-        f = Figure()
-        ax = Axis(f[1, 1])
-        xx = Observable(y[Ti = 1])
-        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
-        record(f, "./MultidimModel_phi.mp4", 1:2:900) do i
-            xx[] = y[Ti = i]
-        end
-    end
+    # if !haskey(ENV, "CI")
+    #     f = Figure()
+    #     ax = Axis(f[1, 1])
+    #     xx = Observable(x[Ti = 1])
+    #     heatmap!(ax, xx; colorrange = extrema(x))
+    #     record(f, "./MultidimModel_x.mp4", 1:2:900) do i
+    #         xx[] = parent(x[Ti = i])
+    #     end
+    # end
+    # if !haskey(ENV, "CI")
+    #     f = Figure()
+    #     ax = Axis(f[1, 1])
+    #     xx = Observable(y[Ti = 1])
+    #     heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+    #     record(f, "./MultidimModel_phi.mp4", 1:2:900) do i
+    #         xx[] = y[Ti = i]
+    #     end
+    # end
 
     S = abs.(fft(x)) .^ 2
 
@@ -219,22 +219,22 @@ end
 
     x = x[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
     y = y[X = -0.5 .. 0.5, Y = -0.5 .. 0.5]
-    if !haskey(ENV, "CI")
-        f = Figure()
-        ax = Axis(f[1, 1])
-        xx = Observable(x[Ti = 1])
-        heatmap!(ax, xx; colorrange = extrema(x))
-        record(f, "./MultidimModel_x_s.mp4", 1:2:900) do i
-            xx[] = x[Ti = i]
-        end
-    end
-    if !haskey(ENV, "CI")
-        f = Figure()
-        ax = Axis(f[1, 1])
-        xx = Observable(y[Ti = 1])
-        heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
-        record(f, "./MultidimModel_phi_s.mp4", 1:2:900) do i
-            xx[] = y[Ti = i]
-        end
-    end
+    # if !haskey(ENV, "CI")
+    #     f = Figure()
+    #     ax = Axis(f[1, 1])
+    #     xx = Observable(x[Ti = 1])
+    #     heatmap!(ax, xx; colorrange = extrema(x))
+    #     record(f, "./MultidimModel_x_s.mp4", 1:2:900) do i
+    #         xx[] = x[Ti = i]
+    #     end
+    # end
+    # if !haskey(ENV, "CI")
+    #     f = Figure()
+    #     ax = Axis(f[1, 1])
+    #     xx = Observable(y[Ti = 1])
+    #     heatmap!(ax, xx; colorrange = extrema(y), colormap = :twilight)
+    #     record(f, "./MultidimModel_phi_s.mp4", 1:2:900) do i
+    #         xx[] = y[Ti = i]
+    #     end
+    # end
 end
