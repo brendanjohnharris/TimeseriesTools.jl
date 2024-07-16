@@ -11,7 +11,7 @@ export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnam
        centraldiff!, centraldiff, centralderiv!, centralderiv,
        rightdiff!, rightdiff, rightderiv!, rightderiv,
        rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks, maskpeaks, align, upsample, matchdim, nansafe, coarsegrain
+       findpeaks, maskpeaks, align, upsample, matchdim, nansafe, coarsegrain, meansquaredisp
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)

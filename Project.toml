@@ -36,6 +36,7 @@ Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
+Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
 
 [extensions]
 CUDAExt = ["CUDA", "ContinuousWavelets"]
@@ -44,6 +45,7 @@ DierckxExt = ["Dierckx"]
 GeneralizedPhaseExt = ["GeneralizedPhase"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
 TermExt = ["Term"]
+AutocorrelationsExt = ["Autocorrelations"]
 
 [compat]
 CUDA = "3, 4, 5"
@@ -70,6 +72,7 @@ Requires = "1"
 Term = "2"
 TimeseriesSurrogates = "2.6.3"
 Unitful = "1"
+Autocorrelations = "0.1"
 julia = "1.9"
 
 [extras]
@@ -83,3 +86,4 @@ Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
+Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"

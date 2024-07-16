@@ -55,6 +55,7 @@ function _waveletspectrogram end
 function waveletspectrogram end
 function interpolate end
 function progressmap end
-export _waveletfreqs, _waveletspectrogram, waveletspectrogram, progressmap
+function msdist end
+export _waveletfreqs, _waveletspectrogram, waveletspectrogram, progressmap, msdist
 
 end
