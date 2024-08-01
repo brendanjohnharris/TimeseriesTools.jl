@@ -585,7 +585,7 @@ centralderiv!(args...; kwargs...) = _deriv!(args..., centraldiff!; kwargs...)
 function _deriv(x::RegularTimeSeries, f!; dims = Ti, kwargs...)
     y = deepcopy(x)
     if unit(step(x; dims)) == NoUnits # Can safely mutate
-        f!(y; kwargs...)
+        f!(y; dims, kwargs...)
     else
         y = ustripall(y)
         f!(y; dims, kwargs...)
