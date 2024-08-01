@@ -148,10 +148,10 @@ end
     spectrumplot(S; peaks = true) # * Log-log plot
 
     # * Test recipes
-    # S = ustripall(S)
-    # f, ax, p = plot(S) # * Linear-linear plot
-    # tightlimits!(ax)
-    # @test ax isa Axis
-    # @test p isa Lines
-    # @test ax.finallimits.val.widths[1] ≈ 100 # Uses freq values
+    S = ustripall(S)
+    f, ax, p = plot(S) # * Log-log plot
+    tightlimits!(ax)
+    @test ax isa Axis
+    @test p isa SpectrumPlot
+    @test ax.finallimits.val.widths[1]≈100 atol=1e-2 # Uses freq values
 end

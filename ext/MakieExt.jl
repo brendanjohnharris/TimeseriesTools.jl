@@ -95,7 +95,7 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum;
         ux == NoUnits ? (ax.ylabel = "Spectral density") :
         (ax.ylabel = "Spectral density ($ux)")
     end
-    p = spectrumplot!(ax, ToolsArray(xmed[idxs], (Freq(f[idxs]))); peaks, kwargs...)
+    p = spectrumplot!(ax, ToolsArray(xmed[idxs], (Freq(f[idxs]),)); peaks, kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
     lineattrs = [:linewidth, :alpha, :linestyle, :linecap, :joinstyle]
     bandattrs = [k => v for (k, v) in kwargs if !(k ∈ lineattrs)]

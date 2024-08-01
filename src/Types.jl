@@ -47,6 +47,18 @@ end
     ToolsArray(data, dims, refdims, name, metadata)
 end
 
+function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
+    data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
+    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+    return ToolsArray(data, dims(shape))
+end
+function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
+    data = similar(T, map(DimensionalData._parent_range, shape))
+    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+    return ToolsArray(data, dims(shape))
+end
+TimeSeries(x::DimArray) = ToolsArray(x)
+
 """
     TimeIndex
 

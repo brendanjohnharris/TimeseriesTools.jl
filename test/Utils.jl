@@ -203,8 +203,8 @@ end
 
     X = cat(Var(1:2), x, x .+ 1.0)
     pks, proms = findpeaks(X)
-    @test pks isa DimArray{<:DimArray}
-    @test proms isa DimArray{<:DimArray}
+    @test pks isa ToolsArray{<:ToolsArray}
+    @test proms isa ToolsArray{<:ToolsArray}
     @test times(pks[1]) == times(peaks)
     @test times(pks[2]) == times(peaks)
     @test all(proms[1][2:(end - 1)] .== 2)
