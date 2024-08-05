@@ -42,38 +42,36 @@ function ToolsArray(D::DimensionalData.DimArray)
     ToolsArray(D.data, D.dims, D.refdims, D.name, D.metadata)
 end
 
+@inline function DimensionalData.rebuild(A::ToolsArray, data::AbstractArray, dims::Tuple,
+                                         refdims::Tuple, name, metadata)
+    ToolsArray(data, dims, refdims, name, metadata)
+end
 
+function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
+                                       data::AbstractArray, I::Tuple, name = name(A))
+    DimensionalData.rebuildsliced(f, DimArray(A), data, I, name) |> ToolsArray
+end
 
-# @inline function DimensionalData.rebuild(A::ToolsArray, data::AbstractArray, dims::Tuple,
-#                                          refdims::Tuple, name, metadata)
-#     ToolsArray(data, dims, refdims, name, metadata)
-# end
-
-# function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
-#                                        data::AbstractArray, I::Tuple, name = name(A))
-#     DimensionalData.rebuildsliced(f, DimArray(A), data, I, name) |> ToolsArray
-# end
-
-# function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
-#     data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
-#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-#     return ToolsArray(data, dims(shape))
-# end
-# function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
-#     data = similar(T, map(DimensionalData._parent_range, shape))
-#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-#     return ToolsArray(data, dims(shape))
-# end
-# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-#                       D::DimensionalData.DimTuple) where {T <: AbstractToolsArray}
-#     ToolsArray(D)(A; data = similar(Array{T}, size(D)), dims = D, refdims = (),
-#                   metadata = NoMetadata())
-# end
-# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-#                       D::Tuple{}) where {T <: AbstractToolsArray}
-#     ToolsArray(D)(A; data = similar(Array{T}, ()), dims = (), refdims = (),
-#                   metadata = NoMetadata())
-# end
+function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
+    data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
+    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+    return ToolsArray(data, dims(shape))
+end
+function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
+    data = similar(T, map(DimensionalData._parent_range, shape))
+    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+    return ToolsArray(data, dims(shape))
+end
+function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
+                      D::DimensionalData.DimTuple) where {T <: AbstractToolsArray}
+    ToolsArray(D)(A; data = similar(Array{T}, size(D)), dims = D, refdims = (),
+                  metadata = NoMetadata())
+end
+function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
+                      D::Tuple{}) where {T <: AbstractToolsArray}
+    ToolsArray(D)(A; data = similar(Array{T}, ()), dims = (), refdims = (),
+                  metadata = NoMetadata())
+end
 
 TimeSeries(x::DimArray) = ToolsArray(x)
 
