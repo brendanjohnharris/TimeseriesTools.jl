@@ -277,7 +277,7 @@ dimname(x::AbstractDimArray) = map(dimname, dims(x))
 dimnames = dimname
 
 function describedim(d::DimensionalData.Dimension)
-    if d isa DimensionalData.TimeDim
+    if d isa DimensionalData.ToolsTimeDim
         n = "Time"
     elseif d isa FrequencyDim
         n = "Frequency"

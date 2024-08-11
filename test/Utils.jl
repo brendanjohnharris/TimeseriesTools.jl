@@ -225,8 +225,15 @@ end
     M = @test_nowarn maskpeaks(xx)
 end
 
-@testset "Dim traits" begin
-    D = DimensionalData.Ti(1:100)
+begin
+    using DimensionalData
+    using Test
+    using TimeseriesTools
+    D = DimensionalData.Dim{:x}(1:100)
+    T = TimeseriesTools.ToolsDim{:x}(1:100)
+    @test D != T
+    @test all(D.==T)
+    @test DimensionalData.name(T) == DimensionalData.name(D)
+    𝑡(1:10)
+    𝑥(1:10)
 end
-
-

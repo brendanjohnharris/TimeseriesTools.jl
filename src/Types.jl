@@ -12,7 +12,8 @@ export AbstractToolsArray, ToolsArray,
        TimeSeries, Timeseries, TS, Var,
        stitch,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
-       MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS
+       MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
+       ToolsDimension, ToolDim, TDim, 𝑡, 𝑥, 𝑦, 𝑧
 
 """
 A local type to avoid overloading and piracy issues with DimensionalData.jl
@@ -47,31 +48,62 @@ end
     ToolsArray(data, dims, refdims, name, metadata)
 end
 
-function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
-                                       data::AbstractArray, I::Tuple, name = name(A))
-    DimensionalData.rebuildsliced(f, DimArray(A), data, I, name) |> ToolsArray
+abstract type ToolsDimension{T} <: DimensionalData.Dimension{T} end
+struct ToolsDim{S, T} <: ToolsDimension{T}
+    val::T
+    function ToolsDim{S}(val; kw...) where {S}
+        if length(kw) > 0
+            val = DimensionalData.AutoVal(val, values(kw))
+        end
+        new{S, typeof(val)}(val)
+    end
+    function ToolsDim{S}(val::AbstractArray; kw...) where {S}
+        if length(kw) > 0
+            val = DimensionalData.AutoLookup(val, values(kw))
+        end
+        ToolsDim{S, typeof(val)}(val)
+    end
+    function ToolsDim{S, T}(val::T) where {S, T}
+        new{S, T}(val)
+    end
 end
+ToolsDim{S}() where {S} = ToolsDim{S}(:)
 
-function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
-    data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
-    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-    return ToolsArray(data, dims(shape))
-end
-function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
-    data = similar(T, map(DimensionalData._parent_range, shape))
-    shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-    return ToolsArray(data, dims(shape))
-end
-function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-                      D::DimensionalData.DimTuple) where {T <: AbstractToolsArray}
-    ToolsArray(D)(A; data = similar(Array{T}, size(D)), dims = D, refdims = (),
-                  metadata = NoMetadata())
-end
-function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-                      D::Tuple{}) where {T <: AbstractToolsArray}
-    ToolsArray(D)(A; data = similar(Array{T}, ()), dims = (), refdims = (),
-                  metadata = NoMetadata())
-end
+DimensionalData.name(::Type{<:ToolsDim{S}}) where {S} = S
+DimensionalData.basetypeof(::Type{<:ToolsDim{S}}) where {S} = ToolsDim{S}
+const TDim = ToolsDim
+
+abstract type ToolsTimeDim{T} <: TimeDim{T} end
+DimensionalData.@dim 𝑡 ToolsTimeDim "𝑡"
+DimensionalData.@dim 𝑥 ToolsDimension "𝑥"
+DimensionalData.@dim 𝑦 ToolsDimension "𝑦"
+DimensionalData.@dim 𝑧 ToolsDimension "𝑧"
+
+# function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
+#                                        data::AbstractArray, I::Tuple, name = name(A))
+#     DimensionalData.rebuildsliced(f, DimArray(A), data, I, name) |> ToolsArray
+# end
+
+# function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
+#     data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
+#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+#     return ToolsArray(data, dims(shape))
+# end
+# function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
+#     data = similar(T, map(DimensionalData._parent_range, shape))
+#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
+#     return ToolsArray(data, dims(shape))
+# end
+# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
+#                       D::DimensionalData.DimTuple) where {T <: AbstractToolsArray}
+#     ToolsArray(D)(A; data = similar(Array{T}, size(D)), dims = D, refdims = (),
+#                   metadata = NoMetadata())
+# end
+# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
+#                       D::Tuple{}) where {T <: AbstractToolsArray}
+#     ToolsArray(D)(A; data = similar(Array{T}, ()), dims = (), refdims = (),
+#                   metadata = NoMetadata())
+# end
 
 TimeSeries(x::DimArray) = ToolsArray(x)
 
@@ -80,7 +112,7 @@ TimeSeries(x::DimArray) = ToolsArray(x)
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim}
+const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: ToolsTimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
@@ -126,7 +158,8 @@ const RegularIndex = Dimensions.LookupArrays.Sampled{T, R} where {T, R <: Abstra
 
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
-const RegularTimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim{<:RegularIndex}}
+const RegularTimeIndex = Tuple{A,
+                               Vararg{Dimension}} where {A <: ToolsTimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
@@ -139,7 +172,7 @@ const RegularTimeSeries = RegularTS = AbstractToolsArray{T, N, <:RegularTimeInde
 const MultidimensionalIndex = Tuple{A,
                                     Vararg{Dimension{B}}} where {
                                                                  A <:
-                                                                 TimeDim{<:RegularIndex},
+                                                                 ToolsTimeDim{<:RegularIndex},
                                                                  B <:
                                                                  RegularIndex
                                                                  }
@@ -169,7 +202,7 @@ A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any 
 """
 const IrregularTimeIndex = Tuple{A,
                                  Vararg{Dimension}} where {A <:
-                                                           TimeDim{<:IrregularIndex}}
+                                                           ToolsTimeDim{<:IrregularIndex}}
 
 """
     IrregularTimeSeries
@@ -214,7 +247,7 @@ julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
 TimeSeries(t, x; kwargs...) = ToolsArray(x, (Ti(t),); kwargs...)
-TimeSeries(t::TimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
+TimeSeries(t::ToolsTimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -230,10 +263,10 @@ julia> mts = TimeSeries(t, v, x)
 julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 ```
 """
-function TimeSeries(t::TimeDim, v::Dimension, x; kwargs...)
+function TimeSeries(t::ToolsTimeDim, v::Dimension, x; kwargs...)
     ToolsArray(x, (t, v); kwargs...)
 end
-function TimeSeries(t::TimeDim, v, x; kwargs...)
+function TimeSeries(t::ToolsTimeDim, v, x; kwargs...)
     ToolsArray(x, (t, Var(v)); kwargs...)
 end
 function TimeSeries(t, v::Dimension, x; kwargs...)
@@ -241,7 +274,7 @@ function TimeSeries(t, v::Dimension, x; kwargs...)
 end
 TimeSeries(t, v, x; kwargs...) = ToolsArray(x, (Ti(t), Var(v)); kwargs...)
 
-function TimeSeries(t::TimeDim, a::Dimension,
+function TimeSeries(t::ToolsTimeDim, a::Dimension,
                     b::Dimension, x; kwargs...)
     ToolsArray(x, (t, a, b); kwargs...)
 end

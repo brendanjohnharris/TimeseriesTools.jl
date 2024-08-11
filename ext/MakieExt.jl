@@ -342,7 +342,7 @@ function traces(S::MultivariateTimeSeries; figure = (;), axis = (;), kwargs...)
 end
 
 MVIrregular = AbstractDimMatrix{T,
-                                <:Tuple{A, B}} where {A <: TimeDim{<:RegularIndex},
+                                <:Tuple{A, B}} where {A <: ToolsTimeDim{<:RegularIndex},
                                                       B <: Dimension{<:RegularIndex}, T}
 function Makie.plot(x::MVIrregular; kwargs...)
     traces(x; kwargs...)
