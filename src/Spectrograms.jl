@@ -9,7 +9,7 @@ const RegularTimeFreqIndex = Tuple{T, F,
                                                              F <: Freq}
 
 const AbstractSpectrogram = AbstractToolsArray{T, N, <:TimeFreqIndex, B} where {T, N, B}
-times(x::AbstractSpectrogram) = dims(x, Ti).val.data
+times(x::AbstractSpectrogram) = dims(x, 𝑡).val.data
 freqs(x::AbstractSpectrogram) = dims(x, Freq).val.data
 
 const MultivariateSpectrogram = AbstractSpectrogram{T, 3} where {T}

@@ -76,7 +76,7 @@ function unitfultimeseries(x::AbstractTimeSeries, u::Unitful.Units)
     t = timeunit(x) == NoUnits ? t : ustrip(t)
     t = t * u
     ds = dims(x)
-    return ToolsArray(x.data, (Ti(t), ds[2:end]...); metadata = DimensionalData.metadata(x),
+    return ToolsArray(x.data, (𝑡(t), ds[2:end]...); metadata = DimensionalData.metadata(x),
                       name = DimensionalData.name(x), refdims = DimensionalData.refdims(x))
 end
 
@@ -118,7 +118,7 @@ julia> using Unitful;
 julia> t = 1:100;
 julia> x = rand(100);
 julia> ts = TimeSeries(t, x, u"ms");
-julia> TimeseriesTools.dimunit(ts, Ti) == u"ms"
+julia> TimeseriesTools.dimunit(ts, 𝑡) == u"ms"
 ```
 """
 dimunit(x::AbstractToolsArray, dim) = dims(x, dim) |> eltype |> unit
@@ -137,7 +137,7 @@ julia> ts = TimeSeries(t, x, u"ms");
 julia> timeunit(ts) == u"ms"
 ```
 """
-timeunit(x::AbstractTimeSeries) = dimunit(x, Ti)
+timeunit(x::AbstractTimeSeries) = dimunit(x, 𝑡)
 
 """
     frequnit(x::UnitfulSpectrum)

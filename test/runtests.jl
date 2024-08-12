@@ -1,32 +1,34 @@
-using Test
-using Term
-using Unitful
-import Unitful.unit
-using FFTW
-using CairoMakie
-using DSP
-using Dates
-using ContinuousWavelets
-using StatsBase
-using TimeseriesSurrogates
-using IntervalSets
-using Dierckx
-using GeneralizedPhase
-using Autocorrelations
-using MeanSquaredDisplacement
+begin
+    using Test
+    using Term
+    using Unitful
+    import Unitful.unit
+    using FFTW
+    using CairoMakie
+    using DSP
+    using Dates
+    using ContinuousWavelets
+    using StatsBase
+    using TimeseriesSurrogates
+    using IntervalSets
+    using Dierckx
+    using GeneralizedPhase
+    using Autocorrelations
+    using MeanSquaredDisplacement
 
-using TimeseriesTools
-import TimeseriesTools: TimeSeries, name, rectifytime,
-                        leftdiff, rightdiff,
-                        NDAAFT, NDIAAFT, MVFT
+    using TimeseriesTools
+    import TimeseriesTools: TimeSeries, name, rectifytime,
+                            leftdiff, rightdiff,
+                            NDAAFT, NDIAAFT, MVFT
 
-using Documenter
-using ImageMagick
-using BenchmarkTools
-using Foresight
-using ComplexityMeasures
-using Distributions
-using LinearAlgebra
+    using Documenter
+    using ImageMagick
+    using BenchmarkTools
+    using Foresight
+    using ComplexityMeasures
+    using Distributions
+    using LinearAlgebra
+end
 
 @testset "progressmap" begin
     S = [1:100 for _ in 1:3]
@@ -91,7 +93,7 @@ end
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
     y = @test_nowarn TimeSeries(t, x)
-
+    @test y isa RegularTimeSeries
     @test samplingperiod(y) == Year(1)
     @test times(y) == t
     @test duration(y) == last(t) - first(t)
@@ -108,7 +110,7 @@ end
     Pxx = powerspectrum(ts, f_min)
     @test Pxx isa RegularSpectrum
 
-    xu = set(x, Ti => ustripall(t) * u"s")
+    xu = set(x, 𝑡 => ustripall(t) * u"s")
     Pxu = @test_nowarn powerspectrum(xu, f_min)
     @test unit(eltype(Pxu)) == u"s"
     @test unit(eltype(lookup(Pxu, 1))) == u"s^-1"
@@ -124,7 +126,7 @@ end
     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
 
     xx = hcat(ts, ts)
-    mts = ToolsArray(xx, (Ti(t), Var(:)))
+    mts = ToolsArray(xx, (𝑡(t), Var(:)))
     Pxx_mts = powerspectrum(mts, f_min)
     @test Pxx_mts isa MultivariateSpectrum
     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx

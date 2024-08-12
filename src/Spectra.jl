@@ -10,7 +10,7 @@ export FrequencyDim, Freq, freqs,
        FreqIndex, RegularFreqIndex,
        colorednoise
 
-abstract type FrequencyDim{T} <: DimensionalData.IndependentDim{T} end
+abstract type FrequencyDim{T} <: ToolsDimension{T} end
 
 """
     Freq
@@ -133,7 +133,7 @@ function _periodogram(x::AbstractVector, fs::Number,
     meanS̄ = mean(S̄, dims = 2)
     S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
     S̄ = 0.5 * S̄ .* ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
-    Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
+    Spectrum(freqs, ToolsDim{:window}(1:n_segments), S̄; kwargs...)
 end
 
 """
@@ -180,8 +180,8 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 See [`_energyspectrum`](@ref).
 """
 function energyspectrum(x, args...; kwargs...)
-    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
-             dims = Dim{:window})
+    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = ToolsDim{:window});
+             dims = ToolsDim{:window})
 end
 
 """
@@ -202,8 +202,8 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 function powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
-    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
-             dims = Dim{:window})
+    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = ToolsDim{:window});
+             dims = ToolsDim{:window})
 end
 
 spectrum = powerspectrum
@@ -281,7 +281,7 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
     S̄ = S̄ ./ ustripall((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
     # display(2 * sum(S̄[2:end]) + S̄[1])
     S̄ = S̄ .* ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
-    Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
+    Spectrum(frange, ToolsDim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 
 function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)

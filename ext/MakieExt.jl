@@ -147,7 +147,7 @@ Makie.plot(x::AbstractSpectrum{T, 2}; kwargs...) where {T} = spectrumplot(x; kwa
 # - `kwargs...`: Additional keyword arguments to be passed to the plot.
 # """
 # function plotLFPspectra(X::UnivariateTimeSeries; slope=nothing, position=Point2f([5, 1e-5]), fs=nothing, N=1000, slopecolor=:crimson, kwargs...)
-#     times = collect(dims(X, Ti))
+#     times = collect(dims(X, 𝑡))
 #     if isnothing(fs)
 #         Δt = times[2] - times[1]
 #         all(Δt .≈ diff(times)) || @warn "Violated assumption: all(Δt .≈ diff(times))"

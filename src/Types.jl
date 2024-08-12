@@ -13,7 +13,7 @@ export AbstractToolsArray, ToolsArray,
        stitch,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
-       ToolsDimension, ToolDim, TDim, 𝑡, 𝑥, 𝑦, 𝑧
+       ToolsDimension, ToolsDim, TDim, 𝑡, 𝑥, 𝑦, 𝑧
 
 """
 A local type to avoid overloading and piracy issues with DimensionalData.jl
@@ -49,6 +49,13 @@ end
 end
 
 abstract type ToolsDimension{T} <: DimensionalData.Dimension{T} end
+function DimensionalData.dimconstructor(::Tuple{ToolsDimension,
+                                                Vararg{DimensionalData.Dimension}})
+    ToolsArray
+end
+DimensionalData.dimconstructor(::Tuple{<:ToolsDimension, Vararg}) = ToolsArray
+DimensionalData.dimconstructor(dims::ToolsDimension) = ToolsArray
+
 struct ToolsDim{S, T} <: ToolsDimension{T}
     val::T
     function ToolsDim{S}(val; kw...) where {S}
@@ -73,7 +80,7 @@ DimensionalData.name(::Type{<:ToolsDim{S}}) where {S} = S
 DimensionalData.basetypeof(::Type{<:ToolsDim{S}}) where {S} = ToolsDim{S}
 const TDim = ToolsDim
 
-abstract type ToolsTimeDim{T} <: TimeDim{T} end
+abstract type ToolsTimeDim{T} <: ToolsDimension{T} end
 DimensionalData.@dim 𝑡 ToolsTimeDim "𝑡"
 DimensionalData.@dim 𝑥 ToolsDimension "𝑥"
 DimensionalData.@dim 𝑦 ToolsDimension "𝑦"
@@ -136,7 +143,7 @@ A type alias for a multivariate time series (A matrix, with a first `Ti` dimensi
 """
 const MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T, 2} where {T}
 
-abstract type VariableDim{T} <: DimensionalData.IndependentDim{T} end
+abstract type VariableDim{T} <: ToolsDimension{T} end
 DimensionalData.@dim Var VariableDim "Var"
 
 """
@@ -246,7 +253,7 @@ julia> ts = TimeSeries(t, x)
 julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
-TimeSeries(t, x; kwargs...) = ToolsArray(x, (Ti(t),); kwargs...)
+TimeSeries(t, x; kwargs...) = ToolsArray(x, (𝑡(t),); kwargs...)
 TimeSeries(t::ToolsTimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
 
 """
@@ -270,9 +277,9 @@ function TimeSeries(t::ToolsTimeDim, v, x; kwargs...)
     ToolsArray(x, (t, Var(v)); kwargs...)
 end
 function TimeSeries(t, v::Dimension, x; kwargs...)
-    ToolsArray(x, (Ti(t), v); kwargs...)
+    ToolsArray(x, (𝑡(t), v); kwargs...)
 end
-TimeSeries(t, v, x; kwargs...) = ToolsArray(x, (Ti(t), Var(v)); kwargs...)
+TimeSeries(t, v, x; kwargs...) = ToolsArray(x, (𝑡(t), Var(v)); kwargs...)
 
 function TimeSeries(t::ToolsTimeDim, a::Dimension,
                     b::Dimension, x; kwargs...)
@@ -280,7 +287,7 @@ function TimeSeries(t::ToolsTimeDim, a::Dimension,
 end
 function TimeSeries(t, a::Dimension,
                     b::Dimension, x; kwargs...)
-    ToolsArray(x, (Ti(t), a, b); kwargs...)
+    ToolsArray(x, (𝑡(t), a, b); kwargs...)
 end
 
 import DimensionalData.data

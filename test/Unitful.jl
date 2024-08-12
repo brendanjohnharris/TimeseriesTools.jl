@@ -12,11 +12,11 @@
     @test samplingrate(x) == 1 / step(ts)
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
-    @test x[Ti(1u"s" .. 10u"s")] == x[1:10]
-    @test x[Ti = 1:10] == x[1:10]
+    @test x[𝑡(1u"s" .. 10u"s")] == x[1:10]
+    @test x[𝑡 = 1:10] == x[1:10]
     @test_nowarn spectrum(x, 0.1)
 
-    @test_nowarn rectify(x; dims = Ti)
+    @test_nowarn rectify(x; dims = 𝑡)
 end
 
 @testset "Twice unitful" begin

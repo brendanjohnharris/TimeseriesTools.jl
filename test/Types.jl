@@ -1,28 +1,28 @@
 @testset "DimArrays" begin
-    x = ToolsArray(randn(10), (DimensionalData.Ti(1:10),))
+    x = ToolsArray(randn(10), (𝑡(1:10),))
     @test x isa ToolsArray
     @test !(x isa DimensionalData.DimArray)
     @test x isa DimensionalData.AbstractDimArray
 
     using DimensionalData
     import DimensionalData: ForwardOrdered, Regular, Points, Sampled, Metadata, order,
-                            sampling, layerdims, index, locus, Intervals, intervalbounds
+        sampling, layerdims, index, locus, Intervals, intervalbounds
     a = [1 2; 3 4]
     a2 = [1 2 3 4
-          3 4 5 6
-          4 5 6 7]
+        3 4 5 6
+        4 5 6 7]
     xmeta = Metadata(:meta => "X")
     ymeta = Metadata(:meta => "Y")
     tmeta = Metadata(:meta => "T")
     ameta = Metadata(:meta => "da")
-    dimz = (X(Sampled(143.0:2.0:145.0; order = ForwardOrdered(), metadata = xmeta)),
-            Y(Sampled(-38.0:2.0:-36.0; order = ForwardOrdered(), metadata = ymeta)))
-    dimz2 = (Dim{:row}(10:10:30), Dim{:column}(-20:10:10))
+    dimz = (X(Sampled(143.0:2.0:145.0; order=ForwardOrdered(), metadata=xmeta)),
+        Y(Sampled(-38.0:2.0:-36.0; order=ForwardOrdered(), metadata=ymeta)))
+    dimz2 = (ToolsDim{:row}(10:10:30), ToolsDim{:column}(-20:10:10))
 
-    refdimz = (Ti(1:1; metadata = tmeta),)
-    da = @test_nowarn ToolsArray(a, dimz; refdims = refdimz, name = :test, metadata = ameta)
+    refdimz = (𝑡(1:1; metadata=tmeta),)
+    da = @test_nowarn ToolsArray(a, dimz; refdims=refdimz, name=:test, metadata=ameta)
     val(dims(da, 1)) |> typeof
-    da2 = ToolsArray(a2, dimz2; refdims = refdimz, name = :test2)
+    da2 = ToolsArray(a2, dimz2; refdims=refdimz, name=:test2)
     lx = Sampled(143.0:2.0:145.0, ForwardOrdered(), Regular(2.0), Points(), xmeta)
     ly = Sampled(-38.0:2.0:-36.0, ForwardOrdered(), Regular(2.0), Points(), ymeta)
     db = DimArray(da)
@@ -57,9 +57,9 @@ end
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-    @test x[Ti(1 .. 10)] == x[1:10]
-    @test all(x[Ti(At(1:10))] .== x[1:10])
-    # @test x[Ti(At(1:10))] != x[1:10]
+    @test x[𝑡(1 .. 10)] == x[1:10]
+    @test all(x[𝑡(At(1:10))] .== x[1:10])
+    # @test x[ 𝑡(At(1:10))] != x[1:10]
 end
 
 @testset "Multivariate time series" begin
@@ -74,28 +74,28 @@ end
     @test times(x) == ts
     @test duration(x) == -first(-(extrema(ts)...))
     @test Interval(x) == first(extrema(ts)) .. last(extrema(ts))
-    @test x[Ti(1 .. 10)] == x[1:10, :]
+    @test x[𝑡(1 .. 10)] == x[1:10, :]
 end
 
 @testset "Multidimensional time series" begin
-    x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), randn(100, 10))
+    x = @test_nowarn TimeSeries(𝑡(1:100), X(1:10), randn(100, 10))
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries
     @test x isa MultidimensionalTimeSeries
 
-    x = @test_nowarn TimeSeries(Ti(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
+    x = @test_nowarn TimeSeries(𝑡(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries
     @test x isa MultidimensionalTimeSeries
-    @test_nowarn x[Ti(Near(4:10))]
+    @test_nowarn x[𝑡(Near(4:10))]
 
-    x = @test_nowarn TimeSeries(Ti(1:100), X(randn(10) |> sort), Y(1:10),
-                                randn(100, 10, 10))
+    x = @test_nowarn TimeSeries(𝑡(1:100), X(randn(10) |> sort), Y(1:10),
+        randn(100, 10, 10))
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries
     @test !(x isa MultidimensionalTimeSeries)
 
-    x = @test_nowarn TimeSeries(Ti(sort(randn(100))), randn(100))
+    x = @test_nowarn TimeSeries(𝑡(sort(randn(100))), randn(100))
     @test x isa AbstractTimeSeries
     @test !(x isa RegularTimeSeries)
     @test !(x isa MultidimensionalTimeSeries)

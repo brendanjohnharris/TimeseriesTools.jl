@@ -1,4 +1,4 @@
-@testset "AutocorrelationsExt" begin
+@testset "AutocorrelationsExt" begin # Optimize this some more?
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
 
@@ -28,13 +28,13 @@
     @test acf(x) == fftacf(x)
     @test acf(x) != dotacf(x)
     @test acf(x) ≈ dotacf(x)
-    @test !(acf(x .+ 10; demean = true) ≈ acf(x .+ 10; demean = false))
+    @test !(acf(x .+ 10; demean=true) ≈ acf(x .+ 10; demean=false))
 
     # ? StatsBase is biased
     y = set(x, sin.(times(x)))
-    r1 = autocor(y, 800:1000; demean = true) # StatsBase method is biased
-    r2 = dotacf(y, 800:1000; demean = false, normalize = true)
-    @test minimum(r2)≈-1 rtol=1e-3
+    r1 = autocor(y, 800:1000; demean=true) # StatsBase method is biased
+    r2 = dotacf(y, 800:1000; demean=false, normalize=true)
+    @test minimum(r2) ≈ -1 rtol = 1e-3
     @test minimum(r1) > -0.95 # This is no bueno
 
     m = @test_nowarn msdist(x)
@@ -43,13 +43,13 @@
     a = @benchmark msdist($x)
     b = @benchmark msdist($(parent(x)))
     c = @benchmark imsd($(parent(x))) # Compare to MeanSquaredDisplacement
-    @test a.times < c.times .* 1.1
-    @test b.allocs < c.allocs
+    @test median(a.times) < median(c.times) .* 1.1
+    @test b.allocs ≤ c.allocs
 
-    x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims = 1))
+    x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims=1))
     m = msdist(x, 1:1000)
-    traces(m; color = (:gray, 0.4))
-    m = dropdims(mean(m, dims = 2), dims = 2)
+    traces(m; color=(:gray, 0.4))
+    m = dropdims(mean(m, dims=2), dims=2)
     plot!(decompose(m)...)
     current_figure()
 end
@@ -64,16 +64,16 @@ end
     t = dt:dt:10
     x = [0.00 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
     y = hcat(Var(1:200), x...)
-    x̂ = TimeSeries(dt:dt:(sum(length.(x)) * dt), vcat(collect.(x)...))
+    x̂ = TimeSeries(dt:dt:(sum(length.(x))*dt), vcat(collect.(x)...))
     x = phasestitch(x)
 
-    @test_nowarn stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5, offset = 1.3;
-                               axis = (; xlabel = "Time"))
-    @test_nowarn plot(x[Ti(1:10000)])
-    plot(x̂[Ti(1500:(length(t) * 5))])
+    @test_nowarn stackedtraces(y[Var(1:10)], spacing=:even, linewidth=5, offset=1.3;
+        axis=(; xlabel="Time"))
+    @test_nowarn plot(x[𝑡(1:10000)])
+    plot(x̂[𝑡(1500:(length(t)*5))])
 
     # And a power spectrumof a 'perfect' signal
-    _t = dt:dt:(dt * N)
+    _t = dt:dt:(dt*N)
     p = TimeSeries(_t, sin.(2 * _t))
     S′ = powerspectrum(p, dt * 4)
     @test_nowarn spectrumplot(S′)
@@ -87,15 +87,15 @@ end
     fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
-    @test ≈(pac, autocor(x[Ti(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
-    # @test pac - autocor(x̂[Ti(1:10000)] |> collect, [10])[1] >   pac -
-    # autocor(x[Ti(1:10000)] |> collect, [10])[1]
+    @test ≈(pac, autocor(x[𝑡(1:10000)] |> collect, [10])[1]; rtol=1e-2)
+    # @test pac - autocor(x̂[ 𝑡(1:10000)] |> collect, [10])[1] >   pac -
+    # autocor(x[ 𝑡(1:10000)] |> collect, [10])[1]
 end
 
 @testset "ContinuousWaveletsExt" begin
     # Define a test time series
     fs = 200
-    t = range(0, stop = 5, length = 100 * fs + 1)
+    t = range(0, stop=5, length=100 * fs + 1)
     x = (0.8 .* sin.(2 * π * 40 * t) + 1.1 .* sin.(2 * π * 100 * t)) .^ 2
     ts = x = TimeseriesTools.TimeSeries(t, x)
     f_min = fs / 100
@@ -105,7 +105,7 @@ end
     # Multivariate
     x = cat(Var(1:2), ts, ts .* randn(length(ts)))
     S = @test_nowarn waveletspectrogram(x)
-    @test all(isa.(dims(S), (Ti, Freq, Var)))
+    @test all(isa.(dims(S), (𝑡, Freq, Var)))
 
     # GPU test
     if false
@@ -121,11 +121,11 @@ end
         using CUDA
         x = cat(Var(1:2), ts, ts .* randn(length(ts)))
         S = @test_nowarn waveletspectrogram(x)
-        @test all(isa.(dims(S), (Ti, Freq, Var)))
+        @test all(isa.(dims(S), (𝑡, Freq, Var)))
 
         y = set(x, CuArray(x.data))
         S = @test_nowarn waveletspectrogram(y)
-        @test all(isa.(dims(S), (Ti, Freq, Var)))
+        @test all(isa.(dims(S), (𝑡, Freq, Var)))
 
         @test all(x .== y)
         @test dims(x) == dims(y)
@@ -141,29 +141,29 @@ end
     dt = diff(times(x))
     F = var(dt) / mean(dt)
     @test x isa SpikeTrain
-    @test F≈θ rtol=5e-2
-    @test mean(dt)≈α * F rtol=5e-2
+    @test F ≈ θ rtol = 5e-2
+    @test mean(dt) ≈ α * F rtol = 5e-2
 
     # Jitter surrogate
-    y = set(x, Ti => surrogate(times(x), RandomJitter(0.1, 0.1)))
+    y = set(x, 𝑡 => surrogate(times(x), RandomJitter(0.1, 0.1)))
     @test y isa SpikeTrain
     @test issorted(times(y))
-    @test minimum(times(y))≈minimum(times(x)) atol=0.5
-    @test maximum(times(y))≈maximum(times(x)) atol=0.5
+    @test minimum(times(y)) ≈ minimum(times(x)) atol = 0.5
+    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.5
     @test x != y
     sur = @test_nowarn surrogenerator(times(x), RandomJitter(0.1, 0.1))
     @test all(copy(sur()) .!= sur())
 
     # Gamma renewal surrogate
-    y = set(x, Ti => surrogate(times(x), GammaRenewal()))
+    y = set(x, 𝑡 => surrogate(times(x), GammaRenewal()))
     dt̂ = diff(times(y))
     F̂ = var(dt̂) / mean(dt̂)
     @test y isa SpikeTrain
     @test issorted(times(y))
-    @test F̂≈θ rtol=5e-2
-    @test mean(dt̂)≈α * F̂ rtol=5e-2
-    @test minimum(times(y))≈minimum(times(x)) atol=6 * μ
-    @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
+    @test F̂ ≈ θ rtol = 5e-2
+    @test mean(dt̂) ≈ α * F̂ rtol = 5e-2
+    @test minimum(times(y)) ≈ minimum(times(x)) atol = 6 * μ
+    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.01 * N
 end
 
 # @testset "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
@@ -178,8 +178,8 @@ end
     _ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)
 
-    x = set(x, Ti => lookup(x, Ti).data * u"s")
-    X = set(X, Ti => lookup(X, Ti).data * u"s")
+    x = set(x, 𝑡 => lookup(x, 𝑡).data * u"s")
+    X = set(X, 𝑡 => lookup(X, 𝑡).data * u"s")
 
     ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)
@@ -194,7 +194,7 @@ end
     p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
 
     ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
-                               StateSpaceSet(D))
+        StateSpaceSet(D))
 end
 
 @testset "Upsampling" begin

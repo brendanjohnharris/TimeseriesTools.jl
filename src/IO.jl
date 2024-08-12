@@ -173,14 +173,14 @@ function loadtimeseries(f::File{format"TSV"})
         if vars isa Type
             vars = vars(j)
         elseif !isempty(vars)
-            vars = Dim{Symbol(vars)}(j)
+            vars = ToolsDim{Symbol(vars)}(j)
         end
 
         data = readdlm(f, '\t', header = false)
         if isempty(vars)
             x = TimeSeries(data[:, 1], data[:, 2]; name, metadata, refdims)
         else
-            x = TimeSeries(Ti(data[:, 1]), vars, data[:, 2:end]; name, metadata, refdims)
+            x = TimeSeries(𝑡(data[:, 1]), vars, data[:, 2:end]; name, metadata, refdims)
         end
     end
 end

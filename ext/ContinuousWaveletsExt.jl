@@ -54,9 +54,9 @@ end
 #     md = DimensionalData.metadata(x)
 #     rd = DimensionalData.refdims(x)
 #     𝓍 = _slidingwindow(x, window; tail = :overlap)
-#     t = dims(x, Ti)
+#     t = dims(x, 𝑡)
 #     e = step(t) / 2
-#     freqs = waveletfreqs(dims(𝓍[1], Ti); kwargs...)
+#     freqs = waveletfreqs(dims(𝓍[1], 𝑡); kwargs...)
 #     sz = (length(t), length(freqs))
 #     fname = tempname()
 #     s = open(fname, "w+")
@@ -72,7 +72,7 @@ end
 #             fx = extrema(dims(subres, 2))
 #             tilims = Interval{:closed, :closed}(tx[1] - e, tx[2] + e)
 #             flims = Interval{:closed, :closed}(fx[1] - e, fx[2] + e)
-#             res[Ti(tilims), Freq(flims)] .= subres
+#             res[ 𝑡(tilims), Freq(flims)] .= subres
 #             if threadmax > 1
 #                 Threads.threadid() == 1 && (threadlog += 1) % 1 == 0 &&
 #                     @logprogress threadlog / threadmax

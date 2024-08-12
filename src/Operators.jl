@@ -25,7 +25,7 @@ export 𝐵, 𝐹, 𝛥, ℒ!, ℒ, 𝒯
 ℒ(x, n) = (y = deepcopy(x); ℒ!(y, n); y)
 
 # Shift operator (operates on time indices)
-𝒯(t) = x -> set(x, Ti(times(x) .+ t))
+𝒯(t) = x -> set(x, 𝑡(times(x) .+ t))
 
 # Difference operator
 𝛥!(x) = (x .= x .- 𝐵(x))

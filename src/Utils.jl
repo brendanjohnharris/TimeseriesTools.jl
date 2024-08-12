@@ -131,9 +131,9 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractToolsArray,
     insert!(ds, dims, D)
     y = ToolsArray(x′, (ds...,); refdims = refdims(x), name = name(x),
                    metadata = metadata(x))
-    # if hasdim(y, Ti)
+    # if hasdim(y, 𝑡)
     #     ts = times(y)
-    #     y = set(y, Ti => ts .- minimum(ts))
+    #     y = set(y, 𝑡=> ts .- minimum(ts))
     # end
     return y
 end
@@ -151,7 +151,7 @@ julia> ts = TimeSeries(t, x);
 julia> times(ts) == t
 ```
 """
-times(x::AbstractTimeSeries) = dims(x, Ti).val.data
+times(x::AbstractTimeSeries) = lookup(x, 𝑡) |> parent
 
 """
     step(x::RegularTimeSeries)
@@ -166,7 +166,7 @@ julia> rts = TimeSeries(t, x);
 julia> step(rts) == 1
 ```
 """
-Base.step(x::RegularTimeSeries; dims = Ti) = DimensionalData.dims(x, dims).val.data |> step
+Base.step(x::RegularTimeSeries; dims = 𝑡) = lookup(x, dims) |> step
 
 """
     samplingrate(x::RegularTimeSeries)
@@ -400,8 +400,8 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     ts = ts[1]:dt:(ts[1] + dt * (length(y) - 1))
     δt = τ * p * step(x)
     delays = (-(δt * (n - 1))):δt:0
-    y = set.(y, [Ti => Dim{:delay}(delays)])
-    y = cat(Ti(ts), y..., dims = Dim{:delay})
+    y = set.(y, [𝑡 => ToolsDim{:delay}(delays)])
+    y = cat(𝑡(ts), y..., dims = ToolsDim{:delay})
 end
 
 function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false,
@@ -435,7 +435,7 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
     end
     return ts, origts
 end
-rectifytime(ts::Ti; kwargs...) = rectify(ts; kwargs...)
+rectifytime(ts::𝑡; kwargs...) = rectify(ts; kwargs...)
 
 function rectify(X::AbstractDimArray; dims, tol = 4, zero = false, kwargs...) # tol gives significant figures for rounding
     if !(dims isa Tuple || dims isa AbstractVector)
@@ -468,22 +468,22 @@ not approximately constant, a warning is issued and the rectification is skipped
 - `zero::Bool`: If `true`, the rectified time values will start from zero. Default is
   `false`.
 """
-rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = Ti, kwargs...)
+rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = 𝑡, kwargs...)
 
 function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
     ts = times.(X)
     mint = maximum(minimum.(ts)) - exp10(-tol) .. minimum(maximum.(ts)) + exp10(-tol)
-    X = [x[Ti(mint)] for x in X]
+    X = [x[𝑡(mint)] for x in X]
     X = [x[1:minimum(size.(X, 1))] for x in X]
     ts = mean(times.(X))
-    ts, origts = rectifytime(Ti(ts); tol, zero)
-    ts = ts[1:size(X[1], Ti)] # Should be ok?
+    ts, origts = rectifytime(𝑡(ts); tol, zero)
+    ts = ts[1:size(X[1], 𝑡)] # Should be ok?
     if any([any(ts .- times(x) .> std(ts) / 10.0^(-tol)) for x in X])
         @error "Cannot find common times within tolerance"
     end
 
-    X = [set(x, Ti => ts) for x in X]
+    X = [set(x, 𝑡 => ts) for x in X]
     return X
 end
 
@@ -541,7 +541,7 @@ function _diff!(x::AbstractDimArray, f!; dims = 1, kwargs...)
 end
 
 """
-    centraldiff!(x::RegularTimeSeries; dims=Ti, grad=-)
+    centraldiff!(x::RegularTimeSeries; dims=𝑡, grad=-)
 
 Compute the central difference of a regular time series `x`, in-place.
 The first and last elements are set to the forward and backward difference, respectively.
@@ -555,7 +555,7 @@ function _diff(x::RegularTimeSeries, f!; kwargs...)
     return y
 end
 """
-    centraldiff(x::RegularTimeSeries; dims=Ti, grad=-)
+    centraldiff(x::RegularTimeSeries; dims=𝑡, grad=-)
 
 Compute the central difference of a regular time series `x`.
 The first and last elements are set to the forward and backward difference, respectively.
@@ -570,7 +570,7 @@ function checkderivdims(dims)
     end
 end
 
-function _deriv!(x::RegularTimeSeries, f!; dims = Ti, kwargs...)
+function _deriv!(x::RegularTimeSeries, f!; dims = 𝑡, kwargs...)
     checkderivdims(dims)
     f!(x; dims, kwargs...)
     x ./= step(x; dims)
@@ -585,7 +585,7 @@ See [`centraldiff!`](@ref) for available keyword arguments.
 """
 centralderiv!(args...; kwargs...) = _deriv!(args..., centraldiff!; kwargs...)
 
-function _deriv(x::RegularTimeSeries, f!; dims = Ti, kwargs...)
+function _deriv(x::RegularTimeSeries, f!; dims = 𝑡, kwargs...)
     y = deepcopy(x)
     if unit(step(x; dims)) == NoUnits # Can safely mutate
         f!(y; dims, kwargs...)
