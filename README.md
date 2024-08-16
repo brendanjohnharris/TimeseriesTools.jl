@@ -6,7 +6,7 @@
 [![Coverage](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl)
 
 
-TimeseriesTools.jl is a package for analyzing and visualizing time-series data in Julia. It provides a set of functions for preprocessing, analyzing, and plotting time series data, making your life better and your data look great, in that order.
+TimeseriesTools.jl is a package for analyzing and visualizing time-series data in Julia.
 
 ## Features
 
