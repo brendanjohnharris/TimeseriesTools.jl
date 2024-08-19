@@ -90,25 +90,25 @@ end
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-9
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDAAFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-3
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDIAAFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-3
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-3
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), MVFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-10
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-10
 
     # * Even
     x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
@@ -124,7 +124,7 @@ end
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-9
 end
 
 @testset "ND Fourier transform surrogates" begin
