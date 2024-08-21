@@ -277,7 +277,7 @@ dimname(x::AbstractDimArray) = map(dimname, dims(x))
 dimnames = dimname
 
 function describedim(d::DimensionalData.Dimension)
-    if d isa DimensionalData.ToolsTimeDim
+    if d isa DimensionalData.TimeDim
         n = "Time"
     elseif d isa FrequencyDim
         n = "Frequency"
@@ -400,8 +400,8 @@ function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
     ts = ts[1]:dt:(ts[1] + dt * (length(y) - 1))
     δt = τ * p * step(x)
     delays = (-(δt * (n - 1))):δt:0
-    y = set.(y, [𝑡 => ToolsDim{:delay}(delays)])
-    y = cat(𝑡(ts), y..., dims = ToolsDim{:delay})
+    y = set.(y, [𝑡 => Dim{:delay}(delays)])
+    y = cat(𝑡(ts), y..., dims = Dim{:delay})
 end
 
 function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false,

@@ -173,7 +173,7 @@ function loadtimeseries(f::File{format"TSV"})
         if vars isa Type
             vars = vars(j)
         elseif !isempty(vars)
-            vars = ToolsDim{Symbol(vars)}(j)
+            vars = Dim{Symbol(vars)}(j)
         end
 
         data = readdlm(f, '\t', header = false)

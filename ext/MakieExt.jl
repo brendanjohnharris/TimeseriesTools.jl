@@ -48,7 +48,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
         end
         pks = pks[promidxs]
         pks = TimeseriesTools.freqs(s)[pks]
-        vals = s[Freq(At(pks))]
+        vals = s[𝑓(At(pks))]
         scatter!(ax, ustripall.(pks), collect(ustripall.(vals)),
                  color = Makie.current_default_theme().textcolor,
                  markersize = 10,
@@ -95,7 +95,7 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum;
         ux == NoUnits ? (ax.ylabel = "Spectral density") :
         (ax.ylabel = "Spectral density ($ux)")
     end
-    p = spectrumplot!(ax, ToolsArray(xmed[idxs], (Freq(f[idxs]),)); peaks, kwargs...)
+    p = spectrumplot!(ax, ToolsArray(xmed[idxs], (𝑓(f[idxs]),)); peaks, kwargs...)
     color = isnothing(bandcolor) ? (p.color[], 0.5) : bandcolor
     lineattrs = [:linewidth, :alpha, :linestyle, :linecap, :joinstyle]
     bandattrs = [k => v for (k, v) in kwargs if !(k ∈ lineattrs)]
@@ -127,7 +127,7 @@ Makie.plot(x::AbstractSpectrum{T, 2}; kwargs...) where {T} = spectrumplot(x; kwa
 # argument_names(::Type{<: ToolSpectrumPlot}) = (:x,)
 
 # function plot!(p::ToolSpectrumPlot)
-#     x = collect(dims(p[:x], Freq))
+#     x = collect(dims(p[:x], 𝑓))
 #     y = collect(p[:x])
 #     spectrumplot!(p, x, y)
 #     p
@@ -159,10 +159,10 @@ Makie.plot(x::AbstractSpectrum{T, 2}; kwargs...) where {T} = spectrumplot(x; kwa
 #     𝑓 = P[1].freq # Should be pretty much the same for all columns?
 #     psd = hcat([p.power for p ∈ P]...)
 #     psd = psd./(sum(psd, dims=1).*(𝑓[2] - 𝑓[1]))
-#     psd = DimArray(psd, (Freq(𝑓), dims(X, :channel)))
+#     psd = DimArray(psd, (𝑓𝑓), dims(X, :channel)))
 #     fig = traces(𝑓, Array(psd); xlabel="𝑓 (Hz)", ylabel="Ŝ", title="Normalised power spectral density", smooth=1, yscale=log10, doaxis=false, domean=false, yminorgridvisible=false, kwargs...)
 #     if !isnothing(slope)
-#         _psd = psd[Freq(DD.Between(slope...))]
+#         _psd = psd[𝑓DD.Between(slope...))]
 #         c, r, f = powerlawfit(_psd)
 #         lines!(LinRange(slope..., 100), f(LinRange(slope..., 100)), color=slopecolor, linewidth=5)
 #         text!(L"$\alpha$= %$(round(r, sigdigits=2))", position=Point2f0(position), fontsize=40)
@@ -342,7 +342,7 @@ function traces(S::MultivariateTimeSeries; figure = (;), axis = (;), kwargs...)
 end
 
 MVIrregular = AbstractDimMatrix{T,
-                                <:Tuple{A, B}} where {A <: ToolsTimeDim{<:RegularIndex},
+                                <:Tuple{A, B}} where {A <: TimeDim{<:RegularIndex},
                                                       B <: Dimension{<:RegularIndex}, T}
 function Makie.plot(x::MVIrregular; kwargs...)
     traces(x; kwargs...)

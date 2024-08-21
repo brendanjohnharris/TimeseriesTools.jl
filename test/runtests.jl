@@ -121,7 +121,7 @@ end
     # Plotting
     p = @test_nowarn lines(Pxx)
 
-    freqs = dims(Pxx, Freq)
+    freqs = dims(Pxx, 𝑓)
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
 
@@ -133,7 +133,7 @@ end
 
     for i in axes(Pxx_mts, 2)
         Pxx = Pxx_mts[:, i]
-        freqs = dims(Pxx, Freq)
+        freqs = dims(Pxx, 𝑓)
         peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
         @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
     end
@@ -148,7 +148,7 @@ end
     Pb = powerspectrum(ts, f_min / 10; padding = 100)
     @test Pb isa RegularSpectrum
 
-    freqs = dims(Pb, Freq)
+    freqs = dims(Pb, 𝑓)
     peaks = findall(x -> x > maximum(Pb) / 2, Pb)
     @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
 

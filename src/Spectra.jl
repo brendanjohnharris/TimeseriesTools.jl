@@ -10,21 +10,19 @@ export FrequencyDim, Freq, freqs,
        FreqIndex, RegularFreqIndex,
        colorednoise
 
-abstract type FrequencyDim{T} <: ToolsDimension{T} end
-
 """
-    Freq
+    𝑓
 
 A DimensionalData.jl dimension representing the frequency domain.
 """
-DimensionalData.@dim Freq FrequencyDim "Freq"
+𝑓
 
 """
     FreqIndex
 
 A type alias for a tuple of dimensions, where the first dimension is of type `FrequencyDim`.
 """
-const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
+const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: 𝑓}
 
 """
     AbstractSpectrum{T, N, B}
@@ -32,7 +30,7 @@ const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
 A type alias for an `AbstractToolsArray` in which the first dimension is [`Freq`](@ref)uency.
 """
 const AbstractSpectrum = AbstractToolsArray{T, N, <:FreqIndex, B} where {T, N, B}
-freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
+freqs(x::AbstractSpectrum) = dims(x, 𝑓).val.data
 
 """
     RegularFreqIndex
@@ -68,16 +66,16 @@ const MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 
 Constructs a univariate spectrum with frequencies `f` and data `x`.
 """
-Spectrum(f, x; kwargs...) = ToolsArray(x, (Freq(f),); kwargs...)
+Spectrum(f, x; kwargs...) = ToolsArray(x, (𝑓(f),); kwargs...)
 
 """
     Spectrum(f, v, x)
 
 Constructs a multivariate spectrum with frequencies `f`, variables `v`, and data `x`.
 """
-Spectrum(f, v, x; kwargs...) = ToolsArray(x, (Freq(f), Var(v)); kwargs...)
+Spectrum(f, v, x; kwargs...) = ToolsArray(x, (𝑓(f), Var(v)); kwargs...)
 function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
-    ToolsArray(x, (Freq(f), v); kwargs...)
+    ToolsArray(x, (𝑓(f), v); kwargs...)
 end
 
 function _periodogram(x::AbstractVector, fs::Number,
@@ -133,7 +131,7 @@ function _periodogram(x::AbstractVector, fs::Number,
     meanS̄ = mean(S̄, dims = 2)
     S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
     S̄ = 0.5 * S̄ .* ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
-    Spectrum(freqs, ToolsDim{:window}(1:n_segments), S̄; kwargs...)
+    Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
 
 """
@@ -180,8 +178,8 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 See [`_energyspectrum`](@ref).
 """
 function energyspectrum(x, args...; kwargs...)
-    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = ToolsDim{:window});
-             dims = ToolsDim{:window})
+    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
 end
 
 """
@@ -202,8 +200,8 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 function powerspectrum(x::AbstractTimeSeries, args...; kwargs...)
-    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = ToolsDim{:window});
-             dims = ToolsDim{:window})
+    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
 end
 
 spectrum = powerspectrum
@@ -281,7 +279,7 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
     S̄ = S̄ ./ ustripall((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
     # display(2 * sum(S̄[2:end]) + S̄[1])
     S̄ = S̄ .* ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
-    Spectrum(frange, ToolsDim{:window}([1]), Matrix(S̄')'; kwargs...)
+    Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 
 function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)

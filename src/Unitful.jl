@@ -154,7 +154,7 @@ julia> sp = fft(ts);  # assuming fft returns a UnitfulSpectrum
 julia> frequnits(sp) == u"Hz"
 ```
 """
-frequnit(x::AbstractSpectrum) = dimunit(x, Freq)
+frequnit(x::AbstractSpectrum) = dimunit(x, 𝑓)
 
 """
     unit(x::AbstractArray)

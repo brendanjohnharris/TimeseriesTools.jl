@@ -9,11 +9,11 @@ export AbstractToolsArray, ToolsArray,
        IrregularTimeSeries, IrregularTS,
        TimeIndex, RegularIndex, RegularTimeIndex,
        IrregularIndex, IrregularTimeIndex,
-       TimeSeries, Timeseries, TS, Var,
+       TimeSeries, Timeseries, TS,
        stitch,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
-       ToolsDimension, ToolsDim, TDim, 𝑡, 𝑥, 𝑦, 𝑧
+       𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var
 
 """
 A local type to avoid overloading and piracy issues with DimensionalData.jl
@@ -48,7 +48,23 @@ end
     ToolsArray(data, dims, refdims, name, metadata)
 end
 
-abstract type ToolsDimension{T} <: DimensionalData.Dimension{T} end
+# * Custom dimensions. Arrays with these dimensions will default to being reconstructed as
+#   ToolsArrays
+import DimensionalData: TimeDim, XDim, YDim, ZDim
+DimensionalData.@dim 𝑡 TimeDim "Time"
+DimensionalData.@dim 𝑥 XDim "x"
+DimensionalData.@dim 𝑧 YDim "y"
+DimensionalData.@dim 𝑦 ZDim "z"
+
+abstract type VariableDim{T} <: Dimension{T} end
+DimensionalData.@dim Var VariableDim "Var"
+
+abstract type FrequencyDim{T} <: Dimension{T} end
+DimensionalData.@dim 𝑓 FrequencyDim "Frequency"
+
+ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var}
+
+# abstract type ToolsDimension{T} <: DimensionalData.Dimension{T} end
 function DimensionalData.dimconstructor(::Tuple{ToolsDimension,
                                                 Vararg{DimensionalData.Dimension}})
     ToolsArray
@@ -56,35 +72,35 @@ end
 DimensionalData.dimconstructor(::Tuple{<:ToolsDimension, Vararg}) = ToolsArray
 DimensionalData.dimconstructor(dims::ToolsDimension) = ToolsArray
 
-struct ToolsDim{S, T} <: ToolsDimension{T}
-    val::T
-    function ToolsDim{S}(val; kw...) where {S}
-        if length(kw) > 0
-            val = DimensionalData.AutoVal(val, values(kw))
-        end
-        new{S, typeof(val)}(val)
-    end
-    function ToolsDim{S}(val::AbstractArray; kw...) where {S}
-        if length(kw) > 0
-            val = DimensionalData.AutoLookup(val, values(kw))
-        end
-        ToolsDim{S, typeof(val)}(val)
-    end
-    function ToolsDim{S, T}(val::T) where {S, T}
-        new{S, T}(val)
-    end
-end
-ToolsDim{S}() where {S} = ToolsDim{S}(:)
+# struct Dim{S, T} <: ToolsDimension{T}
+#     val::T
+#     function Dim{S}(val; kw...) where {S}
+#         if length(kw) > 0
+#             val = DimensionalData.AutoVal(val, values(kw))
+#         end
+#         new{S, typeof(val)}(val)
+#     end
+#     function Dim{S}(val::AbstractArray; kw...) where {S}
+#         if length(kw) > 0
+#             val = DimensionalData.AutoLookup(val, values(kw))
+#         end
+#         Dim{S, typeof(val)}(val)
+#     end
+#     function Dim{S, T}(val::T) where {S, T}
+#         new{S, T}(val)
+#     end
+# end
+# Dim{S}() where {S} = Dim{S}(:)
 
-DimensionalData.name(::Type{<:ToolsDim{S}}) where {S} = S
-DimensionalData.basetypeof(::Type{<:ToolsDim{S}}) where {S} = ToolsDim{S}
-const TDim = ToolsDim
+# DimensionalData.name(::Type{<:Dim{S}}) where {S} = S
+# DimensionalData.basetypeof(::Type{<:Dim{S}}) where {S} = Dim{S}
+# const TDim = ToolsDim
 
-abstract type ToolsTimeDim{T} <: ToolsDimension{T} end
-DimensionalData.@dim 𝑡 ToolsTimeDim "𝑡"
-DimensionalData.@dim 𝑥 ToolsDimension "𝑥"
-DimensionalData.@dim 𝑦 ToolsDimension "𝑦"
-DimensionalData.@dim 𝑧 ToolsDimension "𝑧"
+# abstract type TimeDim{T} <: ToolsDimension{T} end
+# DimensionalData.@dim 𝑡 TimeDim "𝑡"
+# DimensionalData.@dim 𝑥 ToolsDimension "𝑥"
+# DimensionalData.@dim 𝑦 ToolsDimension "𝑦"
+# DimensionalData.@dim 𝑧 ToolsDimension "𝑧"
 
 # function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
 #                                        data::AbstractArray, I::Tuple, name = name(A))
@@ -119,7 +135,7 @@ TimeSeries(x::DimArray) = ToolsArray(x)
 
 A type alias for a tuple containing a time dimension and any number of other dimensions.
 """
-const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: ToolsTimeDim}
+const TimeIndex = Tuple{A, Vararg{Dimension}} where {A <: TimeDim}
 
 """
     AbstractTimeSeries{T, N, B}
@@ -143,9 +159,6 @@ A type alias for a multivariate time series (A matrix, with a first `Ti` dimensi
 """
 const MultivariateTimeSeries = MultivariateTS = AbstractTimeSeries{T, 2} where {T}
 
-abstract type VariableDim{T} <: ToolsDimension{T} end
-DimensionalData.@dim Var VariableDim "Var"
-
 """
     Var
 
@@ -166,7 +179,7 @@ const RegularIndex = Dimensions.LookupArrays.Sampled{T, R} where {T, R <: Abstra
 A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any number of other dimensions.
 """
 const RegularTimeIndex = Tuple{A,
-                               Vararg{Dimension}} where {A <: ToolsTimeDim{<:RegularIndex}}
+                               Vararg{Dimension}} where {A <: TimeDim{<:RegularIndex}}
 
 """
     RegularTimeSeries{T, N, B}
@@ -179,7 +192,7 @@ const RegularTimeSeries = RegularTS = AbstractToolsArray{T, N, <:RegularTimeInde
 const MultidimensionalIndex = Tuple{A,
                                     Vararg{Dimension{B}}} where {
                                                                  A <:
-                                                                 ToolsTimeDim{<:RegularIndex},
+                                                                 TimeDim{<:RegularIndex},
                                                                  B <:
                                                                  RegularIndex
                                                                  }
@@ -209,7 +222,7 @@ A type alias for a tuple of dimensions containing a [`TimeIndex`](@ref) and any 
 """
 const IrregularTimeIndex = Tuple{A,
                                  Vararg{Dimension}} where {A <:
-                                                           ToolsTimeDim{<:IrregularIndex}}
+                                                           TimeDim{<:IrregularIndex}}
 
 """
     IrregularTimeSeries
@@ -254,7 +267,7 @@ julia> ts isa typeintersect(UnivariateTimeSeries, RegularTimeSeries)
 ```
 """
 TimeSeries(t, x; kwargs...) = ToolsArray(x, (𝑡(t),); kwargs...)
-TimeSeries(t::ToolsTimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
+TimeSeries(t::TimeDim, x; kwargs...) = ToolsArray(x, (t,); kwargs...)
 
 """
     TimeSeries(t, v, x)
@@ -270,10 +283,10 @@ julia> mts = TimeSeries(t, v, x)
 julia> mts isa typeintersect(MultivariateTimeSeries, RegularTimeSeries)
 ```
 """
-function TimeSeries(t::ToolsTimeDim, v::Dimension, x; kwargs...)
+function TimeSeries(t::TimeDim, v::Dimension, x; kwargs...)
     ToolsArray(x, (t, v); kwargs...)
 end
-function TimeSeries(t::ToolsTimeDim, v, x; kwargs...)
+function TimeSeries(t::TimeDim, v, x; kwargs...)
     ToolsArray(x, (t, Var(v)); kwargs...)
 end
 function TimeSeries(t, v::Dimension, x; kwargs...)
@@ -281,7 +294,7 @@ function TimeSeries(t, v::Dimension, x; kwargs...)
 end
 TimeSeries(t, v, x; kwargs...) = ToolsArray(x, (𝑡(t), Var(v)); kwargs...)
 
-function TimeSeries(t::ToolsTimeDim, a::Dimension,
+function TimeSeries(t::TimeDim, a::Dimension,
                     b::Dimension, x; kwargs...)
     ToolsArray(x, (t, a, b); kwargs...)
 end
