@@ -5,13 +5,13 @@ import Normalization: NormUnion, AbstractNormalization, nansafe
 using Peaks
 
 export times, samplingrate, duration, samplingperiod, UnitPower, dimname, dimnames,
-       describedim, describedims, describename, interlace, _buffer, buffer, window,
-       delayembed, circularmean, circularstd, circularvar, resultant,
-       resultantlength,
-       centraldiff!, centraldiff, centralderiv!, centralderiv,
-       rightdiff!, rightdiff, rightderiv!, rightderiv,
-       rectify, phasegrad, addrefdim, addmetadata,
-       findpeaks, maskpeaks, align, upsample, matchdim, nansafe, coarsegrain
+    describedim, describedims, describename, interlace, _buffer, buffer, window,
+    delayembed, circularmean, circularstd, circularvar, resultant,
+    resultantlength,
+    centraldiff!, centraldiff, centralderiv!, centralderiv,
+    rightdiff!, rightdiff, rightderiv!, rightderiv,
+    rectify, phasegrad, addrefdim, addmetadata,
+    findpeaks, maskpeaks, align, upsample, matchdim, nansafe, coarsegrain
 
 import LinearAlgebra.mul!
 function mul!(a::AbstractVector, b::AbstractTimeSeries, args...; kwargs...)
@@ -23,26 +23,26 @@ Selectors = [:At, :Between, :Touches, :Near, :Where, :Contains]
 [:($(S)(D::Dimension) = $(S)(D.val.data)) for S in Selectors] .|> eval
 
 description(x) = "$(size(x)) $(typeof(x).name.name)"
-function print_array(io::IO, mime, A::AbstractDimArray{T, 0}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractDimArray{T,0}) where {T<:AbstractArray}
     print(_print_array_ctx(io, T), "\n", description.(A[]))
 end
-function print_array(io::IO, mime, A::AbstractToolsArray{T, 1}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T,1}) where {T<:AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
-function print_array(io::IO, mime, A::AbstractToolsArray{T, 2}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T,2}) where {T<:AbstractArray}
     Base.print_matrix(_print_array_ctx(io, T), description.(A))
 end
-function print_array(io::IO, mime, A::AbstractToolsArray{T, 3}) where {T <: AbstractArray}
+function print_array(io::IO, mime, A::AbstractToolsArray{T,3}) where {T<:AbstractArray}
     i3 = firstindex(A, 3)
     frame = view(parent(A), :, :, i3)
     println(io, "[:, :, $i3]")
     _print_matrix(_print_array_ctx(io, T), description.(frame), lookup(A, (1, 2)))
     nremaining = size(A, 3) - 1
     nremaining > 0 &&
-        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+        printstyled(io, "\n[and $nremaining more slices...]"; color=:light_black)
 end
 function print_array(io::IO, mime,
-                     A::AbstractToolsArray{T, N}) where {T <: AbstractArray, N}
+    A::AbstractToolsArray{T,N}) where {T<:AbstractArray,N}
     o = ntuple(x -> firstindex(A, x + 2), N - 2)
     frame = view(A, :, :, o...)
     onestring = join(o, ", ")
@@ -50,15 +50,15 @@ function print_array(io::IO, mime,
     _print_matrix(_print_array_ctx(io, T), description.(frame), lookup(A, (1, 2)))
     nremaining = prod(size(A, d) for d in 3:N) - 1
     nremaining > 0 &&
-        printstyled(io, "\n[and $nremaining more slices...]"; color = :light_black)
+        printstyled(io, "\n[and $nremaining more slices...]"; color=:light_black)
 end
-function print_array(io::IO, mime, A::SpikeTrain{Bool, 1})
+function print_array(io::IO, mime, A::SpikeTrain{Bool,1})
     _print_array_ctx(io, Bool)
 end
 
 function Base.stack(D::DimensionalData.Dimension,
-                    args::AbstractVector{<:AbstractToolsArray};
-                    dims = nothing, kwargs...)
+    args::AbstractVector{<:AbstractToolsArray};
+    dims=nothing, kwargs...)
     x = first(args) # Is this allocating?
 
     isnothing(dims) && (dims = ndims(x) + 1)
@@ -81,16 +81,16 @@ function Base.stack(D::DimensionalData.Dimension,
     outsize = size(x) |> collect
     insert!(outsize, dims, length(D))
 
-    X = Array{eltype(x), length(outsize)}(undef, Tuple(outsize))
+    X = Array{eltype(x),length(outsize)}(undef, Tuple(outsize))
 
-    for (i, _x) in enumerate(eachslice(X; dims, drop = false))
+    for (i, _x) in enumerate(eachslice(X; dims, drop=false))
         _x .= args[i]
     end
 
     ds = Vector{Any}([DimensionalData.dims(x)...])
     insert!(ds, dims, D)
-    y = ToolsArray(X, (ds...,); refdims = refdims(x), name = name(x),
-                   metadata = metadata(x))
+    y = ToolsArray(X, (ds...,); refdims=refdims(x), name=name(x),
+        metadata=metadata(x))
     return y
 end
 
@@ -101,10 +101,10 @@ Note that unlike `Base.cat` without the first `Dim` argument, this increments al
 `args...` can be a splatted collection of `ToolsArray`s, but this will give the same behaviour as if `args...` is a single vector of `ToolsArray`s; the latter is much more performant.
 """
 function Base.cat(D::DimensionalData.Dimension, x::AbstractToolsArray,
-                  y::AbstractToolsArray,
-                  args...;
-                  dims = nothing,
-                  kwargs...) # TODO Refactor this method, to call the method above.
+    y::AbstractToolsArray,
+    args...;
+    dims=nothing,
+    kwargs...) # TODO Refactor this method, to call the method above.
     isnothing(dims) && (dims = ndims(x) + 1)
     if !all([size(x)] .== size.(args))
         error("Input arrays must have the same dimensionality and size")
@@ -129,8 +129,8 @@ function Base.cat(D::DimensionalData.Dimension, x::AbstractToolsArray,
     x′ = cat(_x, _y, _args...; dims, kwargs...)
     ds = Vector{Any}([DimensionalData.dims(x)...])
     insert!(ds, dims, D)
-    y = ToolsArray(x′, (ds...,); refdims = refdims(x), name = name(x),
-                   metadata = metadata(x))
+    y = ToolsArray(x′, (ds...,); refdims=refdims(x), name=name(x),
+        metadata=metadata(x))
     # if hasdim(y, 𝑡)
     #     ts = times(y)
     #     y = set(y, 𝑡=> ts .- minimum(ts))
@@ -166,7 +166,7 @@ julia> rts = TimeSeries(t, x);
 julia> step(rts) == 1
 ```
 """
-Base.step(x::RegularTimeSeries; dims = 𝑡) = lookup(x, dims) |> step
+Base.step(x::RegularTimeSeries; dims=𝑡) = lookup(x, dims) |> step
 
 """
     samplingrate(x::RegularTimeSeries)
@@ -255,17 +255,17 @@ A normalization that sets the total power of a signal to unity.
 """
 mutable struct UnitPower{T} <: AbstractNormalization{T}
     dims::Any
-    p::NTuple{1, AbstractArray{T}}
-    𝑝::NTuple{1, Function}
+    p::NTuple{1,AbstractArray{T}}
+    𝑝::NTuple{1,Function}
     𝑓::Function
     𝑓⁻¹::Function
 end;
 
-function UnitPower{T}(; dims = nothing,
-                      p = (Vector{T}(),),
-                      𝑝 = (𝑝,),
-                      𝑓 = (x, 𝑃) -> x .= x ./ sqrt.(𝑃),
-                      𝑓⁻¹ = (y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
+function UnitPower{T}(; dims=nothing,
+    p=(Vector{T}(),),
+    𝑝=(𝑝,),
+    𝑓=(x, 𝑃) -> x .= x ./ sqrt.(𝑃),
+    𝑓⁻¹=(y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
     UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
 end
 
@@ -319,15 +319,15 @@ function interlace(x::AbstractTimeSeries, y::AbstractTimeSeries)
     return TimeSeries(ts, data)
 end
 
-function _buffer(x, n::Integer, p::Integer = 0; discard::Bool = true)
-    y = [@views x[i:min(i + n - 1, end)] for i in 1:(n - p):length(x)]
+function _buffer(x, n::Integer, p::Integer=0; discard::Bool=true)
+    y = [@views x[i:min(i + n - 1, end)] for i in 1:(n-p):length(x)]
     while discard && length(y[end]) < n
         pop!(y)
     end
     y
 end
-function _buffer(x::AbstractMatrix, n::Integer, p::Integer = 0; discard::Bool = true)
-    y = [@views x[i:min(i + n - 1, end), :] for i in 1:(n - p):size(x, 1)]
+function _buffer(x::AbstractMatrix, n::Integer, p::Integer=0; discard::Bool=true)
+    y = [@views x[i:min(i + n - 1, end), :] for i in 1:(n-p):size(x, 1)]
     while discard && size(y[end], 1) < n
         pop!(y)
     end
@@ -370,9 +370,9 @@ Window a time series `x` with a given window length and step between successive 
 
 See also: [`buffer`](@ref), [`delayembed`](@ref), [`coarsegrain`](@ref)
 """
-window(x, n, p = n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
+window(x, n, p=n, args...; kwargs...) = buffer(x, n, n - p, args...; kwargs...)
 
-function _delayembed(x::AbstractVector, n, τ, p = 1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
+function _delayembed(x::AbstractVector, n, τ, p=1; kwargs...) # A delay embedding with dimension `n`, delay `τ`, and skip length of `p`
     y = window(x, n * τ, p; kwargs...)
     y = map(y) do _y
         @view _y[1:τ:end]
@@ -393,19 +393,19 @@ Delay embed a univariate time series `x` with a given dimension `n`, delay `τ`,
 
 See also: [`buffer`](@ref), [`window`](@ref)
 """
-function delayembed(x::UnivariateRegular, n, τ, p = 1, args...; kwargs...)
+function delayembed(x::UnivariateRegular, n, τ, p=1, args...; kwargs...)
     y = _delayembed(x, n, τ, p, args...; kwargs...)
     ts = last.(times.(y))  # Time of the head of the vector
     dt = step(x) * p
-    ts = ts[1]:dt:(ts[1] + dt * (length(y) - 1))
+    ts = ts[1]:dt:(ts[1]+dt*(length(y)-1))
     δt = τ * p * step(x)
     delays = (-(δt * (n - 1))):δt:0
     y = set.(y, [𝑡 => Dim{:delay}(delays)])
-    y = cat(𝑡(ts), y..., dims = Dim{:delay})
+    y = cat(𝑡(ts), y..., dims=Dim{:delay})
 end
 
-function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = false,
-                 atol = nothing)
+function rectify(ts::DimensionalData.Dimension; tol=4, zero=false, extend=false,
+    atol=nothing)
     u = unit(eltype(ts))
     ts = collect(ts)
     origts = ts
@@ -419,36 +419,36 @@ function rectify(ts::DimensionalData.Dimension; tol = 4, zero = false, extend = 
         if !isnothing(atol)
             tol = atol
         end
-        stp = u == NoUnits ? round(stp; digits = tol) : round(u, stp; digits = tol)
-        t0, t1 = u == NoUnits ? round.(extrema(ts); digits = tol) :
-                 round.(u, extrema(ts); digits = tol)
+        stp = u == NoUnits ? round(stp; digits=tol) : round(u, stp; digits=tol)
+        t0, t1 = u == NoUnits ? round.(extrema(ts); digits=tol) :
+                 round.(u, extrema(ts); digits=tol)
         if zero
-            origts = t0:stp:(t1 + (10000 * stp))
+            origts = t0:stp:(t1+(10000*stp))
             t1 = t1 - t0
             t0 = 0
         end
         if extend
-            ts = t0:stp:(t1 + (10000 * stp))
+            ts = t0:stp:(t1+(10000*stp))
         else
-            ts = range(start = t0, step = stp, length = length(ts))
+            ts = range(start=t0, step=stp, length=length(ts))
         end
     end
     return ts, origts
 end
 rectifytime(ts::𝑡; kwargs...) = rectify(ts; kwargs...)
 
-function rectify(X::AbstractDimArray; dims, tol = 4, zero = false, kwargs...) # tol gives significant figures for rounding
+function rectify(X::AbstractDimArray; dims, tol=4, zero=false, kwargs...) # tol gives significant figures for rounding
     if !(dims isa Tuple || dims isa AbstractVector)
         dims = [dims]
     end
     for dim in dims
-        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero, extend = true,
-                             kwargs...)
+        ts, origts = rectify(DimensionalData.dims(X, dim); tol, zero, extend=true,
+            kwargs...)
         ts = ts[1:size(X, dim)] # Should be ok?
         @assert length(ts) == size(X, dim)
         X = set(X, dim => ts)
         if zero
-            X = rebuild(X; metadata = (Symbol(dim) => origts, pairs(metadata(X))...))
+            X = rebuild(X; metadata=(Symbol(dim) => origts, pairs(metadata(X))...))
         end
     end
     return X
@@ -468,9 +468,9 @@ not approximately constant, a warning is issued and the rectification is skipped
 - `zero::Bool`: If `true`, the rectified time values will start from zero. Default is
   `false`.
 """
-rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims = 𝑡, kwargs...)
+rectifytime(X::IrregularTimeSeries; kwargs...) = rectify(X; dims=𝑡, kwargs...)
 
-function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
+function rectifytime(X::AbstractVector; tol=6, zero=false) # ! Legacy
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector
     ts = times.(X)
     mint = maximum(minimum.(ts)) - exp10(-tol) .. minimum(maximum.(ts)) + exp10(-tol)
@@ -487,8 +487,8 @@ function rectifytime(X::AbstractVector; tol = 6, zero = false) # ! Legacy
     return X
 end
 
-function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero = false,
-                  kwargs...)
+function matchdim(X::AbstractVector{<:AbstractDimArray}; dims=1, tol=4, zero=false,
+    kwargs...)
     # Generate some common time indices as close as possible to the rectified times of each element of the input vector. At most this will change each time index by a maximum of 1 sampling period. We could do better--maximum of a half-- but leave that for now.
     u = lookup(X |> first, dims) |> eltype |> unit
     ts = lookup.(X, [dims])
@@ -506,7 +506,7 @@ function matchdim(X::AbstractVector{<:AbstractDimArray}; dims = 1, tol = 4, zero
 
     ts = mean(lookup.(X, [dims]))
     ts, origts = rectify(rebuild(DimensionalData.dims(X[1], dims), ts); tol, zero,
-                         kwargs...)
+        kwargs...)
     if any([any(ts .- lookup(x, dims) .> std(ts) / exp10(-tol)) for x in X])
         @error "Cannot find common dimension indices within tolerance"
     end
@@ -518,22 +518,22 @@ phasegrad(x::Real, y::Real) = mod(x - y + π, 2π) - π # +pi - pi because we wa
 phasegrad(x, y) = phasegrad.(x, y)
 phasegrad(x::Complex, y::Complex) = phasegrad(angle(x), angle(y))
 
-function _centraldiff!(x; grad = -, dims = nothing) # Dims unused
+function _centraldiff!(x; grad=-, dims=nothing) # Dims unused
     # a = x[2] # Save here, otherwise they get mutated before we use them
     # b = x[end - 1]
     if grad == -
-        x[2:(end - 1)] .= grad(x[3:end], x[1:(end - 2)]) / 2
+        x[2:(end-1)] .= grad(x[3:end], x[1:(end-2)]) / 2
     else # For a non-euclidean metric, we need to calculate both sides individually
-        x[2:(end - 1)] .= (grad(x[3:end], x[2:(end - 1)]) +
-                           grad(x[2:(end - 1)], x[1:(end - 2)])) / 2
+        x[2:(end-1)] .= (grad(x[3:end], x[2:(end-1)]) +
+                         grad(x[2:(end-1)], x[1:(end-2)])) / 2
     end
     # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
-    x[[1, end]] .= [copy(x[2]), copy(x[end - 1])]
+    x[[1, end]] .= [copy(x[2]), copy(x[end-1])]
     return nothing
 end
 
 _diff!(x::UnivariateRegular, f!; kwargs...) = f!(x; kwargs...)
-function _diff!(x::AbstractDimArray, f!; dims = 1, kwargs...)
+function _diff!(x::AbstractDimArray, f!; dims=1, kwargs...)
     if !(DimensionalData.lookup(x, dims).data isa AbstractRange)
         error("Differencing dimension must be regularly sampled")
     end
@@ -570,7 +570,7 @@ function checkderivdims(dims)
     end
 end
 
-function _deriv!(x::RegularTimeSeries, f!; dims = 𝑡, kwargs...)
+function _deriv!(x::RegularTimeSeries, f!; dims=𝑡, kwargs...)
     checkderivdims(dims)
     f!(x; dims, kwargs...)
     x ./= step(x; dims)
@@ -585,7 +585,7 @@ See [`centraldiff!`](@ref) for available keyword arguments.
 """
 centralderiv!(args...; kwargs...) = _deriv!(args..., centraldiff!; kwargs...)
 
-function _deriv(x::RegularTimeSeries, f!; dims = 𝑡, kwargs...)
+function _deriv(x::RegularTimeSeries, f!; dims=𝑡, kwargs...)
     y = deepcopy(x)
     if unit(step(x; dims)) == NoUnits # Can safely mutate
         f!(y; dims, kwargs...)
@@ -606,10 +606,10 @@ Also c.f. [`centralderiv!`](@ref).
 """
 centralderiv(args...; kwargs...) = _deriv(args..., centralderiv!; kwargs...)
 
-function _rightdiff!(x; grad = -, dims = nothing) # Dims unused
-    x[1:(end - 1)] .= grad(x[2:end], x[1:(end - 1)])
+function _rightdiff!(x; grad=-, dims=nothing) # Dims unused
+    x[1:(end-1)] .= grad(x[2:end], x[1:(end-1)])
     # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
-    x[[end]] .= [copy(x[end - 1])]
+    x[[end]] .= [copy(x[end-1])]
     return nothing
 end
 rightdiff!(args...; kwargs...) = _diff!(args..., _rightdiff!; kwargs...)
@@ -617,8 +617,8 @@ rightdiff(args...; kwargs...) = _diff(args..., rightdiff!; kwargs...)
 rightderiv!(args...; kwargs...) = _deriv!(args..., rightdiff!; kwargs...)
 rightderiv(args...; kwargs...) = _deriv(args..., rightderiv!; kwargs...)
 
-function _leftdiff!(x; grad = -, dims = nothing) # Dims unused
-    x[2:end] .= grad(x[2:end], x[1:(end - 1)])
+function _leftdiff!(x; grad=-, dims=nothing) # Dims unused
+    x[2:end] .= grad(x[2:end], x[1:(end-1)])
     # x[[1, end]] .= [grad(a, x[1]), grad(x[end], b)]
     x[[1]] .= [copy(x[2])]
     return nothing
@@ -640,10 +640,10 @@ circularstd(θ; kwargs...) = sqrt.(-2 * log.(resultantlength(θ; kwargs...)))
 
 ## Add refdims to a DimArray
 function addrefdim(X::AbstractDimArray, dim::DimensionalData.Dimension)
-    rebuild(X; dims = dims(X),
-            metadata = DimensionalData.metadata(X),
-            name = DimensionalData.name(X),
-            refdims = (DimensionalData.refdims(X)..., dim))
+    rebuild(X; dims=dims(X),
+        metadata=DimensionalData.metadata(X),
+        name=DimensionalData.name(X),
+        refdims=(DimensionalData.refdims(X)..., dim))
 end
 
 function addmetadata(X::AbstractDimArray; kwargs...)
@@ -653,15 +653,15 @@ function addmetadata(X::AbstractDimArray; kwargs...)
         @warn "Metadata already contains one of the keys, overwriting $(collect(pairs(kwargs))[keys(kwargs) .∈ [keys(p)]])"
     end
     md = DimensionalData.Metadata(p..., kwargs...)
-    rebuild(X; dims = dims(X),
-            metadata = md,
-            name = DimensionalData.name(X),
-            refdims = DimensionalData.refdims(X))
+    rebuild(X; dims=dims(X),
+        metadata=md,
+        name=DimensionalData.name(X),
+        refdims=DimensionalData.refdims(X))
 end
 
-function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
-                   maxprom = nothing,
-                   strict = true, N = nothing)
+function findpeaks(x::DimensionalData.AbstractDimVector, w=1; minprom=nothing,
+    maxprom=nothing,
+    strict=true, N=nothing)
     minprom isa Function && (minprom = minprom(x))
     maxprom isa Function && (maxprom = maxprom(x))
     _pks, vals = findmaxima(x, w)
@@ -679,18 +679,18 @@ function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothin
     proms = set(vals, proms)
     widths = set(vals, [l .. r for (l, r) in zip(leftedge, rightedge)])
     if !isnothing(N)
-        ps = sortperm(proms; rev = true)
+        ps = sortperm(proms; rev=true)
         vals = vals[ps[1:N]]
         widths = widths[ps[1:N]]
     end
     return vals, proms, widths
 end
 
-function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
+function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims=1, kwargs...)
     @assert length(dims) == 1
-    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
-                                                                                      dims)]]
-    P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
+    _dims = DimensionalData.dims(x)[DimensionalData.dims(x).!=[DimensionalData.dims(x,
+        dims)]]
+    P = findpeaks.(eachslice(x; dims=_dims); kwargs...)
     return [getindex.(P, i) for i in 1:3] # vals, proms, widths
 end
 
@@ -708,13 +708,13 @@ function maskpeaks(x::DimensionalData.AbstractDimVector, args...; kwargs...)
     return y
 end
 
-function maskpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
+function maskpeaks(x::DimensionalData.AbstractDimArray, args...; dims=1, kwargs...)
     @assert length(dims) == 1
-    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
-                                                                                      dims)]]
+    _dims = DimensionalData.dims(x)[DimensionalData.dims(x).!=[DimensionalData.dims(x,
+        dims)]]
     y = similar(x, Int)
-    maskpeaks!.(eachslice(y; dims = _dims), eachslice(x; dims = _dims), args...;
-                kwargs...)
+    maskpeaks!.(eachslice(y; dims=_dims), eachslice(x; dims=_dims), args...;
+        kwargs...)
     return y
 end
 
@@ -727,7 +727,7 @@ The `dims` argument specifies the dimension along which the alignment is perform
 Each element of the resulting `DimArray` is an aligned portion of the original `x`.
 """
 function align(x::DimensionalData.AbstractDimArray, ts,
-               dt::Union{<:Tuple, <:AbstractVector}; dims = 1, zero = true)
+    dt::Union{<:Tuple,<:AbstractVector}; dims=1, zero=true)
     @assert length(dims) == 1
     dims isa Integer &&
         (dims = DimensionalData.dims(x, dims))
@@ -735,20 +735,20 @@ function align(x::DimensionalData.AbstractDimArray, ts,
     x = TimeSeries(ts, [view(x, rebuild(dims, i)) for i in ints])
     if zero
         x = set(x, map(enumerate(x)) do (i, _x)
-                    set(_x, dims => lookup(_x, dims) .- ts[i])
-                end)
+            set(_x, dims => lookup(_x, dims) .- ts[i])
+        end)
     end
     return x
 end
 align(x, ts, dt::Interval; kwargs...) = align(x, ts, extrema(dt); kwargs...)
 
 function upsample(d::DimensionalData.Dimension{<:RegularIndex}, factor::Number)
-    rebuild(d, range(start = minimum(d), stop = maximum(d), step = step(d) / factor))
+    rebuild(d, range(start=minimum(d), stop=maximum(d), step=step(d) / factor))
 end
 function upsample(d::DimensionalData.Dimension, factor)
     rebuild(d,
-            range(start = minimum(d), stop = maximum(d),
-                  step = mean(diff(lookup(d))) / factor))
+        range(start=minimum(d), stop=maximum(d),
+            step=mean(diff(lookup(d))) / factor))
 end
 
 """
@@ -767,7 +767,7 @@ function stitch(x::UnivariateRegular, y::UnivariateRegular)
     dt = samplingperiod(x)
     @assert dt == samplingperiod(y)
     z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt * size(z, 1)), z)
+    z = TimeSeries(dt:dt:(dt*size(z, 1)), z)
 end
 stitch(x::AbstractArray, y::AbstractArray) = vcat(x, y)
 function stitch(x::MultivariateRegular, y::MultivariateRegular)
@@ -775,7 +775,7 @@ function stitch(x::MultivariateRegular, y::MultivariateRegular)
     @assert dt == samplingperiod(y)
     @assert all(dims(x)[2:end] .== dims(y)[2:end])
     z = vcat(x.data, y.data)
-    z = TimeSeries(dt:dt:(dt * size(z, 1)), dims(x)[2:end]..., z)
+    z = TimeSeries(dt:dt:(dt*size(z, 1)), dims(x)[2:end]..., z)
 end
 stitch(X, Y, args...) = reduce(stitch, (X, Y, args...))
 
@@ -788,7 +788,7 @@ This is more flexibile than the conventional, mean-based definition of coarse gr
     mean(C, dims=ndims(C))
 ```
 """
-function coarsegrain(X::AbstractArray; dims = nothing, newdim = ndims(X) + 1)
+function coarsegrain(X::AbstractArray; dims=nothing, newdim=ndims(X) + 1)
     if isnothing(dims)
         dims = collect(1:ndims(X))
         dims = setdiff(dims, newdim)
@@ -801,16 +801,16 @@ function coarsegrain(X::AbstractArray; dims = nothing, newdim = ndims(X) + 1)
         error("Cannot coarse-grain a dimension with only one element")
     while !isempty(dims)
         dim = pop!(dims)
-        𝒳 = eachslice(X; dims = dim)
+        𝒳 = eachslice(X; dims=dim)
         N = floor(Int, length(𝒳) / 2)
-        X = cat(stack(𝒳[1:2:(N * 2)], dims = dim), stack(𝒳[2:2:(N * 2)], dims = dim),
-                dims = newdim)
+        X = cat(stack(𝒳[1:2:(N*2)], dims=dim), stack(𝒳[2:2:(N*2)], dims=dim),
+            dims=newdim)
     end
     return X
 end
 
-function coarsegrain(X::AbstractDimArray; dims = nothing,
-                     newdim = ndims(X) + 1)
+function coarsegrain(X::AbstractDimArray; dims=nothing,
+    newdim=ndims(X) + 1)
     if isnothing(dims)
         dims = DimensionalData.dims(X)
     end
@@ -824,27 +824,27 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
     end
     while !isempty(_dims)
         _dim = pop!(_dims)
-        _X = coarsegrain(X.data; dims = _dim, newdim = _newdim)
+        _X = coarsegrain(X.data; dims=_dim, newdim=_newdim)
         N = floor(Int, size(X, _dim) / 2)
         if hasdim(X, newdim)
             newdim = rebuild(DimensionalData.dims(X, newdim),
-                             vcat(DimensionalData.dims(X, _newdim).val,
-                                  DimensionalData.dims(X, _newdim).val))
+                vcat(DimensionalData.dims(X, _newdim).val,
+                    DimensionalData.dims(X, _newdim).val))
             newdims = collect(Any, DimensionalData.dims(X))
             newdims[_dim] = rebuild(newdims[_dim],
-                                    (newdims[_dim][1:2:(N * 2)] .+
-                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+                (newdims[_dim][1:2:(N*2)] .+
+                 newdims[_dim][2:2:(N*2)]) ./ 2)
             newdims[_newdim] = newdim
         else
             newdims = collect(Any, DimensionalData.dims(X))
             newdims[_dim] = rebuild(newdims[_dim],
-                                    (newdims[_dim][1:2:(N * 2)] .+
-                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+                (newdims[_dim][1:2:(N*2)] .+
+                 newdims[_dim][2:2:(N*2)]) ./ 2)
             newdims = [newdims..., DimensionalData.AnonDim(1:size(_X, _newdim))]
             newdim = newdims[newdim]
         end
-        X = ToolsArray(_X, Tuple(newdims); refdims = refdims(X), name = name(X),
-                       metadata = metadata(X))
+        X = ToolsArray(_X, Tuple(newdims); refdims=refdims(X), name=name(X),
+            metadata=metadata(X))
     end
 
     return X

@@ -71,6 +71,9 @@ end
     @test dims(X, 𝑡) == 𝑡(ts)
     @test dims(X, Dim{:channel}) == Dim{:channel}(cs)
     @test dims(X, :channel) == Dim{:channel}(cs)
+
+    DimensionalData.@dim U ToolsDim "U"
+    @test U <: ToolsDimension
 end
 @testset "Multivariate time series" begin
     ts = 1:100

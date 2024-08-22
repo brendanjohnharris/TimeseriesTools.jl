@@ -13,6 +13,7 @@ export AbstractToolsArray, ToolsArray,
        stitch,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
+       ToolsDimension, ToolsDim,
        𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var
 
 """
@@ -62,9 +63,9 @@ DimensionalData.@dim Var VariableDim "Var"
 abstract type FrequencyDim{T} <: Dimension{T} end
 DimensionalData.@dim 𝑓 FrequencyDim "Frequency"
 
-ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var}
+abstract type ToolsDim{T} <: DimensionalData.Dimension{T} end
+ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var, ToolsDim}
 
-# abstract type ToolsDimension{T} <: DimensionalData.Dimension{T} end
 function DimensionalData.dimconstructor(::Tuple{ToolsDimension,
                                                 Vararg{DimensionalData.Dimension}})
     ToolsArray
