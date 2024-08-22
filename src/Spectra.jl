@@ -27,7 +27,7 @@ const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: 𝑓}
 """
     AbstractSpectrum{T, N, B}
 
-A type alias for an `AbstractToolsArray` in which the first dimension is [`Freq`](@ref)uency.
+A type alias for an `AbstractToolsArray` in which the first dimension is [`𝑓`](@ref)requency.
 """
 const AbstractSpectrum = AbstractToolsArray{T, N, <:FreqIndex, B} where {T, N, B}
 freqs(x::AbstractSpectrum) = dims(x, 𝑓).val.data
@@ -35,7 +35,7 @@ freqs(x::AbstractSpectrum) = dims(x, 𝑓).val.data
 """
     RegularFreqIndex
 
-A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
+A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`𝑓`](@ref)requency.
 """
 const RegularFreqIndex = Tuple{A,
                                Vararg{DimensionalData.Dimension}} where {A <:
