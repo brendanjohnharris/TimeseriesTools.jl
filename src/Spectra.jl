@@ -10,34 +10,32 @@ export FrequencyDim, Freq, freqs,
        FreqIndex, RegularFreqIndex,
        colorednoise
 
-abstract type FrequencyDim{T} <: DimensionalData.IndependentDim{T} end
-
 """
-    Freq
+    𝑓
 
 A DimensionalData.jl dimension representing the frequency domain.
 """
-DimensionalData.@dim Freq FrequencyDim "Freq"
+𝑓
 
 """
     FreqIndex
 
 A type alias for a tuple of dimensions, where the first dimension is of type `FrequencyDim`.
 """
-const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: Freq}
+const FreqIndex = Tuple{A, Vararg{DimensionalData.Dimension}} where {A <: 𝑓}
 
 """
     AbstractSpectrum{T, N, B}
 
-A type alias for an `AbstractDimArray` in which the first dimension is [`Freq`](@ref)uency.
+A type alias for an `AbstractToolsArray` in which the first dimension is [`𝑓`](@ref)requency.
 """
-const AbstractSpectrum = AbstractDimArray{T, N, <:FreqIndex, B} where {T, N, B}
-freqs(x::AbstractSpectrum) = dims(x, Freq).val.data
+const AbstractSpectrum = AbstractToolsArray{T, N, <:FreqIndex, B} where {T, N, B}
+freqs(x::AbstractSpectrum) = dims(x, 𝑓).val.data
 
 """
     RegularFreqIndex
 
-A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`Freq`](@ref)uency.
+A type alias for a tuple of dimensions, where the first dimension is a regularly sampled [`𝑓`](@ref)requency.
 """
 const RegularFreqIndex = Tuple{A,
                                Vararg{DimensionalData.Dimension}} where {A <:
@@ -48,7 +46,7 @@ const RegularFreqIndex = Tuple{A,
 
 A type alias for a spectrum with a regularly sampled frequency index.
 """
-const RegularSpectrum = AbstractDimArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
+const RegularSpectrum = AbstractToolsArray{T, N, <:RegularFreqIndex, B} where {T, N, B}
 
 """
     UnivariateSpectrum{T} = AbstractSpectrum{T, 1} where T
@@ -68,16 +66,16 @@ const MultivariateSpectrum = AbstractSpectrum{T, 2} where {T}
 
 Constructs a univariate spectrum with frequencies `f` and data `x`.
 """
-Spectrum(f, x; kwargs...) = DimArray(x, (Freq(f),); kwargs...)
+Spectrum(f, x; kwargs...) = ToolsArray(x, (𝑓(f),); kwargs...)
 
 """
     Spectrum(f, v, x)
 
 Constructs a multivariate spectrum with frequencies `f`, variables `v`, and data `x`.
 """
-Spectrum(f, v, x; kwargs...) = DimArray(x, (Freq(f), Var(v)); kwargs...)
+Spectrum(f, v, x; kwargs...) = ToolsArray(x, (𝑓(f), Var(v)); kwargs...)
 function Spectrum(f, v::DimensionalData.Dimension, x; kwargs...)
-    DimArray(x, (Freq(f), v); kwargs...)
+    ToolsArray(x, (𝑓(f), v); kwargs...)
 end
 
 function _periodogram(x::AbstractVector, fs::Number,

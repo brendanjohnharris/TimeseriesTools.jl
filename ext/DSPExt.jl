@@ -4,7 +4,7 @@ using TimeseriesTools
 using ..DimensionalData
 using ..Unitful
 using ..IntervalSets
-import TimeseriesTools: bandpass, phasestitch
+import TimeseriesTools: bandpass, phasestitch, instantaneousfreq
 import ..DSP
 import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 

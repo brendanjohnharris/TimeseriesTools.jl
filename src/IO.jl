@@ -180,7 +180,7 @@ function loadtimeseries(f::File{format"TSV"})
         if isempty(vars)
             x = TimeSeries(data[:, 1], data[:, 2]; name, metadata, refdims)
         else
-            x = TimeSeries(Ti(data[:, 1]), vars, data[:, 2:end]; name, metadata, refdims)
+            x = TimeSeries(𝑡(data[:, 1]), vars, data[:, 2:end]; name, metadata, refdims)
         end
     end
 end

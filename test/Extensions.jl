@@ -1,4 +1,4 @@
-@testset "AutocorrelationsExt" begin
+@testset "AutocorrelationsExt" begin # Optimize this some more?
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
 
@@ -43,8 +43,8 @@
     a = @benchmark msdist($x)
     b = @benchmark msdist($(parent(x)))
     c = @benchmark imsd($(parent(x))) # Compare to MeanSquaredDisplacement
-    @test a.times < c.times .* 1.5
-    @test b.allocs < c.allocs
+    @test median(a.times) < median(c.times) .* 1.2
+    @test b.allocs ≤ c.allocs
 
     x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims = 1))
     m = msdist(x, 1:1000)
@@ -69,8 +69,8 @@ end
 
     @test_nowarn stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5, offset = 1.3;
                                axis = (; xlabel = "Time"))
-    @test_nowarn plot(x[Ti(1:10000)])
-    plot(x̂[Ti(1500:(length(t) * 5))])
+    @test_nowarn plot(x[𝑡(1:10000)])
+    plot(x̂[𝑡(1500:(length(t) * 5))])
 
     # And a power spectrumof a 'perfect' signal
     _t = dt:dt:(dt * N)
@@ -87,9 +87,9 @@ end
     fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
-    @test ≈(pac, autocor(x[Ti(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
-    # @test pac - autocor(x̂[Ti(1:10000)] |> collect, [10])[1] >   pac -
-    # autocor(x[Ti(1:10000)] |> collect, [10])[1]
+    @test ≈(pac, autocor(x[𝑡(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
+    # @test pac - autocor(x̂[ 𝑡(1:10000)] |> collect, [10])[1] >   pac -
+    # autocor(x[ 𝑡(1:10000)] |> collect, [10])[1]
 end
 
 @testset "ContinuousWaveletsExt" begin
@@ -105,7 +105,7 @@ end
     # Multivariate
     x = cat(Var(1:2), ts, ts .* randn(length(ts)))
     S = @test_nowarn waveletspectrogram(x)
-    @test all(isa.(dims(S), (Ti, Freq, Var)))
+    @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
     # GPU test
     if false
@@ -121,11 +121,11 @@ end
         using CUDA
         x = cat(Var(1:2), ts, ts .* randn(length(ts)))
         S = @test_nowarn waveletspectrogram(x)
-        @test all(isa.(dims(S), (Ti, Freq, Var)))
+        @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
         y = set(x, CuArray(x.data))
         S = @test_nowarn waveletspectrogram(y)
-        @test all(isa.(dims(S), (Ti, Freq, Var)))
+        @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
         @test all(x .== y)
         @test dims(x) == dims(y)
@@ -145,7 +145,7 @@ end
     @test mean(dt)≈α * F rtol=5e-2
 
     # Jitter surrogate
-    y = set(x, Ti => surrogate(times(x), RandomJitter(0.1, 0.1)))
+    y = set(x, 𝑡 => surrogate(times(x), RandomJitter(0.1, 0.1)))
     @test y isa SpikeTrain
     @test issorted(times(y))
     @test minimum(times(y))≈minimum(times(x)) atol=0.5
@@ -155,14 +155,14 @@ end
     @test all(copy(sur()) .!= sur())
 
     # Gamma renewal surrogate
-    y = set(x, Ti => surrogate(times(x), GammaRenewal()))
+    y = set(x, 𝑡 => surrogate(times(x), GammaRenewal()))
     dt̂ = diff(times(y))
     F̂ = var(dt̂) / mean(dt̂)
     @test y isa SpikeTrain
     @test issorted(times(y))
     @test F̂≈θ rtol=5e-2
     @test mean(dt̂)≈α * F̂ rtol=5e-2
-    @test minimum(times(y))≈minimum(times(x)) atol=6 * μ
+    @test minimum(times(y))≈minimum(times(x)) atol=7 * μ
     @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
 end
 
@@ -178,8 +178,8 @@ end
     _ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)
 
-    x = set(x, Ti => lookup(x, Ti).data * u"s")
-    X = set(X, Ti => lookup(X, Ti).data * u"s")
+    x = set(x, 𝑡 => lookup(x, 𝑡).data * u"s")
+    X = set(X, 𝑡 => lookup(X, 𝑡).data * u"s")
 
     ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)

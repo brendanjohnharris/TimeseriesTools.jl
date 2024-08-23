@@ -1,7 +1,7 @@
 name = "TimeseriesTools"
 uuid = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
-version = "0.4.0"
+version = "0.5.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"

@@ -45,7 +45,7 @@ function _waveletspectrogram(x::RegularTimeSeries; moth = Morlet(2π), β = 1,
     t = times(x)
     res = _waveletspectrogram(t, x.data; moth, β, Q, pass)
     freqs = waveletfreqs(t; moth, β, Q, pass)
-    res = TimeSeries(t, Freq(freqs), res; metadata = DimensionalData.metadata(x),
+    res = TimeSeries(t, 𝑓(freqs), res; metadata = DimensionalData.metadata(x),
                      refdims = refdims(x))
 end
 
@@ -54,15 +54,15 @@ end
 #     md = DimensionalData.metadata(x)
 #     rd = DimensionalData.refdims(x)
 #     𝓍 = _slidingwindow(x, window; tail = :overlap)
-#     t = dims(x, Ti)
+#     t = dims(x, 𝑡)
 #     e = step(t) / 2
-#     freqs = waveletfreqs(dims(𝓍[1], Ti); kwargs...)
+#     freqs = waveletfreqs(dims(𝓍[1], 𝑡); kwargs...)
 #     sz = (length(t), length(freqs))
 #     fname = tempname()
 #     s = open(fname, "w+")
 #     write.((s,), sz)
 #     W = mmap(s, Matrix{ComplexF32}, sz)
-#     res = DimArray(W, (t, Freq(freqs)); metadata = (; md..., file = fname),
+#     res = DimArray(W, (t, 𝑓(freqs)); metadata = (; md..., file = fname),
 #                    refdims = rd)
 #     threadlog, threadmax = (0, length(𝓍))
 #     @withprogress name="Wavelet transform" begin
@@ -72,7 +72,7 @@ end
 #             fx = extrema(dims(subres, 2))
 #             tilims = Interval{:closed, :closed}(tx[1] - e, tx[2] + e)
 #             flims = Interval{:closed, :closed}(fx[1] - e, fx[2] + e)
-#             res[Ti(tilims), Freq(flims)] .= subres
+#             res[ 𝑡(tilims), 𝑓(flims)] .= subres
 #             if threadmax > 1
 #                 Threads.threadid() == 1 && (threadlog += 1) % 1 == 0 &&
 #                     @logprogress threadlog / threadmax

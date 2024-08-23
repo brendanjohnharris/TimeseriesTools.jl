@@ -4,7 +4,7 @@ using ComplexityMeasures
 
 import ComplexityMeasures: allprobabilities_and_outcomes, SSSet
 
-function allprobabilities_and_outcomes(x::AbstractDimArray, args...; kwargs...)
+function allprobabilities_and_outcomes(x::AbstractToolsArray, args...; kwargs...)
     return allprobabilities_and_outcomes(TimeseriesTools.decompose(x)..., args...;
                                          kwargs...)
 end

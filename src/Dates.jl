@@ -10,6 +10,6 @@ DateTimeIndex = Tuple{A,
                       Vararg{DimensionalData.Dimension}} where {A <:
                                                                 DimensionalData.Dimension{<:DateIndex}}
 
-DateTimeSeries = AbstractDimArray{T, N, <:DateTimeIndex, B} where {T, N, B}
+DateTimeSeries = AbstractToolsArray{T, N, <:DateTimeIndex, B} where {T, N, B}
 
 unit(::DateTimeSeries) = NoUnits

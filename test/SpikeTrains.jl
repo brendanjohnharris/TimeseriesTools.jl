@@ -14,7 +14,7 @@
 
     # Test this returns an identical result for spikes measured at regular intervals
     x = TimeSeries(ts, zeros(length(ts)))
-    x[Ti(Near(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
+    x[𝑡(Near(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
     et = energyspectrum(x, 0.01)
     @test (2 * sum(et[2:end]) + et[1]) * fs[1] ≈ sum(t)
 
@@ -162,7 +162,6 @@ end
     rowsize!(f.layout, 1, Relative(0.6))
     f
 end
-
 
 # @testset "Stoic firing rate and fano factor" begin N = 5000
 
