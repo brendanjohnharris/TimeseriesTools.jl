@@ -6,23 +6,23 @@
 
     using DimensionalData
     import DimensionalData: ForwardOrdered, Regular, Points, Sampled, Metadata, order,
-        sampling, layerdims, index, locus, Intervals, intervalbounds
+                            sampling, layerdims, index, locus, Intervals, intervalbounds
     a = [1 2; 3 4]
     a2 = [1 2 3 4
-        3 4 5 6
-        4 5 6 7]
+          3 4 5 6
+          4 5 6 7]
     xmeta = Metadata(:meta => "X")
     ymeta = Metadata(:meta => "Y")
     tmeta = Metadata(:meta => "T")
     ameta = Metadata(:meta => "da")
-    dimz = (X(Sampled(143.0:2.0:145.0; order=ForwardOrdered(), metadata=xmeta)),
-        Y(Sampled(-38.0:2.0:-36.0; order=ForwardOrdered(), metadata=ymeta)))
+    dimz = (X(Sampled(143.0:2.0:145.0; order = ForwardOrdered(), metadata = xmeta)),
+            Y(Sampled(-38.0:2.0:-36.0; order = ForwardOrdered(), metadata = ymeta)))
     dimz2 = (Dim{:row}(10:10:30), Dim{:column}(-20:10:10))
 
-    refdimz = (𝑡(1:1; metadata=tmeta),)
-    da = @test_nowarn ToolsArray(a, dimz; refdims=refdimz, name=:test, metadata=ameta)
+    refdimz = (𝑡(1:1; metadata = tmeta),)
+    da = @test_nowarn ToolsArray(a, dimz; refdims = refdimz, name = :test, metadata = ameta)
     val(dims(da, 1)) |> typeof
-    da2 = ToolsArray(a2, dimz2; refdims=refdimz, name=:test2)
+    da2 = ToolsArray(a2, dimz2; refdims = refdimz, name = :test2)
     lx = Sampled(143.0:2.0:145.0, ForwardOrdered(), Regular(2.0), Points(), xmeta)
     ly = Sampled(-38.0:2.0:-36.0, ForwardOrdered(), Regular(2.0), Points(), ymeta)
     db = DimArray(da)
@@ -74,6 +74,11 @@ end
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension
+
+    x = ToolsArray(randn(10), (𝑥(1:10),))
+    @test all(x[At(dims(x, 1))] .== x)
+    @test lookup(x[At(dims(x, 1))]) != lookup(x) # One is Regular, one is Irregular
+    @test all(lookup(x[At(dims(x, 1))]) .== lookup(x[At(1:10)])) # But same elements
 end
 @testset "Multivariate time series" begin
     ts = 1:100
@@ -103,7 +108,7 @@ end
     @test_nowarn x[𝑡(Near(4:10))]
 
     x = @test_nowarn TimeSeries(𝑡(1:100), X(randn(10) |> sort), Y(1:10),
-        randn(100, 10, 10))
+                                randn(100, 10, 10))
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries
     @test !(x isa MultidimensionalTimeSeries)
