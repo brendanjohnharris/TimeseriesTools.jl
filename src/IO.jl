@@ -163,8 +163,8 @@ function loadtimeseries(f::File{format"TSV"})
             vars = Y
         elseif vars == "Z"
             vars = Z
-        elseif vars == "Freq"
-            vars = Freq
+        elseif vars == "𝑓"
+            vars = 𝑓
         end
 
         # Read the variables

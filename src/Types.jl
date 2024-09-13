@@ -40,6 +40,8 @@ function ToolsArray(data::A, dims::Tuple{D, Vararg};
     ToolsArray(data, format(dims, data), refdims, name, metadata)
 end
 
+ToolsArray(x::AbstractArray, D::DimensionalData.Dimension) = ToolsArray(x, (D,))
+
 function ToolsArray(D::DimensionalData.DimArray)
     ToolsArray(D.data, D.dims, D.refdims, D.name, D.metadata)
 end

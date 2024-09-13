@@ -5,7 +5,7 @@ export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammaren
        gammarenewal
 
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
-normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ σ^2)
+normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ (σ^2))
 npi(σ) = normal(sqrt(2) * σ) # The integral of the product of two gaussians with separation `x` and equal variance σ²
 function convolve(t::SpikeTrain; kernel::Function, range = 0.0)
     @assert all(t .== true)
@@ -99,6 +99,31 @@ function sttc(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwargs
     sttc(times(a), times(b); kwargs...)
 end
 sttc(; kwargs...) = (x, y) -> sttc(x, y; kwargs...)
+function sttc(a::AbstractVector{<:AbstractVector},
+              b::AbstractVector{<:AbstractVector}; kwargs...)
+    map(Iterators.product(a, b)) do (x, y)
+        sttc(x, y; kwargs...)
+    end
+end
+function sttc(a::AbstractVector{<:AbstractVector}; kwargs...)
+    T = typeof(sttc(first(a), first(a); kwargs...))
+    C = ones(T, length(a), length(a))
+    @inbounds Threads.@threads for i in 1:length(a)
+        for j in (i + 1):length(a)
+            C[i, j] = sttc(a[i], a[j]; kwargs...)
+            C[j, i] = C[i, j]
+        end
+    end
+    return C
+end
+function sttc(a::DimensionalData.AbstractDimVector{<:AbstractVector},
+              b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
+    rebuild(a; data = sttc(parent(a), parent(b); kwargs...),
+            dims = (dims(a, 1), dims(b, 1)))
+end
+function sttc(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
+    rebuild(a; data = sttc(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
+end
 
 function mapneighbours!(x, y, f!; Δt)
     if !issorted(x) || !issorted(y)
@@ -158,7 +183,10 @@ end
 """
     stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10)
 
-Compute the spike-train overlap-integral coefficient between two spike trains, after normalizing both convolutions to unit energy
+Compute the spike-train overlap-integral coefficient between two spike trains, after
+normalizing both convolutions to unit energy
+
+See the unnamed metric from "Schreiber S, Fellous JM, Whitmer JH, Tiesinga PHE, Sejnowski TJ (2003). A new correlation based measure of spike timing reliability. Neurocomputing 52:925-931."
 
 # Arguments
 - `a`: Spike train a.
@@ -190,6 +218,32 @@ function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwarg
     stoic(times(a), times(b); kwargs...)
 end
 stoic(; kwargs...) = (x, y) -> stoic(x, y; kwargs...)
+
+function stoic(a::AbstractVector{<:AbstractVector},
+               b::AbstractVector{<:AbstractVector}; kwargs...)
+    map(Iterators.product(a, b)) do (x, y)
+        stoic(x, y; kwargs...)
+    end
+end
+function stoic(a::AbstractVector{<:AbstractVector}; kwargs...)
+    T = typeof(stoic(first(a), first(a); kwargs...))
+    C = ones(T, length(a), length(a))
+    @inbounds Threads.@threads for i in 1:length(a)
+        for j in (i + 1):length(a)
+            C[i, j] = stoic(a[i], a[j]; kwargs...)
+            C[j, i] = C[i, j]
+        end
+    end
+    return C
+end
+function stoic(a::DimensionalData.AbstractDimVector{<:AbstractVector},
+               b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
+    rebuild(a; data = stoic(parent(a), parent(b); kwargs...),
+            dims = (dims(a, 1), dims(b, 1)))
+end
+function stoic(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
+    rebuild(a; data = stoic(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
+end
 
 """
     pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
