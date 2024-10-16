@@ -15,6 +15,8 @@ begin
     using GeneralizedPhase
     using Autocorrelations
     using MeanSquaredDisplacement
+    using Distances
+    using TimeseriesFeatures
 
     using TimeseriesTools
     import TimeseriesTools: TimeSeries, name, rectifytime,

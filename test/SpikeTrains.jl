@@ -1,3 +1,32 @@
+using Distances
+using TimeseriesFeatures
+using Test
+using TimeseriesTools
+using LinearAlgebra
+
+@testset "STOIC feature" begin
+    x = gammarenewal(100, 1.0, 1.0)
+    y = gammarenewal(100, 1.0, 1.0)
+    xy = ToolsArray([x, y], (Var(1:2),))
+    xx = ToolsArray([x, x], (Var(1:2),))
+
+    @test_nowarn TimeseriesTools.STOIC([x, y]) isa Matrix
+    @test STOIC(xy) == STOIC([x, y])
+    STOIC(xx) == ones(length(xx), length(xx))
+    @test STOIC(xx) isa AbstractToolsArray
+    @test dims(xx, 1) == dims(STOIC(xx), 1)
+end
+
+@testset "STOIC distance" begin
+    x = [gammarenewal(100, 1.0, 1.0) for _ in 1:10]
+    @test pairwise(StoicDist(; σ = 1.0, Δt = 1.0), x) isa Matrix
+
+    x = ToolsArray(x, Var(1:length(x)))
+    A = pairwise(StoicDist(), x)
+    B = pairwise(StoicDist(), x, x)
+    @test A == B
+end
+
 @testset "Spike FFT" begin
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
@@ -97,6 +126,13 @@ end
 
     x = y
     @test stoic(x, y; Δt, σ) == 1.0
+
+    # * Verify the normalization
+    @test sum(TimeseriesTools.normal(1.0).(-10:0.01:10)) .* 0.01 ≈ 1
+    @test sum(TimeseriesTools.npi(0.2).(-10:0.01:10)) .* 0.01 ≈ 1
+    # a = x
+    # E1 = stoic(a, a; Δt = σ * 100, σ, normalize = false)
+    # E2 = stoic(a, a; Δt = σ, σ = σ / 1000, normalize = false)
 
     x = rand(0 .. 1000, 1000) |> sort
     y = rand(0 .. 1000, 1000) |> sort

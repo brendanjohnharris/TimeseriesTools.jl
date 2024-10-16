@@ -24,6 +24,12 @@ function __init__()
     @require TimeseriesSurrogates="c804724b-8c18-5caa-8579-6025a0767c70" begin
         @eval include("../ext/TimeseriesSurrogatesExt.jl")
     end
+    @require TimeseriesFeatures="f3112013-b923-4dfa-b867-8806c885f823" begin
+        @eval include("../ext/TimeseriesFeaturesExt.jl")
+    end
+    @require Distances="b4f34e82-e78d-54a5-968a-f98e89d6e8f7" begin
+        @eval include("../ext/DistancesExt.jl")
+    end
     # end
 end
 
