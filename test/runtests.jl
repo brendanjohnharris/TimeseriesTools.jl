@@ -1,34 +1,4 @@
-begin
-    using Test
-    using Term
-    using Unitful
-    import Unitful.unit
-    using FFTW
-    using CairoMakie
-    using DSP
-    using Dates
-    using ContinuousWavelets
-    using StatsBase
-    using TimeseriesSurrogates
-    using IntervalSets
-    using Dierckx
-    using GeneralizedPhase
-    using Autocorrelations
-    using MeanSquaredDisplacement
-
-    using TimeseriesTools
-    import TimeseriesTools: TimeSeries, name, rectifytime,
-                            leftdiff, rightdiff,
-                            NDAAFT, NDIAAFT, MVFT
-
-    using Documenter
-    using ImageMagick
-    using BenchmarkTools
-    using Foresight
-    using ComplexityMeasures
-    using Distributions
-    using LinearAlgebra
-end
+using TestItems
 
 @testitem "progressmap" begin
     using Term
