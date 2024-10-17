@@ -1,4 +1,6 @@
-@testset "IO" begin
+@testitem "IO" begin
+    import TimeseriesTools: TimeSeries
+    using Unitful
     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); metadata = Dict(:a => :test),
                    name = "name")
 

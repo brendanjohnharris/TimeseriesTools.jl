@@ -1,4 +1,6 @@
-@testset "Spike FFT" begin
+@testitem "Spike FFT" begin
+    using CairoMakie
+    import TimeseriesTools: TimeSeries
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
     t = findall(t .> 0) ./ 100 # Should have a period of 1 second
@@ -42,7 +44,7 @@
     f
 end
 
-@testset "Spike-time tiling coefficient" begin
+@testitem "Spike-time tiling coefficient" begin
     using IntervalSets
     using LinearAlgebra
     using Distributions
@@ -76,7 +78,8 @@ end
     λ = eigvals(Λ)
 end
 
-@testset "Spike-time overlap-integral coefficient (stoic)" begin
+@testitem "Spike-time overlap-integral coefficient (stoic)" begin
+    using Distances, LinearAlgebra, CairoMakie, StatsBase
     x = randn(1000) |> sort
     y = randn(1000) |> sort
     σ = 0.25
@@ -124,7 +127,8 @@ end
     @test all(isapprox.(imag.(e), 0.0; atol = 1e-10))
 end
 
-@testset "Stoic spike-train length" begin
+@testitem "Stoic spike-train length" begin
+    using Distances, LinearAlgebra, CairoMakie, StatsBase
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     Ns = range(start = 100, step = 100, length = 100)
@@ -138,7 +142,8 @@ end
     p = heatmap!(ax, Ns, Ns, ρ)
     Colorbar(f[1, 2], p, label = "stoic")
 end
-@testset "Stoic spike-train fano" begin
+@testitem "Stoic spike-train fano" begin
+    using Distances, LinearAlgebra, CairoMakie, StatsBase
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     θs = range(start = 0.1, step = 0.01, length = 150)
@@ -163,7 +168,7 @@ end
     f
 end
 
-# @testset "Stoic firing rate and fano factor" begin N = 5000
+# @testitem "Stoic firing rate and fano factor" begin N = 5000
 
 #     fr = range(start = 0.1, stop = 500, length = 100) # 1 the mean ISI θs = range(start =
 #     0.1, stop = 2, length = 100) # 1 the mean ISI αs = 1 ./ (fr .* θs)

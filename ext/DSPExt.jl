@@ -1,12 +1,13 @@
-# module DSPExt
+module DSPExt
 
 using TimeseriesTools
-using ..DimensionalData
-using ..Unitful
-using ..IntervalSets
-import TimeseriesTools: bandpass, phasestitch, instantaneousfreq
-import ..DSP
-import ..DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
+using DimensionalData
+using Unitful
+using IntervalSets
+import TimeseriesTools: bandpass, highpass, lowpass, isoamplitude, phasestitch,
+                        instantaneousfreq, analyticphase, analyticamplitude
+import DSP
+import DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 
 hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustripall(X.data)) * unit(eltype(X.data)))
 
@@ -234,4 +235,4 @@ function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
     phasestitch(X, P; kwargs...)
 end
 
-# end # module
+end # module

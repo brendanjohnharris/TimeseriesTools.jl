@@ -37,6 +37,7 @@ NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
+ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 
 [extensions]
 CUDAExt = ["CUDA", "ContinuousWavelets"]
@@ -46,6 +47,9 @@ GeneralizedPhaseExt = ["GeneralizedPhase"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
 TermExt = ["Term"]
 AutocorrelationsExt = ["Autocorrelations"]
+DSPExt = ["DSP"]
+MakieExt = ["Makie"]
+ComplexityMeasuresExt = ["ComplexityMeasures"]
 
 [compat]
 CUDA = "3, 4, 5"
@@ -54,6 +58,7 @@ DSP = "0.6, 0.7"
 DelimitedFiles = "1.9"
 Dierckx = "0.5"
 DimensionalData = "0.27, 0.28"
+ComplexityMeasures = "3"
 Distributions = "0.25"
 FFTW = "1"
 FileIO = "1"
@@ -87,3 +92,4 @@ NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
+ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"

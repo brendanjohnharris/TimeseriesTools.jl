@@ -1,4 +1,7 @@
-@testset "AutocorrelationsExt" begin # Optimize this some more?
+@testitem "AutocorrelationsExt" begin # Optimize this some more?
+    using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, CairoMakie,
+          Unitful
+    import TimeseriesTools: TimeSeries
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
 
@@ -54,10 +57,13 @@
     current_figure()
 end
 
-@testset "DSPExt" begin
+@testitem "DSPExt" begin
     using DSP
+    using CairoMakie
     using TimeseriesTools
     import TimeseriesTools.TimeSeries # or TS
+    using StatsBase
+    StackedTraces = Base.get_extension(TimeseriesTools, :MakieExt).StackedTraces
 
     N = 100000
     dt = 0.005
@@ -67,8 +73,20 @@ end
     x̂ = TimeSeries(dt:dt:(sum(length.(x)) * dt), vcat(collect.(x)...))
     x = phasestitch(x)
 
-    @test_nowarn stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5, offset = 1.3;
-                               axis = (; xlabel = "Time"))
+    @test_nowarn heatmap(y) # Shoudl default to the DimensionalData recipe
+
+    pargs = Makie.convert_arguments(StackedTraces, y)
+    @test pargs[1] isa AbstractRange
+    @test pargs[2] isa AbstractRange
+    @test pargs[3] isa Matrix
+
+    f = Figure()
+    ax = Axis(f[1, 1])
+    p = @test_nowarn stackedtraces!(ax, y) # ! This is fine
+    f
+
+    @test_throws "BoundsError" stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5,
+                                             offset = 1.3; axis = (; xlabel = "Time")) # ! Why isn't this?
     @test_nowarn plot(x[𝑡(1:10000)])
     plot(x̂[𝑡(1500:(length(t) * 5))])
 
@@ -92,7 +110,9 @@ end
     # autocor(x[ 𝑡(1:10000)] |> collect, [10])[1]
 end
 
-@testset "ContinuousWaveletsExt" begin
+@testitem "ContinuousWaveletsExt" begin
+    import TimeseriesTools: TimeSeries
+    using ContinuousWavelets, BenchmarkTools
     # Define a test time series
     fs = 200
     t = range(0, stop = 5, length = 100 * fs + 1)
@@ -132,7 +152,8 @@ end
     end
 end
 
-@testset "TimeseriesSurrogatesExt" begin
+@testitem "TimeseriesSurrogatesExt" begin
+    using StatsBase, TimeseriesSurrogates
     θ = 3 # A Fano-factor of 3
     μ = 1
     α = μ / θ # A mean of 1
@@ -166,13 +187,14 @@ end
     @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
 end
 
-# @testset "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
+# @testitem "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
 #     2 tspan = (0.0, 1.0) prob = ODEProblem(f, u0, tspan, saveat=0.1) sol = solve(prob)
 
 #     x = TimeSeries(sol)
 # end
 
-@testset "GeneralizedPhaseExt" begin
+@testitem "GeneralizedPhaseExt" begin
+    using GeneralizedPhase, Unitful
     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
     X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
     _ϕ = @test_nowarn _generalized_phase(x)
@@ -185,7 +207,8 @@ end
     ϕ = @test_nowarn _generalized_phase(X)
 end
 
-@testset "ComplexityMeasuresExt" begin
+@testitem "ComplexityMeasuresExt" begin
+    using Distributions, LinearAlgebra, ComplexityMeasures
     μ = [1.0, -4.0]
     σ = [2.0, 2.0]
     𝒩 = MvNormal(μ, LinearAlgebra.Diagonal(map(abs2, σ)))
@@ -197,11 +220,42 @@ end
                                StateSpaceSet(D))
 end
 
-@testset "Upsampling" begin
+@testitem "Upsampling" begin
+    using Dierckx
     x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
     itp = TimeseriesTools.interpolate(x)
     y = itp(dims(x)...)
     @test x ≈ y
     z = @test_nowarn upsample(x, 2)
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
+end
+
+@testitem "Unit Power" begin
+    using Unitful
+    N = UnitPower
+    _X = TimeSeries(0.01:0.01:1, rand(100))
+    X = copy(_X)
+    T = fit(N, X)
+    Y = normalize(X, T)
+    @test sum(Y .^ 2) / duration(Y) ≈ 1
+    @test !isnothing(T.p)
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test all(Y .≈ _X)
+
+    _X = TimeseriesTools.unitfultimeseries(X, u"s") * u"V"
+    X = copy(_X)
+    T = fit(N, X)
+    Y = normalize(X, T)
+    @test ustripall(sum(Y .^ 2) / duration(Y)) ≈ 1
+    @test !isnothing(T.p)
+    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
+                                                                                         T)
+    X = @test_nowarn normalize(X, T)
+    @test X == Y
+    Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
+                                                                                             T)
+    # @test all(Y .≈ _X)
 end

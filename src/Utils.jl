@@ -532,12 +532,12 @@ function _centraldiff!(x; grad=-, dims=nothing) # Dims unused
     return nothing
 end
 
-_diff!(x::UnivariateRegular, f!; kwargs...) = f!(x; kwargs...)
+_diff!(x::UnivariateRegular, f!; kwargs...) = f!(parent(x); kwargs...)
 function _diff!(x::AbstractDimArray, f!; dims=1, kwargs...)
     if !(DimensionalData.lookup(x, dims).data isa AbstractRange)
         error("Differencing dimension must be regularly sampled")
     end
-    f!(eachslice(x; dims); kwargs...)
+    f!(parent(eachslice(x; dims)); kwargs...)
 end
 
 """

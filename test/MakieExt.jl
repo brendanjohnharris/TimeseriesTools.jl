@@ -1,5 +1,8 @@
 
-@testset "Makie" begin
+@testitem "Makie" begin
+    using CairoMakie
+    import TimeseriesTools: TimeSeries
+    Traces = Base.get_extension(TimeseriesTools, :MakieExt).Traces
     x = TimeSeries(0.01:0.01:10, randn(1000))
 
     p = @test_nowarn plot(x)
@@ -16,8 +19,8 @@
     @test p.plot isa Heatmap
 end
 
-@testset "Readme" begin
-    using TimeseriesTools, CairoMakie, Unitful
+@testitem "Readme" begin
+    using TimeseriesTools, CairoMakie, Unitful, Foresight
     import TimeseriesTools.TimeSeries # or TS
 
     t = 0.005:0.005:1e5
@@ -48,8 +51,8 @@ end
     save("./shadows.png", f; px_per_unit = 3)
 end
 
-@testset "Readme_dark" begin
-    using CairoMakie, TimeseriesTools, Unitful
+@testitem "Readme_dark" begin
+    using CairoMakie, TimeseriesTools, Unitful, Foresight
     import TimeseriesTools.TimeSeries # or TS
     set_theme!(foresight(:dark, :transparent))
 
@@ -82,36 +85,7 @@ end
     save("./shadows_dark.png", f; px_per_unit = 3)
 end
 
-@testset "Unit Power" begin
-    N = UnitPower
-    _X = TimeSeries(0.01:0.01:1, rand(100))
-    X = copy(_X)
-    T = fit(N, X)
-    Y = normalize(X, T)
-    @test sum(Y .^ 2) / duration(Y) ≈ 1
-    @test !isnothing(T.p)
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
-    @test X == Y
-    @test_nowarn denormalize!(Y, T)
-    @test all(Y .≈ _X)
-
-    _X = TimeseriesTools.unitfultimeseries(X, u"s") * u"V"
-    X = copy(_X)
-    T = fit(N, X)
-    Y = normalize(X, T)
-    @test ustripall(sum(Y .^ 2) / duration(Y)) ≈ 1
-    @test !isnothing(T.p)
-    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                         T)
-    X = @test_nowarn normalize(X, T)
-    @test X == Y
-    Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                             T)
-    # @test all(Y .≈ _X)
-end
-
-@testset "Traces" begin
+@testitem "Traces" begin
     using CairoMakie, TimeseriesTools, Unitful
     import TimeseriesTools.TimeSeries # or TS
 
@@ -127,7 +101,7 @@ end
     @test_nowarn traces!(ax, S; colormap = :turbo)
 end
 
-@testset "Spectrum plot" begin
+@testitem "Spectrum plot" begin
     using DSP
     using CairoMakie, TimeseriesTools, Unitful
     import TimeseriesTools.TimeSeries # or TS

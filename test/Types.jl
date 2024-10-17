@@ -1,4 +1,5 @@
-@testset "DimArrays" begin
+@testitem "DimArrays" begin
+    import DimensionalData: span
     x = ToolsArray(randn(10), (𝑡(1:10),))
     @test x isa ToolsArray
     @test !(x isa DimensionalData.DimArray)
@@ -45,7 +46,7 @@
     @test intervalbounds(da_intervals) == intervalbounds(db_intervals)
 end
 
-@testset "TimeseriesTools.jl" begin
+@testitem "TimeseriesTools.jl" begin
     ts = 1:100
     x = @test_nowarn TimeSeries(ts, randn(100))
     @test x isa AbstractTimeSeries
@@ -62,7 +63,7 @@ end
     # @test x[ 𝑡(At(1:10))] != x[1:10]
 end
 
-@testset "Dim queries" begin
+@testitem "Dim queries" begin
     ts = 1:100
     cs = 1:10
     X = TimeSeries(ts, Dim{:channel}(cs), randn(100, 10))
@@ -80,7 +81,7 @@ end
     @test lookup(x[At(dims(x, 1))]) != lookup(x) # One is Regular, one is Irregular
     @test all(lookup(x[At(dims(x, 1))]) .== lookup(x[At(1:10)])) # But same elements
 end
-@testset "Multivariate time series" begin
+@testitem "Multivariate time series" begin
     ts = 1:100
     x = @test_nowarn TimeSeries(ts, 1:5, randn(100, 5))
     @test x isa AbstractTimeSeries
@@ -95,7 +96,7 @@ end
     @test x[𝑡(1 .. 10)] == x[1:10, :]
 end
 
-@testset "Multidimensional time series" begin
+@testitem "Multidimensional time series" begin
     x = @test_nowarn TimeSeries(𝑡(1:100), X(1:10), randn(100, 10))
     @test x isa AbstractTimeSeries
     @test x isa RegularTimeSeries

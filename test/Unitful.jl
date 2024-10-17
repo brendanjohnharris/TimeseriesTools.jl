@@ -1,5 +1,5 @@
-
-@testset "Unitful" begin
+@testitem "Unitful" begin
+    using Unitful
     ts = (1:1000)u"s"
     x = @test_nowarn TimeSeries(ts, randn(1000))
     @test TimeSeries(ustripall(ts), collect(x), u"s") == x
@@ -19,7 +19,9 @@
     @test_nowarn rectify(x; dims = 𝑡)
 end
 
-@testset "Twice unitful" begin
+@testitem "Twice unitful" begin
+    using Unitful, FFTW, CairoMakie
+    import TimeseriesTools.TimeSeries
     ts = ((-100 + 0.01):0.0005:100) * u"s"
     f = rfftfreq(length(ts), 1 / step(ts))
     x = 4.2u"V" .* sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V" .* sin.(2 * π * 100u"Hz" * ts)

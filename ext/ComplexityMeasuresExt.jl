@@ -9,4 +9,8 @@ function allprobabilities_and_outcomes(x::AbstractToolsArray, args...; kwargs...
                                          kwargs...)
 end
 
+function ComplexityMeasures.StateSpaceSets.StateSpaceSet(x::AbstractToolsArray)
+    ComplexityMeasures.StateSpaceSets.StateSpaceSet(parent(x))
+end
+
 end # module

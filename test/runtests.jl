@@ -30,7 +30,8 @@ begin
     using LinearAlgebra
 end
 
-@testset "progressmap" begin
+@testitem "progressmap" begin
+    using Term
     S = [1:100 for _ in 1:3]
     L = @test_nowarn progressmap(S; description = "outer") do s
         progressmap(x -> (sleep(0.00001); randn()), s; description = "inner")
@@ -89,7 +90,8 @@ end
     @test typeof(L[1]) == typeof(_L[1])
 end
 
-@testset "Dates" begin
+@testitem "Dates" begin
+    using Dates, Unitful
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
     y = @test_nowarn TimeSeries(t, x)
@@ -100,7 +102,8 @@ end
     @test unit(y) == NoUnits
 end
 
-@testset "Spectra" begin
+@testitem "Spectra" begin
+    using Unitful, CairoMakie
     # Define a test time series
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)

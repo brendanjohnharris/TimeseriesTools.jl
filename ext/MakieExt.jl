@@ -1,21 +1,39 @@
-# module MakieExt
+module MakieExt
 
+import MakieCore
 import MakieCore.plot!
 import MakieCore.plot
 
-import ..Makie
-import ..Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
-                Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
-                ScatterLines, Hexbin, Stem, Plot, scatter!, text!, with_theme, Attributes,
-                theme
+import Makie
+import Makie: plot, plot!, lift, lines, lines!, band, band!, FigureAxisPlot, @lift,
+              Observable, @recipe, Theme, Figure, Axis, AbstractPlot, Scatter, Lines,
+              ScatterLines, Hexbin, Stem, Plot, scatter!, text!, with_theme, Attributes,
+              theme
 PointLike = Union{Scatter, Lines, ScatterLines, Hexbin, Stem}
 
 using TimeseriesTools
 using Statistics
-using TimeseriesTools.Normalization
+using Normalization
 using Peaks
+using Unitful
 
-export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!
+import TimeseriesTools: spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!,
+                        TimeDim, Dimension, traces!, traces, stackedtraces!, stackedtraces
+
+# function Makie.convert_arguments(P::Type{<:Makie.AbstractPlot},
+#                                      x::AbstractTimeSeries)
+#     Makie.convert_arguments(P, decompose(x)...)
+# end
+# function Makie.convert_arguments(P::Type{<:Makie.AbstractPlot},
+#                                      x::AbstractSpectrum)
+#     Makie.convert_arguments(P, decompose(x)...)
+# end
+# function Makie.convert_arguments(P::Type{<:Makie.AbstractPlot},
+#                                      x::Tuple{<:Union{<:AbstractTimeSeries,
+#                                                       <:AbstractSpectrum}})
+#     Makie.convert_arguments(P, decompose(first(x))...)
+# end
+# Makie.plottype(::AbstractTimeSeries) = Lines
 
 """
     spectrumplot!(ax::Axis, x::UnivariateSpectrum)
@@ -247,8 +265,8 @@ function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kw
     return ax
 end
 
-function Makie.convert_arguments(::Type{<:Trajectory},
-                                 x::MultivariateTimeSeries)
+function MakieCore.convert_arguments(::Type{<:Trajectory},
+                                     x::MultivariateTimeSeries)
     x |> eachcol .|> collect |> Tuple
 end
 
@@ -263,11 +281,6 @@ end
                linestyle = theme(scene, :linestyle),
                linecap = theme(scene, :linecap),
                joinstyle = theme(scene, :joinstyle))
-end
-
-function Makie.convert_arguments(::Type{<:TimeseriesTools.Traces},
-                                 x::AbstractToolsArray)
-    (x.dims[1].val.data, x.dims[2].val.data, x.data)
 end
 
 function Makie.plot!(plot::Traces)
@@ -371,11 +384,6 @@ end
                joinstyle = theme(scene, :joinstyle))
 end
 
-function Makie.convert_arguments(::Type{<:Plot{TimeseriesTools.StackedTraces}},
-                                 x::AbstractToolsArray)
-    (x.dims[1].val.data, x.dims[2].val.data, x.data)
-end
-
 function Makie.plot!(plot::StackedTraces)
     x, y, z = plot.x, plot.y, plot.z
     offset = plot.offset
@@ -443,4 +451,4 @@ function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
     stackedtraces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
 end
 
-# end # module
+end # module
