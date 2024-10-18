@@ -44,8 +44,9 @@
     @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     x = TimeSeries(0.001:0.001:1, 1:3, rand(1000, 3); name = TimeSeries) # Something that can't be serialized
-    @test_logs (:warn, ErrorException("Cannot serialize type typeof(TimeSeries)")) savetimeseries(f,
-                                                                                                  x)
+    @test_logs (:warn,
+                ErrorException("Cannot serialize type typeof(TimeseriesTools.TimeSeries)")) savetimeseries(f,
+                                                                                                           x)
     _x = loadtimeseries(f)
     @test name(_x) == DimensionalData.NoName()
     @test all(x .≈ _x)
