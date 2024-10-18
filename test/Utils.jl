@@ -46,13 +46,13 @@ end
 @testitem "Rectification" begin
     import TimeseriesTools: rectifytime
     ts = 0.1:0.1:1000
-    x = TimeSeries(ts .+ randn(length(ts)) .* 1e-9, sin)
+    x = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, sin)
     @test issorted(times(x))
     _x = @test_nowarn rectifytime(x)
     @test all(x .== _x)
     @test ts == times(_x)
 
-    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-9, cos)
+    y = TimeSeries(ts .+ randn(length(ts)) .* 1e-10, cos)
     @test issorted(times(y))
     _x, _y = (rectifytime([x, y])...,)
 
@@ -61,12 +61,12 @@ end
     @test all(y .== parent(_y))
     @test ts == times(_y)
 
-    x = @test_nowarn TimeSeries(𝑡(1:100), X((1:10) .+ 1e-9 .* randn(10)), randn(100, 10))
+    x = @test_nowarn TimeSeries(𝑡(1:100), X((1:10) .+ 1e-10 .* randn(10)), randn(100, 10))
     y = @test_nowarn rectify(x, dims = X)
     @test dims(y, X) == X(1:10)
 
-    x = @test_nowarn TimeSeries(𝑡(1:100), X((1:10) .+ 1e-9 .* randn(10)),
-                                Y((1:5) .+ 1e-9 .* randn(5)), randn(100, 10, 5))
+    x = @test_nowarn TimeSeries(𝑡(1:100), X((1:10) .+ 1e-10 .* randn(10)),
+                                Y((1:5) .+ 1e-10 .* randn(5)), randn(100, 10, 5))
     y1 = @test_nowarn rectify(x, dims = X)
     y2 = @test_nowarn rectify(x, dims = Y)
     y3 = @test_nowarn rectify(x, dims = [X, Y])
