@@ -21,9 +21,9 @@ function __init__()
     # @require DSP="717857b8-e6f2-59f4-9121-6e50c889abd2" begin
     #     @eval include("../ext/DSPExt.jl")
     # end
-    @require TimeseriesSurrogates="c804724b-8c18-5caa-8579-6025a0767c70" begin
-        @eval include("../ext/TimeseriesSurrogatesExt.jl")
-    end
+    # @require TimeseriesSurrogates="c804724b-8c18-5caa-8579-6025a0767c70" begin
+    #     @eval include("../ext/TimeseriesSurrogatesExt.jl")
+    # end
     # end
 end
 
@@ -37,6 +37,7 @@ include("Unitful.jl")
 include("Dates.jl")
 include("MakieCore.jl")
 include("IO.jl")
+include("TimeseriesSurrogates.jl")
 
 bandpass(x::AbstractTimeSeries) = x
 highpass(x::AbstractTimeSeries) = x

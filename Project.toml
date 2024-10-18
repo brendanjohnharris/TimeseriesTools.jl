@@ -23,10 +23,13 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [weakdeps]
+Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 ContinuousWavelets = "96eb917e-2868-4417-9cb6-27e7ff17528f"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
@@ -35,30 +38,28 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
-TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
-Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
-ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 
 [extensions]
+AutocorrelationsExt = ["Autocorrelations"]
 CUDAExt = ["CUDA", "ContinuousWavelets"]
+ComplexityMeasuresExt = ["ComplexityMeasures"]
 ContinuousWaveletsExt = ["ContinuousWavelets", "Mmap"]
+DSPExt = ["DSP"]
 DierckxExt = ["Dierckx"]
 GeneralizedPhaseExt = ["GeneralizedPhase"]
+MakieExt = ["Makie"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
 TermExt = ["Term"]
-AutocorrelationsExt = ["Autocorrelations"]
-DSPExt = ["DSP"]
-MakieExt = ["Makie"]
-ComplexityMeasuresExt = ["ComplexityMeasures"]
 
 [compat]
+Autocorrelations = "0.1"
 CUDA = "3, 4, 5"
+ComplexityMeasures = "3"
 ContinuousWavelets = "1"
 DSP = "0.6, 0.7"
 DelimitedFiles = "1.9"
 Dierckx = "0.5"
 DimensionalData = "0.27, 0.28"
-ComplexityMeasures = "3"
 Distributions = "0.25"
 FFTW = "1"
 FileIO = "1"
@@ -75,13 +76,14 @@ Peaks = "0.4, 0.5"
 Reexport = "1"
 Requires = "1"
 Term = "2"
-TimeseriesSurrogates = "2.6.3"
+TimeseriesSurrogates = "2.6.3, 2.7"
 Unitful = "1"
-Autocorrelations = "0.1"
 julia = "1.9"
 
 [extras]
+Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 ContinuousWavelets = "96eb917e-2868-4417-9cb6-27e7ff17528f"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
@@ -90,6 +92,3 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
-TimeseriesSurrogates = "c804724b-8c18-5caa-8579-6025a0767c70"
-Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
-ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
