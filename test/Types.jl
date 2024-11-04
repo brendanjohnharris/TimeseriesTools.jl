@@ -1,4 +1,4 @@
-@testitem "DimArrays" begin
+@testitem "ToolsArrays" begin
     import DimensionalData: span
     x = ToolsArray(randn(10), (𝑡(1:10),))
     @test x isa ToolsArray
@@ -44,6 +44,44 @@
     da_intervals = set(da, X => Intervals, Y => Intervals)
     db_intervals = set(db, X => Intervals, Y => Intervals)
     @test intervalbounds(da_intervals) == intervalbounds(db_intervals)
+end
+
+@testitem "Printing" begin
+    # * Vector
+    x = ToolsArray(randn(10), (𝑡(1:10),))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * Matrix
+    x = ToolsArray(randn(10, 10), (𝑡(1:10), 𝑥(1:10)))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * Array
+    x = ToolsArray(randn(10, 10, 10), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * 2D Array of arrays.
+    x = ToolsArray(fill(randn(10, 10), 10, 10), (𝑡(1:10), 𝑥(1:10)))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * 3D Array of arrays.
+    x = ToolsArray(fill(randn(2, 3), 10, 10, 10), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * 4D Array of arrays.
+    x = ToolsArray(fill(x, 10, 10, 10, 10),
+                   (𝑡(1:10), 𝑥(1:10), 𝑦(1:10), 𝑧(1:10)))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
+
+    # * Spike train
+    x = ToolsArray(rand(Bool, 5), (𝑡(1:5),))
+    @test_nowarn show(x)
+    @test_nowarn display(x)
 end
 
 @testitem "TimeseriesTools.jl" begin

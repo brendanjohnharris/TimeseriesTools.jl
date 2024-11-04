@@ -176,7 +176,7 @@ function loadtimeseries(f::File{format"TSV"})
             vars = Dim{Symbol(vars)}(j)
         end
 
-        data = readdlm(f, '\t', header = false)
+        data = readdlm(f, '\t', header=false)
         if isempty(vars)
             x = TimeSeries(data[:, 1], data[:, 2]; name, metadata, refdims)
         else
