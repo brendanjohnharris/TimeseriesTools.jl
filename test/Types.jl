@@ -58,7 +58,7 @@ end
     @test_nowarn display(x)
 
     # * Array
-    x = ToolsArray(randn(2, 2, 2), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
+    x = ToolsArray(randn(2, 2, 2), (𝑡(1:2), 𝑥(1:2), 𝑦(1:2)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
@@ -73,7 +73,7 @@ end
     @test_nowarn display(x)
 
     # * 4D Array of arrays.
-    x = ToolsArray(fill(randn(2, 2), 10, 10), (𝑡(1:10), 𝑥(1:10)))
+    x = ToolsArray(fill(randn(2, 2), 3, 3), (𝑡(1:3), 𝑥(1:3)))
     x = ToolsArray(fill(x, 2, 1, 4, 1),
                    (𝑡(1:2), 𝑥(1:1), 𝑦(1:4), 𝑧(1:1)))
     @test_nowarn show(x)
