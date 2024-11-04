@@ -58,23 +58,24 @@ end
     @test_nowarn display(x)
 
     # * Array
-    x = ToolsArray(randn(10, 10, 10), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
+    x = ToolsArray(randn(2, 2, 2), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
     # * 2D Array of arrays.
-    x = ToolsArray(fill(randn(10, 10), 10, 10), (𝑡(1:10), 𝑥(1:10)))
+    x = ToolsArray(fill(randn(3, 2), 10, 10), (𝑡(1:10), 𝑥(1:10)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
     # * 3D Array of arrays.
-    x = ToolsArray(fill(randn(2, 3), 10, 10, 10), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
+    x = ToolsArray(fill(randn(2, 2), 10, 10, 10), (𝑡(1:10), 𝑥(1:10), 𝑦(1:10)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
     # * 4D Array of arrays.
-    x = ToolsArray(fill(x, 10, 10, 10, 10),
-                   (𝑡(1:10), 𝑥(1:10), 𝑦(1:10), 𝑧(1:10)))
+    x = ToolsArray(fill(randn(2, 2), 10, 10), (𝑡(1:10), 𝑥(1:10)))
+    x = ToolsArray(fill(x, 2, 1, 4, 1),
+                   (𝑡(1:2), 𝑥(1:1), 𝑦(1:14), 𝑧(1:1)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
