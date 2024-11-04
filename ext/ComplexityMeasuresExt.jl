@@ -2,7 +2,7 @@ module ComplexityMeasuresExt
 using TimeseriesTools
 using ComplexityMeasures
 
-import ComplexityMeasures: allprobabilities_and_outcomes, SSSet
+import ComplexityMeasures: allprobabilities_and_outcomes
 
 function allprobabilities_and_outcomes(x::AbstractToolsArray, args...; kwargs...)
     return allprobabilities_and_outcomes(TimeseriesTools.decompose(x)..., args...;
