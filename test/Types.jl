@@ -75,7 +75,7 @@ end
     # * 4D Array of arrays.
     x = ToolsArray(fill(randn(2, 2), 10, 10), (𝑡(1:10), 𝑥(1:10)))
     x = ToolsArray(fill(x, 2, 1, 4, 1),
-                   (𝑡(1:2), 𝑥(1:1), 𝑦(1:14), 𝑧(1:1)))
+                   (𝑡(1:2), 𝑥(1:1), 𝑦(1:4), 𝑧(1:1)))
     @test_nowarn show(x)
     @test_nowarn display(x)
 
