@@ -5,9 +5,6 @@ import Unitful.unit
 using Reexport
 using DimensionalData
 using IntervalSets
-# if !isdefined(Base, :get_extension)
-using Requires
-# end
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
