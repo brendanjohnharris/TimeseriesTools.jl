@@ -13,7 +13,7 @@ export AbstractToolsArray, ToolsArray,
        stitch,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
-       ToolsDimension, ToolsDim,
+       ToolsDimension, ToolsDim, TDim,
        𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var
 
 """
@@ -52,7 +52,6 @@ end
 end
 
 # * Custom dimensions. Arrays with these dimensions will default to being reconstructed as
-#   ToolsArrays
 import DimensionalData: TimeDim, XDim, YDim, ZDim
 DimensionalData.@dim 𝑡 TimeDim "Time"
 DimensionalData.@dim 𝑥 XDim "x"
@@ -65,7 +64,31 @@ DimensionalData.@dim Var VariableDim "Var"
 abstract type FrequencyDim{T} <: Dimension{T} end
 DimensionalData.@dim 𝑓 FrequencyDim "Frequency"
 
+"""
+    ToolsDim{T}
+An abstract type for custom macro-defined dimensions in `TimeseriesTools`. Analogous to
+`DimensionalData.Dimension` for the purposes of `DimensionalData.@dim`.
+
+## Examples
+```
+DimensionalData.@dim MyDim ToolsDim "My dimension" # Defines a new `ToolsDim <: ToolsDimension`
+```
+
+## See also
+- [`ToolsDimension`](@ref)
+- [`TDim`](@ref)
+"""
 abstract type ToolsDim{T} <: DimensionalData.Dimension{T} end
+
+"""
+    ToolsDimension
+A union of all `Dimension` types that fall within the scope of `TimeseriesTools`. Analogous
+to `DimensionalData.Dimension` for dispatch purposes.
+
+## See also
+- [`ToolsDim`](@ref)
+- [`TDim`](@ref)
+"""
 ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var, ToolsDim}
 
 function DimensionalData.dimconstructor(::Tuple{ToolsDimension,
@@ -75,61 +98,40 @@ end
 DimensionalData.dimconstructor(::Tuple{<:ToolsDimension, Vararg}) = ToolsArray
 DimensionalData.dimconstructor(dims::ToolsDimension) = ToolsArray
 
-# struct Dim{S, T} <: ToolsDimension{T}
-#     val::T
-#     function Dim{S}(val; kw...) where {S}
-#         if length(kw) > 0
-#             val = DimensionalData.AutoVal(val, values(kw))
-#         end
-#         new{S, typeof(val)}(val)
-#     end
-#     function Dim{S}(val::AbstractArray; kw...) where {S}
-#         if length(kw) > 0
-#             val = DimensionalData.AutoLookup(val, values(kw))
-#         end
-#         Dim{S, typeof(val)}(val)
-#     end
-#     function Dim{S, T}(val::T) where {S, T}
-#         new{S, T}(val)
-#     end
-# end
-# Dim{S}() where {S} = Dim{S}(:)
+"""
+    TDim{S, T}
+The TimeseriesTools version of `DimensionalData.Dim` (custom dimensions named with a symbol)
 
-# DimensionalData.name(::Type{<:Dim{S}}) where {S} = S
-# DimensionalData.basetypeof(::Type{<:Dim{S}}) where {S} = Dim{S}
-# const TDim = ToolsDim
+## Examples
+```
+```
 
-# abstract type TimeDim{T} <: ToolsDimension{T} end
-# DimensionalData.@dim 𝑡 TimeDim "𝑡"
-# DimensionalData.@dim 𝑥 ToolsDimension "𝑥"
-# DimensionalData.@dim 𝑦 ToolsDimension "𝑦"
-# DimensionalData.@dim 𝑧 ToolsDimension "𝑧"
-
-# function DimensionalData.rebuildsliced(f::Function, A::AbstractToolsArray,
-#                                        data::AbstractArray, I::Tuple, name = name(A))
-#     DimensionalData.rebuildsliced(f, DimArray(A), data, I, name) |> ToolsArray
-# end
-
-# function DimensionalData._similar(A::AbstractToolsArray, T::Type, shape::Tuple)
-#     data = similar(parent(A), T, map(DimensionalData._parent_range, shape))
-#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-#     return ToolsArray(data, dims(shape))
-# end
-# function DimensionalData._similar(::Type{T}, shape::Tuple) where {T <: AbstractToolsArray}
-#     data = similar(T, map(DimensionalData._parent_range, shape))
-#     shape isa Tuple{Vararg{DimensionalData.Dimensions.DimUnitRange}} || return data
-#     return ToolsArray(data, dims(shape))
-# end
-# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-#                       D::DimensionalData.DimTuple) where {T <: AbstractToolsArray}
-#     ToolsArray(D)(A; data = similar(Array{T}, size(D)), dims = D, refdims = (),
-#                   metadata = NoMetadata())
-# end
-# function Base.similar(A::DimensionalData.AbstractDimArrayGenerator, ::Type{T},
-#                       D::Tuple{}) where {T <: AbstractToolsArray}
-#     ToolsArray(D)(A; data = similar(Array{T}, ()), dims = (), refdims = (),
-#                   metadata = NoMetadata())
-# end
+## See also
+- [`ToolsDim`](@ref)
+- [`ToolsDimension`](@ref)
+"""
+struct TDim{S, T} <: ToolsDim{T}
+    val::T
+    function TDim{S}(val; kw...) where {S}
+        if length(kw) > 0
+            val = DimensionalData.AutoVal(val, values(kw))
+        end
+        new{S, typeof(val)}(val)
+    end
+    function TDim{S}(val::AbstractArray; kw...) where {S}
+        if length(kw) > 0
+            val = DimensionalData.AutoLookup(val, values(kw))
+        end
+        TDim{S, typeof(val)}(val)
+    end
+    function TDim{S, T}(val::T) where {S, T}
+        new{S, T}(val)
+    end
+end
+TDim{S}() where {S} = TDim{S}(:)
+DimensionalData.name(::Type{<:TDim{S}}) where {S} = S
+DimensionalData.basetypeof(::Type{<:TDim{S}}) where {S} = TDim{S}
+DimensionalData.name2dim(s::Val{S}) where {S} = TDim{S}()
 
 TimeSeries(x::DimArray) = ToolsArray(x)
 

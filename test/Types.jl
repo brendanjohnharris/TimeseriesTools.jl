@@ -105,12 +105,14 @@ end
 @testitem "Dim queries" begin
     ts = 1:100
     cs = 1:10
-    X = TimeSeries(ts, Dim{:channel}(cs), randn(100, 10))
-    @test dims(X) == (𝑡(ts), Dim{:channel}(cs))
+    X = TimeSeries(ts, TDim{:channel}(cs), randn(100, 10))
+    @test X isa ToolsArray
+    @test all(isa.(dims(X), ToolsDimension))
+    @test dims(X) == (𝑡(ts), TDim{:channel}(cs))
     @test dims(X, 1) == 𝑡(ts)
     @test dims(X, 𝑡) == 𝑡(ts)
-    @test dims(X, Dim{:channel}) == Dim{:channel}(cs)
-    @test dims(X, :channel) == Dim{:channel}(cs)
+    @test dims(X, TDim{:channel}) == TDim{:channel}(cs)
+    @test dims(X, :channel) == TDim{:channel}(cs)
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension
@@ -120,6 +122,7 @@ end
     @test lookup(x[At(dims(x, 1))]) != lookup(x) # One is Regular, one is Irregular
     @test all(lookup(x[At(dims(x, 1))]) .== lookup(x[At(1:10)])) # But same elements
 end
+
 @testitem "Multivariate time series" begin
     ts = 1:100
     x = @test_nowarn TimeSeries(ts, 1:5, randn(100, 5))
