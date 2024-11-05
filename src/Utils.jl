@@ -823,14 +823,14 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
                                   DimensionalData.dims(X, _newdim).val))
             newdims = collect(Any, DimensionalData.dims(X))
             newdims[_dim] = rebuild(newdims[_dim],
-                                    (newdims[_dim][1:2:(N * 2)] .+
-                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+                                    (parent(newdims[_dim][1:2:(N * 2)]) +
+                                     parent(newdims[_dim][2:2:(N * 2)])) / 2)
             newdims[_newdim] = newdim
         else
             newdims = collect(Any, DimensionalData.dims(X))
             newdims[_dim] = rebuild(newdims[_dim],
-                                    (newdims[_dim][1:2:(N * 2)] .+
-                                     newdims[_dim][2:2:(N * 2)]) ./ 2)
+                                    (parent(newdims[_dim][1:2:(N * 2)]) +
+                                     parent(newdims[_dim][2:2:(N * 2)])) / 2)
             newdims = [newdims..., DimensionalData.AnonDim(1:size(_X, _newdim))]
             newdim = newdims[newdim]
         end

@@ -167,7 +167,7 @@ end
     C = coarsegrain(X; dims = 1, newdim = 2)
     @test size(C) == (5, 200, 2)
 
-    X = TimeSeries(1:11, 1:100, repeat(1:11, 1, 100))
+    X = Timeseries(1:11, 1:100, repeat(1:11, 1, 100))
     C = coarsegrain(X, dims = 1)
     M = dropdims(mean(C, dims = 3), dims = 3)
     @test all(M[:, 1] .== 1.5:2:9.5)

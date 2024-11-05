@@ -131,7 +131,6 @@ end
 TDim{S}() where {S} = TDim{S}(:)
 DimensionalData.name(::Type{<:TDim{S}}) where {S} = S
 DimensionalData.basetypeof(::Type{<:TDim{S}}) where {S} = TDim{S}
-DimensionalData.name2dim(s::Val{S}) where {S} = TDim{S}()
 
 TimeSeries(x::DimArray) = ToolsArray(x)
 
