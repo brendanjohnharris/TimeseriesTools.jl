@@ -231,6 +231,25 @@ end
     M = @test_nowarn maskpeaks(xx)
 end
 
+@testitem "ProgressLogging progressmap" begin
+    using DimensionalData
+    TimeseriesTools.PROGRESSMAP_BACKEND = :ProgressLogging
+    S = 1:1000
+    g = x -> (sleep(0.001); randn())
+    out = progressmap(g, S)
+
+    # * Check for matrix
+    S = randn(10, 10)
+    h(x) = (randn(1000, 1000)^10)^(-10)
+    out = progressmap(h, S)
+    @test out isa Matrix{Matrix{Float64}}
+
+    # * Check for DimArray
+    S = DimArray(randn(10, 10), (X(1:10), Y(1:10)))
+    out = progressmap(h, S)
+    @test out isa DimMatrix{Matrix{Float64}}
+end
+
 # begin
 #     D = DimensionalData.Dim{:x}(1:100)
 #     T = TimeseriesTools.Dim{:x}(1:100)

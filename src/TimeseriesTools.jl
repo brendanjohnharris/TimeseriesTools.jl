@@ -5,6 +5,7 @@ import Unitful.unit
 using Reexport
 using DimensionalData
 using IntervalSets
+using ProgressLogging
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
@@ -43,9 +44,8 @@ function _waveletfreqs end
 function _waveletspectrogram end
 function waveletspectrogram end
 function interpolate end
-function progressmap end
 function msdist end
-export _waveletfreqs, _waveletspectrogram, waveletspectrogram, progressmap, msdist
+export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist
 
 function spectrumplot! end
 function spectrumplot end

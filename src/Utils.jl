@@ -840,3 +840,35 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
 
     return X
 end
+
+PROGRESSMAP_BACKEND = :ProgressLogging
+function _progressmap(f, backend::T, args...; kwargs...) where {T}
+    throw(ArgumentError("Backend `$(only(T.parameters))` not implemented"))
+end
+function _progressmap(f, ::Val{:ProgressLogging}, As...;
+                      name = "progressmap") # Check output type
+    DimensionalData.comparedims(As...)
+    T = typejoin(Base.return_types(f, eltype.(As))...)
+    out = similar(first(As), T)
+    icargs = zip(As...) |> enumerate |> collect
+    @withprogress name=name begin
+        threadlog = 0
+        threadmax = length(icargs)
+        l = Threads.ReentrantLock()
+        Threads.@threads for (i, cargs) in icargs
+            out[i] = f(cargs...)
+            lock(l)
+            try
+                threadlog += 1
+                @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
+        end
+    end
+    return out
+end
+function progressmap(f, args...; backend = PROGRESSMAP_BACKEND, kwargs...)
+    _progressmap(f, Val(backend), args...; kwargs...)
+end
+export progressmap

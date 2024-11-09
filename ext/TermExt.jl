@@ -2,14 +2,14 @@ module TermExt
 using TimeseriesTools
 using Term
 using Term.Progress
-import TimeseriesTools.progressmap
+import TimeseriesTools: _progressmap, PROGRESSMAP_BACKEND
 import Base: HasEltype, HasLength, HasShape, SizeUnknown, _similar_for, _similar_shape,
              IteratorEltype, IteratorSize, Generator, _array_for
 
 const PROGRESSMAP_PROGRESS = ProgressBar(; columns = :detailed, width = 92,
                                          transient = true)
 
-function progressmap(f, args...; kwargs...)
+function _progressmap(f, backend::Val{:Term}, args...; kwargs...)
     icargs = zip(args...) |> enumerate |> collect
     T = typejoin(Base.return_types(f, eltype.(args))...)
     out = Vector{T}(undef, length(icargs))
@@ -20,7 +20,7 @@ function progressmap(f, args...; kwargs...)
     stop!(pbar)
     return out
 end
-function progressmap(f, A::AbstractArray; kwargs...) # Is this faster? Not great types
+function _progressmap(f, backend::Val{:Term}, A::AbstractArray; kwargs...) # Is this faster? Not great types
     T = typejoin(Base.return_types(f, (eltype(A),))...)
     out = Array{T}(undef, size(A))
     pbar = PROGRESSMAP_PROGRESS
@@ -30,9 +30,9 @@ function progressmap(f, A::AbstractArray; kwargs...) # Is this faster? Not great
     stop!(pbar)
     return Base.collect_similar(A, out)
 end
-function progressmap(f, As::AbstractDimArray...; kwargs...) # Check output type
+function _progressmap(f, backend::Val{:Term}, As::AbstractDimArray...; kwargs...) # Check output type
     DimensionalData.comparedims(As...)
-    data = progressmap(f, map(parent, As)...; kwargs...)
+    data = _progressmap(f, backend, map(parent, As)...; kwargs...)
     rebuild(first(As); data)
 end
 
