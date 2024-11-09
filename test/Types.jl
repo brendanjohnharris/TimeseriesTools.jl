@@ -87,10 +87,10 @@ end
 
 @testitem "TimeseriesTools.jl" begin
     ts = 1:100
-    x = @test_nowarn TimeSeries(ts, randn(100))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa UnivariateTimeSeries
+    x = @test_nowarn Timeseries(ts, randn(100))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa UnivariateTimeseries
 
     @test step(x) == step(ts)
     @test samplingrate(x) == 1 / step(ts)
@@ -105,14 +105,14 @@ end
 @testitem "Dim queries" begin
     ts = 1:100
     cs = 1:10
-    X = TimeSeries(ts, TDim{:channel}(cs), randn(100, 10))
-    @test X isa ToolsArray
-    @test all(isa.(dims(X), ToolsDimension))
-    @test dims(X) == (𝑡(ts), TDim{:channel}(cs))
-    @test dims(X, 1) == 𝑡(ts)
-    @test dims(X, 𝑡) == 𝑡(ts)
-    @test dims(X, TDim{:channel}) == TDim{:channel}(cs)
-    @test dims(X, :channel) == TDim{:channel}(cs)
+    x = Timeseries(ts, TDim{:channel}(cs), randn(100, 10))
+    @test x isa ToolsArray
+    @test all(isa.(dims(x), ToolsDimension))
+    @test dims(x) == (𝑡(ts), TDim{:channel}(cs))
+    @test dims(x, 1) == 𝑡(ts)
+    @test dims(x, 𝑡) == 𝑡(ts)
+    @test dims(x, TDim{:channel}) == TDim{:channel}(cs)
+    @test !(dims(x, :channel) == TDim{:channel}(cs)) # You CAN'T use symbols for TDim{}s because DimensionalData.name2dim always returns a Dim{}
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension
@@ -125,10 +125,10 @@ end
 
 @testitem "Multivariate time series" begin
     ts = 1:100
-    x = @test_nowarn TimeSeries(ts, 1:5, randn(100, 5))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultivariateTimeSeries
+    x = @test_nowarn Timeseries(ts, 1:5, randn(100, 5))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultivariateTimeseries
 
     @test step(x) == step(ts)
     @test samplingrate(x) == 1 / step(ts)
@@ -139,25 +139,25 @@ end
 end
 
 @testitem "Multidimensional time series" begin
-    x = @test_nowarn TimeSeries(𝑡(1:100), X(1:10), randn(100, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultidimensionalTimeSeries
+    x = @test_nowarn Timeseries(𝑡(1:100), X(1:10), randn(100, 10))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultidimensionalTimeseries
 
-    x = @test_nowarn TimeSeries(𝑡(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultidimensionalTimeSeries
+    x = @test_nowarn Timeseries(𝑡(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultidimensionalTimeseries
     @test_nowarn x[𝑡(Near(4:10))]
 
-    x = @test_nowarn TimeSeries(𝑡(1:100), X(randn(10) |> sort), Y(1:10),
+    x = @test_nowarn Timeseries(𝑡(1:100), X(randn(10) |> sort), Y(1:10),
                                 randn(100, 10, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test !(x isa MultidimensionalTimeSeries)
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test !(x isa MultidimensionalTimeseries)
 
-    x = @test_nowarn TimeSeries(𝑡(sort(randn(100))), randn(100))
-    @test x isa AbstractTimeSeries
-    @test !(x isa RegularTimeSeries)
-    @test !(x isa MultidimensionalTimeSeries)
+    x = @test_nowarn Timeseries(𝑡(sort(randn(100))), randn(100))
+    @test x isa AbstractTimeseries
+    @test !(x isa RegularTimeseries)
+    @test !(x isa MultidimensionalTimeseries)
 end
