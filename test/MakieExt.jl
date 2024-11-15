@@ -44,11 +44,14 @@ end
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
     trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
-    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
-    ax.azimuth = ax.azimuth[] + 0.25
-    ax.elevation = ax.elevation[] + 0.25
     shadows!(ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05)
+    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
+    ax.azimuth = ax.azimuth[] + 0.1
+    ax.elevation = ax.elevation[] + 0.1
     save("./shadows.png", f; px_per_unit = 3)
+
+    @test_nowarn trajectory!(ax, x)
+    @test_nowarn shadows!(ax, x; color = (:slategray, 0.5), linewidth = 0.05)
 end
 
 @testitem "Readme_dark" begin
@@ -78,10 +81,10 @@ end
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
     trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
-    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
-    ax.azimuth = ax.azimuth[] + 0.25
-    ax.elevation = ax.elevation[] + 0.25
     shadows!(ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05)
+    ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
+    ax.azimuth = ax.azimuth[] + 0.1
+    ax.elevation = ax.elevation[] + 0.1
     save("./shadows_dark.png", f; px_per_unit = 3)
 end
 

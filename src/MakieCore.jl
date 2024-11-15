@@ -34,19 +34,19 @@ end
 Convert a time series or spectrum to a tuple of the dimensions and the data (as `Array`s).
 """
 decompose(x::AbstractToolsArray) = (lookup(x)..., x.data) .|> parent
-function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
-                                     x::AbstractTimeSeries)
-    MakieCore.convert_arguments(P, decompose(x)...)
-end
-function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
-                                     x::AbstractSpectrum)
-    MakieCore.convert_arguments(P, decompose(x)...)
-end
-function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
-                                     x::Tuple{<:Union{<:AbstractTimeSeries,
-                                                      <:AbstractSpectrum}})
-    MakieCore.convert_arguments(P, decompose(first(x))...)
-end
+# function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
+#                                      x::AbstractTimeSeries)
+#     MakieCore.convert_arguments(P, decompose(x)...)
+# end
+# function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
+#                                      x::AbstractSpectrum)
+#     MakieCore.convert_arguments(P, decompose(x)...)
+# end
+# function MakieCore.convert_arguments(P::Type{<:MakieCore.AbstractPlot},
+#                                      x::Tuple{<:Union{<:AbstractTimeSeries,
+#                                                       <:AbstractSpectrum}})
+#     MakieCore.convert_arguments(P, decompose(first(x))...)
+# end
 MakieCore.plottype(::AbstractTimeSeries) = Lines
 
 function MakieCore.plot!(ax, x::UnivariateTimeSeries; kwargs...)

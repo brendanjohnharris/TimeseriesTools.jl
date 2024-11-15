@@ -221,13 +221,58 @@ end
 end
 
 @testitem "Upsampling" begin
-    using Dierckx
-    x = TimeSeries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    using DataInterpolations
+    using Unitful
+
+    # * Vector
+    ts = (rand(100) .- 0.5) * 2π
+    x = Timeseries(ts, sinc.(ts))
+    @test_throws "`interpolate` only supports forward" TimeseriesTools.interpolate(x)
+
+    sort!(ts)
+    x = Timeseries(ts, sinc.(ts))
     itp = TimeseriesTools.interpolate(x)
-    y = itp(dims(x)...)
-    @test x ≈ y
+    y = itp(dims(x) |> only)
+    @test x == y
+
+    ts = (-π):0.1:π
+    x = Timeseries(ts, sinc.(ts))
+    itp = TimeseriesTools.interpolate(x)
     z = @test_nowarn upsample(x, 2)
+    @test all(z[𝑡(At(ts))] .≈ x)
+    @test z≈sinc.(lookup(z) |> only) atol=1e-2
+
+    # * Matrix
+    x = Timeseries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    y = @test_nowarn upsample(x, 2)
+    z = @test_nowarn upsample(x, 2, dims = 1)
+    @test y == z
+    z = @test_nowarn upsample(x, 2, dims = (1, 2))
+    @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var)))])
+    @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var)))])
+    @test dimname.(dims(x)) == dimname.(dims(z))
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
+
+    # * 3D array
+    x = Timeseries(0.1:0.1:10, Var(1:100), X(1:100), randn(100, 100, 100))
+    y = @test_nowarn upsample(x, 2)
+    z = @test_nowarn upsample(x, 2, dims = 1)
+    @test y == z
+    z = @test_nowarn upsample(x, 2, dims = (3, 2, 1))
+    @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var))), X(At(lookup(y, X)))])
+    @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var))), X(At(lookup(x, X)))])
+    @test dimname.(dims(x)) == dimname.(dims(z))
+    @test length(dims(z, 1)) == length(dims(z, 2)) == 199
+
+    # * Unitful data
+    ts = ((-π):0.1:π) * u"s"
+    x = Timeseries(ts, sinc.(ustrip(ts))) * u"V"
+    itp = TimeseriesTools.interpolate(x)
+    @test unit(eltype(itp(dims(x) |> only))) == NoUnits
+    z = @test_nowarn upsample(x, 2)
+    @test unit(eltype(z)) == u"V"
+    @test unit(eltype(lookup(z) |> only)) == u"s"
+    @test all(z[𝑡(At(ts))] .≈ x)
 end
 
 @testitem "Unit Power" begin

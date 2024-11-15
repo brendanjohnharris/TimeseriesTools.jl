@@ -27,7 +27,11 @@ function _progressmap(f, backend::Val{:Dagger}, args...; numblocks = 100,
                 sleep(0.1)
             end
         end
-        return collect(out)
+        out = collect(out)
+        if size(out) != size(first(args))
+            throw(DimensionMismatch("The collected output does not match the input dimensions"))
+        end
+        return out
     end
 end
 

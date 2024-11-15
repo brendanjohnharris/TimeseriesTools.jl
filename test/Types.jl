@@ -113,6 +113,7 @@ end
     @test dims(x, 𝑡) == 𝑡(ts)
     @test dims(x, TDim{:channel}) == TDim{:channel}(cs)
     @test !(dims(x, :channel) == TDim{:channel}(cs)) # You CAN'T use symbols for TDim{}s because DimensionalData.name2dim always returns a Dim{}
+    # This breaks a lot of functionality, so avoid TDim{} for now.
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension

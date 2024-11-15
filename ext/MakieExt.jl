@@ -233,7 +233,51 @@ function Makie.plot!(plot::Trajectory)
 end
 
 # ? -------------------------- Trajectory shadows -------------------------- ? #
-function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kwargs...)
+# function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kwargs...)
+#     (x isa Observable) || (x = Observable(x))
+#     (y isa Observable) || (y = Observable(y))
+#     (z isa Observable) || (z = Observable(z))
+#     i = @lift isfinite.($(x)) .* isfinite.($(y)) .* isfinite.($(z))
+#     x = @lift ($(x)[$(i)])
+#     y = @lift ($(y)[$(i)])
+#     z = @lift ($(z)[$(i)])
+
+#     limits = ax.finallimits
+#     _limits = limits[]
+#     len = @lift length($(x))
+
+#     if swapshadows
+#         xp = @lift fill($(limits).origin[1], $(len))
+#         yp = @lift fill($(limits).origin[2], $(len))
+#         zp = @lift fill($(limits).origin[3], $(len))
+#     else
+#         xp = @lift fill($(limits).origin[1] .+ $(limits).widths[1], $(len))
+#         yp = @lift fill($(limits).origin[2] .+ $(limits).widths[2], $(len))
+#         zp = @lift fill($(limits).origin[3], $(len))
+#     end
+
+#     if shadowmode === :projection
+#         lines!(ax, xp, y, z; kwargs...)
+#         lines!(ax, x, yp, z; kwargs...)
+#         lines!(ax, x, y, zp; kwargs...)
+#     end
+#     ax.finallimits[] = _limits
+#     return ax
+# end
+@recipe(Shadows, x, y, z) do scene
+    Attributes(shadowmode = :projection,
+               swapshadows = false,
+               linewidth = theme(scene, :linewidth),
+               alpha = 0.8,
+               linestyle = theme(scene, :linestyle),
+               linecap = theme(scene, :linecap),
+               joinstyle = theme(scene, :joinstyle))
+end
+
+function Makie.plot!(plot::Shadows)
+    x, y, z = plot.x, plot.y, plot.z
+    shadowmode = plot.shadowmode[]
+    swapshadows = plot.swapshadows[]
     (x isa Observable) || (x = Observable(x))
     (y isa Observable) || (y = Observable(y))
     (z isa Observable) || (z = Observable(z))
@@ -242,6 +286,10 @@ function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kw
     y = @lift ($(y)[$(i)])
     z = @lift ($(z)[$(i)])
 
+    ax = Makie.current_axis() # Hack until we can access the axis through a Plot
+    if isnothing(ax)
+        error("The current axis has no limits. Please apply shadows! to an axis with an existing plot.")
+    end
     limits = ax.finallimits
     _limits = limits[]
     len = @lift length($(x))
@@ -257,17 +305,14 @@ function shadows!(ax, x, y, z; shadowmode = :projection, swapshadows = false, kw
     end
 
     if shadowmode === :projection
-        lines!(ax, xp, y, z; kwargs...)
-        lines!(ax, x, yp, z; kwargs...)
-        lines!(ax, x, y, zp; kwargs...)
+        valid_attributes = Makie.shared_attributes(plot, Lines)
+        lines!(plot, xp, y, z; valid_attributes...)
+        lines!(plot, x, yp, z; valid_attributes...)
+        lines!(plot, x, y, zp; valid_attributes...)
     end
-    ax.finallimits[] = _limits
-    return ax
-end
 
-function MakieCore.convert_arguments(::Type{<:Trajectory},
-                                     x::MultivariateTimeSeries)
-    x |> eachcol .|> collect |> Tuple
+    ax.finallimits[] = _limits
+    plot
 end
 
 # ? ------------------------------- # Traces ------------------------------- ? #
@@ -449,6 +494,15 @@ function stackedtraces!(ax, S::MultivariateTimeSeries; kwargs...)
     isempty(ax.xlabel[]) && (ax.xlabel = "Time $xu")
     isempty(ax.ylabel[]) && (ax.ylabel = "Value $yu")
     stackedtraces!(ax, ustripall.(x), ustripall.(y), ustripall.(z); kwargs...)
+end
+
+const TrajectoryLike = Union{Trajectory, Shadows}
+function Makie.convert_arguments(P::Type{<:TrajectoryLike},
+                                 x::DimensionalData.AbstractDimMatrix)
+    Makie.convert_arguments(P, eachcol(parent(x))...)
+end
+function Makie.convert_arguments(P::Type{<:TrajectoryLike}, x::AbstractMatrix)
+    Makie.convert_arguments(P, eachcol(x)...)
 end
 
 end # module
