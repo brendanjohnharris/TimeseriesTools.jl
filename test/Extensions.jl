@@ -76,8 +76,8 @@ end
     @test_nowarn heatmap(y) # Shoudl default to the DimensionalData recipe
 
     pargs = Makie.convert_arguments(StackedTraces, y)
-    @test pargs[1] isa AbstractRange
-    @test pargs[2] isa AbstractRange
+    @test pargs[1] == lookup(y, 1) |> collect
+    @test pargs[2] == lookup(y, 2) |> collect
     @test pargs[3] isa Matrix
 
     f = Figure()
@@ -233,7 +233,7 @@ end
     x = Timeseries(ts, sinc.(ts))
     itp = TimeseriesTools.interpolate(x)
     y = itp(dims(x) |> only)
-    @test x == y
+    @test x ≈ y
 
     ts = (-π):0.1:π
     x = Timeseries(ts, sinc.(ts))

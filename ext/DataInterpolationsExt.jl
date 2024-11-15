@@ -12,11 +12,11 @@ function interpolate(x::DimensionalData.AbstractDimVector,
                      args...; extrapolate = true, kwargs...)
     DimensionalData.isforward(x) ||
         throw(ArgumentError("`interpolate` only supports forward-ordered data"))
-    interp(parent(x) |> ustrip, x |> lookup |> only |> ustrip, args...; extrapolate,
+    interp(parent(x) .|> ustrip, x |> lookup |> only .|> ustrip, args...; extrapolate,
            kwargs...)
 end
 function (itp::AbstractInterpolation)(x::DimensionalData.Dimension; kwargs...)
-    DimensionalData.dimconstructor((x,))((x |> lookup |> ustrip |> itp),
+    DimensionalData.dimconstructor((x,))((x |> lookup .|> ustrip |> itp),
                                          (x,);
                                          kwargs...)
 end
