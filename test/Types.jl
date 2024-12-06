@@ -1,5 +1,10 @@
 @testitem "ToolsArrays" begin
-    import DimensionalData: span
+    import DimensionalData: span, DimArrayInterface
+    import Interfaces
+
+    Interfaces.test(DimArrayInterface, ToolsArray,
+                    [ToolsArray(randn(10, 10), (X(1:10), Y(1:10)))])
+
     x = ToolsArray(randn(10), (𝑡(1:10),))
     @test x isa ToolsArray
     @test !(x isa DimensionalData.DimArray)
