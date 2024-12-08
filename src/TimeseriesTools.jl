@@ -30,6 +30,10 @@ bandpass(x::AbstractTimeSeries) = x
 highpass(x::AbstractTimeSeries) = x
 lowpass(x::AbstractTimeSeries) = x
 
+function timescale(x::UnivariateTimeSeries; method = :ac_crossing)
+    timescale(x::UnivariateTimeSeries, Val{method}())
+end
+
 # ? Placeholder functions for extensions
 function phasestitch end
 function isoamplitude end
