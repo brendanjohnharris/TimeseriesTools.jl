@@ -14,7 +14,7 @@ export AbstractToolsArray, ToolsArray,
        IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
        ToolsDimension, ToolsDim, TDim,
-       𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var
+       𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var, Obs
 
 """
 A local type to avoid overloading and piracy issues with DimensionalData.jl
@@ -61,6 +61,9 @@ DimensionalData.@dim 𝑦 ZDim "z"
 abstract type VariableDim{T} <: Dimension{T} end
 DimensionalData.@dim Var VariableDim "Var"
 
+abstract type ObservationDim{T} <: Dimension{T} end
+DimensionalData.@dim Obs ObservationDim "Obs"
+
 abstract type FrequencyDim{T} <: Dimension{T} end
 DimensionalData.@dim 𝑓 FrequencyDim "Frequency"
 
@@ -89,7 +92,7 @@ to `DimensionalData.Dimension` for dispatch purposes.
 - [`ToolsDim`](@ref)
 - [`TDim`](@ref)
 """
-ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var, ToolsDim}
+ToolsDimension = Union{𝑡, 𝑥, 𝑧, 𝑦, 𝑓, Var, Obs, ToolsDim}
 
 function DimensionalData.dimconstructor(::Tuple{ToolsDimension,
                                                 Vararg{DimensionalData.Dimension}})

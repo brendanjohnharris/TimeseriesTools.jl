@@ -15,7 +15,7 @@ x isa AbstractTimeSeries # An AbstractTimeSeries is an AbstractToolsArray...
 lookup(x, 1) isa 𝑡 # ...where the first dimension is a custom TimeDim 𝑡
 ```
 If a `ToolsArray` or `DimArray` has a `𝑡` as its first dimension, it will be rebuilt as a `ToolsArray` (i.e. when using functions like `eachcol`).
-There are a small number of other custom dimensions, all exported, that share this property and are subtypes of `ToolsDimension`: e.g. `𝑥`, `𝑦`, `𝑧`, `𝑓`, and `Var`.
+There are a small number of other custom dimensions, all exported, that share this property and are subtypes of `ToolsDimension`: e.g. `𝑥`, `𝑦`, `𝑧`, `𝑓`,`Var`, `Obs`.
 To define more of these `ToolsDimension`s, use:
 ```julia
 DimensionalData.@dim NewDim ToolsDim "NameOfNewDim"
