@@ -60,7 +60,9 @@ function traces! end
 function traces end
 function stackedtraces! end
 function stackedtraces end
+function spikeraster! end
+function spikeraster end
 export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!, traces!, traces,
-       stackedtraces!, stackedtraces
+       stackedtraces!, stackedtraces, spikeraster!, spikeraster
 
 end

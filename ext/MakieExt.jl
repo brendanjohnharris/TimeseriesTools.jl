@@ -18,7 +18,8 @@ using Peaks
 using Unitful
 
 import TimeseriesTools: spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!,
-                        TimeDim, Dimension, traces!, traces, stackedtraces!, stackedtraces
+                        TimeDim, Dimension, traces!, traces, stackedtraces!, stackedtraces,
+                        spikeraster!, spikeraster
 
 # function Makie.convert_arguments(P::Type{<:Makie.AbstractPlot},
 #                                      x::AbstractTimeSeries)
@@ -503,6 +504,38 @@ function Makie.convert_arguments(P::Type{<:TrajectoryLike},
 end
 function Makie.convert_arguments(P::Type{<:TrajectoryLike}, x::AbstractMatrix)
     Makie.convert_arguments(P, eachcol(x)...)
+end
+
+# ?------------------------------------ Spike raster ------------------------------------? #
+@recipe(SpikeRaster, x, y, z) do scene
+    Attributes(colormap = nothing,
+               color = :black,
+               markersize = 5)
+end
+
+function Makie.plot!(plot::SpikeRaster)
+    times, order = plot.y, plot.x[]
+    _is = eachindex(times[]) # Then adjust according to order
+    if eltype(order) <: Number
+        is = invperm(sortperm(order))
+    else
+        is = _is
+    end
+    xs = map(_is) do i
+        lift(times) do x
+            map(ustrip, x[i])
+        end
+    end
+    ys = map(_is) do i
+        lift(xs[i]) do x
+            fill(is[i], length(x))
+        end
+    end
+    valid_attributes = Makie.shared_attributes(plot, Scatter)
+    map(_is) do i
+        scatter!(plot, xs[i], ys[i]; valid_attributes...)
+    end
+    plot
 end
 
 end # module

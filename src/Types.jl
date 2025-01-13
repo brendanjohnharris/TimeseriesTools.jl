@@ -11,7 +11,8 @@ export AbstractToolsArray, ToolsArray,
        IrregularIndex, IrregularTimeIndex,
        TimeSeries, Timeseries, TS,
        stitch,
-       IrregularBinaryTimeSeries, SpikeTrain, spiketrain,
+       IrregularBinaryTimeSeries, SpikeTrain, MultivariateSpikeTrain, UnivariateSpikeTrain,
+       spiketrain, spiketimes,
        MultidimensionalIndex, MultidimensionalTimeSeries, MultidimensionalTS,
        ToolsDimension, ToolsDim, TDim,
        𝑡, 𝑥, 𝑦, 𝑧, 𝑓, Var, Obs
@@ -255,9 +256,20 @@ A type alias for a spike-train time series, which contains spike times in the ti
 """
 SpikeTrain
 
+const UnivariateSpikeTrain = typeintersect(UnivariateTimeSeries, SpikeTrain)
+const MultivariateSpikeTrain = typeintersect(MultivariateTimeSeries, SpikeTrain)
+
 function spiketrain(x; kwargs...)
     TimeSeries(sort(x), trues(length(x)); kwargs...)
 end
+
+function spiketimes(x::UnivariateSpikeTrain)
+    times(x[x])
+end
+function spiketimes(x::SpikeTrain)
+    map(spiketimes, eachslice(x, dims = tuple(2:ndims(x)...)))
+end
+spiketimes(x::AbstractArray) = x
 
 """
     TimeSeries(t, x)
