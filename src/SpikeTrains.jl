@@ -51,6 +51,10 @@ function sttc(a, b; Δt = 0.025)
         error("Spike trains must be sorted")
     end
 
+    if isempty(a) || isempty(b)
+        return 0.0
+    end
+
     Ta = 0
     ext = 0
     for _a in a

@@ -51,6 +51,7 @@ function interpolate end
 function msdist end
 export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist
 
+# * MakieExt
 function spectrumplot! end
 function spectrumplot end
 function trajectory! end
@@ -62,6 +63,7 @@ function stackedtraces! end
 function stackedtraces end
 function spikeraster! end
 function spikeraster end
+
 export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!, traces!, traces,
        stackedtraces!, stackedtraces, spikeraster!, spikeraster
 
