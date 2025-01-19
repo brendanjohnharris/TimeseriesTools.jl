@@ -9,10 +9,10 @@ import TimeseriesTools: interpolate, upsample
 
 function interpolate(x::DimensionalData.AbstractDimVector,
                      interp::Type{<:AbstractInterpolation} = AkimaInterpolation,
-                     args...; extrapolate = true, kwargs...)
+                     args...; extrapolation = ExtrapolationType.Extension, kwargs...)
     DimensionalData.isforward(x) ||
         throw(ArgumentError("`interpolate` only supports forward-ordered data"))
-    interp(parent(x) .|> ustrip, x |> lookup |> only .|> ustrip, args...; extrapolate,
+    interp(parent(x) .|> ustrip, x |> lookup |> only .|> ustrip, args...; extrapolation,
            kwargs...)
 end
 function (itp::AbstractInterpolation)(x::DimensionalData.Dimension; kwargs...)

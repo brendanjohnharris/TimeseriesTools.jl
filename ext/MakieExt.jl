@@ -532,6 +532,7 @@ function Makie.plot!(plot::SpikeRaster)
         end
     end
     valid_attributes = Makie.shared_attributes(plot, Scatter)
+
     map(_is) do i
         scatter!(plot, xs[i], ys[i]; valid_attributes...)
     end
