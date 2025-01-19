@@ -133,7 +133,7 @@ end
     @test ax.finallimits.val.widths[1]≈100 atol=1e-2 # Uses freq values
 end
 
-@testitem begin
+@testitem "Spike trains" begin
     using JLD2
     using CairoMakie
     using Unitful
