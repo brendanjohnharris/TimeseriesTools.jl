@@ -48,11 +48,12 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
     f = ustripall.(f) |> collect
     x = ustripall.(x) |> collect
     idxs = (f .> 0) .& (x .> 0)
+
     dx = extrema(f[idxs])
     dy = extrema(x[idxs])
-    dx = dx .+ diff(dx) * 0.05
     dy = dy .+ diff(dy) * 0.05
     ax.limits = (dx, dy)
+
     ax.xscale = log10
     ax.yscale = log10
     uf == NoUnits ? (ax.xlabel = "Frequency") : (ax.xlabel = "Frequency ($uf)")
@@ -108,7 +109,12 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum;
     σₗ = mapslices(x -> quantile(x, percentile), x, dims = 2) |> vec
     σᵤ = mapslices(x -> quantile(x, 1 - percentile), x, dims = 2) |> vec
     idxs = (f .> 0) .& (xmin .> 0)
-    ax.limits = ((minimum(f[idxs]), nothing), (minimum(σₗ[idxs]), nothing))
+
+    dx = extrema(f[idxs])
+    dy = extrema(σₗ[idxs])
+    dy = dy .+ diff(dy) * 0.05
+    ax.limits = (dx, dy)
+
     ax.xscale = log10
     ax.yscale = log10
     if isempty(ax.xlabel[])
