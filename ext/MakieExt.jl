@@ -51,7 +51,7 @@ function spectrumplot!(ax::Makie.Axis, x::UnivariateSpectrum; peaks = false, kwa
 
     dx = extrema(f[idxs])
     dy = extrema(x[idxs])
-    dy[2] = dy[2] + (dy[2] - dy[1]) * 0.05 # Slightly widen on the upper end
+    dy = (dy[1], dy[2] + (dy[2] - dy[1]) * 0.05) # Slightly widen on the upper end
     ax.limits = (dx, dy)
 
     ax.xscale = log10
@@ -112,7 +112,7 @@ function spectrumplot!(ax::Makie.Axis, x::MultivariateSpectrum;
 
     dx = extrema(f[idxs])
     dy = extrema(σₗ[idxs])
-    dy[2] = dy[2] + (dy[2] - dy[1]) * 0.05
+    dy = (dy[1], dy[2] + (dy[2] - dy[1]) * 0.05)
     ax.limits = (dx, dy)
 
     ax.xscale = log10
