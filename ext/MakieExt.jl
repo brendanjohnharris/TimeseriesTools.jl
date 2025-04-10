@@ -575,4 +575,9 @@ function Makie.convert_arguments(P::Type{<:SpikeRaster},
     Makie.convert_arguments(P, 1:length(x), x)
 end
 
+function spikeraster(s::MultivariateSpikeTrain; kwargs...)
+    args = Makie.convert_arguments(SpikeRaster, s)
+    spikeraster(args...; kwargs...)
+end
+
 end # module
