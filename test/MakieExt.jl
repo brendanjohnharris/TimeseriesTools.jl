@@ -152,8 +152,9 @@ end
 
     @test_nowarn spikeraster(length.(x), x) # Sort by firing rate
 
+    # * Need to fix the automatic passing of 1:size(E, 2)
     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
-    @test_nowarn spikeraster(spiketimes(E))
-    @test_nowarn spikeraster(spiketimes(E); sortby = 1:size(E, 2))
-    @test_nowarn spikeraster(spiketimes(E); sortby = :rate, rev = true)
+    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
+    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = 1:size(E, 2))
+    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = :rate, rev = true)
 end
