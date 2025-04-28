@@ -249,6 +249,25 @@ end
     out = progressmap(h, S)
     @test out isa DimMatrix{Matrix{Float64}}
 end
+@testitem "progressmap schedulers" begin
+    TimeseriesTools.PROGRESSMAP_BACKEND = :Threads
+
+    # * Compare to Threads.@threads. Guess you should have some threads.
+    function f(X)
+        return sum(X * X)
+    end
+    Ns = 1:100:1000
+    Xs = [randn(n, n) for n in Ns]
+    @test progressmap(f, Xs, schedule = :dynamic) == progressmap(f, Xs, schedule = :static)
+
+    Ns = range(0, 1, length = 100)
+
+    _, bs = @timed progressmap(sleep, Ns, schedule = :static)
+    _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
+    _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
+
+    @test bg < bd < bs
+end
 
 # begin
 #     D = DimensionalData.Dim{:x}(1:100)

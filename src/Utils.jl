@@ -845,18 +845,23 @@ PROGRESSMAP_BACKEND = :ProgressLogging
 function _progressmap(f, backend::T, args...; kwargs...) where {T}
     throw(ArgumentError("Backend `$(only(T.parameters))` not implemented"))
 end
-function _progressmap(f, ::Val{:ProgressLogging}, As...;
-                      name = "progressmap") # Check output type
+function _progressmap(f, ::Val{:Threads}, As...; kwargs...)
+    _progressmap(f, Val(:ProgressLogging), As...; kwargs...)
+end
+function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
+                      schedule = :dynamic)
     DimensionalData.comparedims(As...)
     T = typejoin(Base.return_types(f, eltype.(As))...)
     out = similar(first(As), T)
     icargs = zip(As...) |> enumerate |> collect
+
+    threadlog = 0
+    threadmax = length(icargs)
+    l = Threads.ReentrantLock()
+
     @withprogress name=name begin
-        threadlog = 0
-        threadmax = length(icargs)
-        l = Threads.ReentrantLock()
-        Threads.@threads for (i, cargs) in icargs
-            out[i] = f(cargs...)
+        function _f(i, cargs)
+            @inbounds out[i] = f(cargs...)
             lock(l)
             try
                 threadlog += 1
@@ -865,9 +870,25 @@ function _progressmap(f, ::Val{:ProgressLogging}, As...;
                 unlock(l)
             end
         end
+        if schedule == :static
+            Threads.@threads :static for (i, cargs) in icargs
+                _f(i, cargs)
+            end
+        elseif schedule == :dynamic
+            Threads.@threads :dynamic for (i, cargs) in icargs
+                _f(i, cargs)
+            end
+        elseif schedule == :greedy
+            Threads.@threads :greedy for (i, cargs) in icargs
+                _f(i, cargs)
+            end
+        else
+            ArgumentError("Unknown schedule type '$schedule' in `progressmap`")
+        end
     end
     return out
 end
+
 function progressmap(f, args...; backend = PROGRESSMAP_BACKEND, kwargs...)
     _progressmap(f, Val(backend), args...; kwargs...)
 end
