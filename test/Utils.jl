@@ -262,11 +262,11 @@ end
 
     Ns = range(0, 1, length = 100)
 
-    _, bs = @timed progressmap(sleep, Ns, schedule = :static)
-    _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
-    _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
+    if Threads.nthreads() > 2 && VERSION ≥ v"1.11"
+        _, bs = @timed progressmap(sleep, Ns, schedule = :static)
+        _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
+        _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
 
-    if Threads.nthreads() > 2
         @test bg < bd < bs
     end
 end
