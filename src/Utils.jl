@@ -860,7 +860,7 @@ function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
     l = Threads.ReentrantLock()
 
     @withprogress name=name begin
-        function _f!(out, i, cargs)
+        function _f(i, cargs)
             @inbounds out[i] = f(cargs...)
             lock(l)
             try
@@ -870,18 +870,18 @@ function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
                 unlock(l)
             end
         end
-        @static if schedule == :static
+        if schedule == :static
             Threads.@threads :static for (i, cargs) in icargs
-                _f!(out, i, cargs)
+                _f(i, cargs)
             end
-        elseif schedule == :dynamic && VERSION ≥ v"1.8"
+        elseif schedule == :dynamic
             Threads.@threads :dynamic for (i, cargs) in icargs
-                _f!(out, i, cargs)
+                _f(i, cargs)
             end
-        elseif schedule == :greedy && VERSION ≥ v"1.11"
-            Threads.@threads :greedy for (i, cargs) in icargs
-                _f!(out, i, cargs)
-            end
+            # elseif schedule == :greedy # Would really like this to work
+            #     Threads.@threads :greedy for (i, cargs) in icargs
+            #         _f(i, cargs)
+            #     end
         else
             ArgumentError("Unknown schedule type '$schedule' in `progressmap`")
         end

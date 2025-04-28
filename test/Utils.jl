@@ -257,7 +257,7 @@ end
         return sum(X * X)
     end
     Ns = 1:100:1000
-    Xs = [randn(n, n) for n in Ns]
+    Xs = [rand(n, n) for n in Ns]
     @test progressmap(f, Xs, schedule = :dynamic) == progressmap(f, Xs, schedule = :static)
 
     Ns = range(0, 1, length = 100)
@@ -265,9 +265,9 @@ end
     if Threads.nthreads() > 2 && VERSION ≥ v"1.11"
         _, bs = @timed progressmap(sleep, Ns, schedule = :static)
         _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
-        _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
+        # _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
 
-        @test bg < bd < bs
+        @test bs > bd # > bg
     end
 end
 
