@@ -266,7 +266,9 @@ end
     _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
     _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
 
-    @test bg < bd < bs
+    if Threads.nthreads() > 2
+        @test bg < bd < bs
+    end
 end
 
 # begin
