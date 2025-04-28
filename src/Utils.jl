@@ -874,11 +874,11 @@ function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
             Threads.@threads :static for (i, cargs) in icargs
                 _f(i, cargs)
             end
-        elseif schedule == :dynamic
+        elseif schedule == :dynamic && VERSION ≥ v"1.8"
             Threads.@threads :dynamic for (i, cargs) in icargs
                 _f(i, cargs)
             end
-        elseif schedule == :greedy
+        elseif schedule == :greedy && VERSION ≥ v"1.11"
             Threads.@threads :greedy for (i, cargs) in icargs
                 _f(i, cargs)
             end
