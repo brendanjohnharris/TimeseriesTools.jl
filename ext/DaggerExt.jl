@@ -1,6 +1,5 @@
 module DaggerExt
 using Dagger
-using Distributed
 using TimeseriesTools
 using TimeseriesTools.ProgressLogging
 import TimeseriesTools: _progressmap

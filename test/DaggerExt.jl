@@ -1,9 +1,6 @@
 @testitem "Dagger progressmap" begin
-    using Distributed
-    addprocs(2)
-    @everywhere using DimensionalData
-    @everywhere using Dagger
-    @everywhere using TimeseriesTools
+    using Dagger
+    using DimensionalData
     TimeseriesTools.PROGRESSMAP_BACKEND = :Dagger
 
     S = 1:1000
@@ -25,5 +22,4 @@
 
     S = ToolsArray(randn(10, 10), (TDim{:X}(1:10), TDim{:Y}(1:10))) # Can't do this yet. Don't use TDim.
     @test_throws "DimensionMismatch" progressmap(h, S; numblocks = 100)
-    rmprocs()
 end
