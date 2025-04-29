@@ -6,6 +6,7 @@ lcov.info
 *.jl.mem
 *.jld2
 *.mp4
+settings.json
 coverage-lcov.info
 *.mat
 *.parquet

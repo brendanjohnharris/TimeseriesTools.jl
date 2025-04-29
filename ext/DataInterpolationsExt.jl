@@ -28,14 +28,13 @@ function upsample(x::DimensionalData.AbstractDimArray, factor::Number, args...;
     for dim in dims
         d = upsample(DimensionalData.dims(y, dim), factor)
         negdims = setdiff(1:ndims(y), dimnum(y, dim)) |> Tuple
-        @info "here"
         y = progressmap(eachslice(y; dims=negdims)) do y
             itp = interpolate(y, args...; kwargs...)
             itp(d)
-        end #|> stack
-        #y = permutedims(y, dimnum.([y], DimensionalData.dims(x)))
+        end |> stack
+        y = permutedims(y, dimnum.([y], DimensionalData.dims(x)))
     end
-    return y# * u
+    return y * u
 end
 
 end # module

@@ -841,6 +841,35 @@ function coarsegrain(X::AbstractDimArray; dims = nothing,
     return X
 end
 
+import Base.Threads: threading_run, threadpoolsize
+macro threads_compat(args...)
+    na = length(args)
+    if na == 2
+        sched, ex = args
+        if sched isa QuoteNode
+            sched = sched.value
+        elseif sched isa Symbol
+            # for now only allow quoted symbols
+            sched = nothing
+        end
+        # if sched !== :static && sched !== :dynamic && sched !== :greedy
+        #     throw(ArgumentError("unsupported schedule argument in @threads"))
+        # end
+    elseif na == 1
+        sched = :default
+        ex = args[1]
+    else
+        throw(ArgumentError("wrong number of arguments in @threads"))
+    end
+    if !(isa(ex, Expr) && ex.head === :for)
+        throw(ArgumentError("@threads requires a `for` loop expression"))
+    end
+    if !(ex.args[1] isa Expr && ex.args[1].head === :(=))
+        throw(ArgumentError("nested outer loops are not currently supported by @threads"))
+    end
+    return Base.Threads._threadsfor(ex.args[1], ex.args[2], sched)
+end
+
 PROGRESSMAP_BACKEND = :ProgressLogging
 function _progressmap(f, backend::T, args...; kwargs...) where {T}
     throw(ArgumentError("Backend `$(only(T.parameters))` not implemented"))
@@ -850,6 +879,12 @@ function _progressmap(f, ::Val{:Threads}, As...; kwargs...)
 end
 function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
                       schedule = :dynamic)
+    if VERSION < v"1.11" && schedule == :greedy
+        ArgumentError("`:greedy` scheduling is not supported in Julia ≥ 1.11")
+    end
+    if VERSION < v"1.8" && schedule == :dynamic
+        ArgumentError("`:dynamic` scheduling is not supported in Julia ≥ 1.8")
+    end
     DimensionalData.comparedims(As...)
     T = typejoin(Base.return_types(f, eltype.(As))...)
     out = similar(first(As), T)
@@ -871,17 +906,17 @@ function _progressmap(f, ::Val{:ProgressLogging}, As...; name = "progressmap",
             end
         end
         if schedule == :static
-            Threads.@threads :static for (i, cargs) in icargs
+            @threads_compat :static for (i, cargs) in icargs
                 _f(i, cargs)
             end
         elseif schedule == :dynamic
-            Threads.@threads :dynamic for (i, cargs) in icargs
+            @threads_compat :dynamic for (i, cargs) in icargs
                 _f(i, cargs)
             end
-            # elseif schedule == :greedy # Would really like this to work
-            #     Threads.@threads :greedy for (i, cargs) in icargs
-            #         _f(i, cargs)
-            #     end
+        elseif schedule == :greedy
+            @threads_compat :greedy for (i, cargs) in icargs
+                _f(i, cargs)
+            end
         else
             ArgumentError("Unknown schedule type '$schedule' in `progressmap`")
         end
