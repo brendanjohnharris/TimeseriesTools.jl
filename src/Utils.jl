@@ -681,7 +681,9 @@ function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwarg
     @assert length(dims) == 1
     _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
                                                                                       dims)]]
-    P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
+    P = map(eachslice(x; dims = _dims)) do _x
+        findpeaks(_x, args...; kwargs...)
+    end
     return [getindex.(P, i) for i in 1:3] # vals, proms, widths
 end
 
