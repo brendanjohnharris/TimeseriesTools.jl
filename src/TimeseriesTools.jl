@@ -22,7 +22,6 @@ include("Spectra.jl")
 include("Spectrograms.jl")
 include("Unitful.jl")
 include("Dates.jl")
-include("MakieCore.jl")
 include("IO.jl")
 include("TimeseriesSurrogates.jl")
 
