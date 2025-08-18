@@ -16,7 +16,6 @@ end
 
 include("Types.jl")
 include("Utils.jl")
-include("Operators.jl")
 include("SpikeTrains.jl")
 include("Spectra.jl")
 include("Spectrograms.jl")

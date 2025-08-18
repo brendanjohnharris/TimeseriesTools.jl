@@ -19,3 +19,4 @@ data
 docs/build/
 docs/site/
 !test/test_timeseries.tsv
+settings.json
