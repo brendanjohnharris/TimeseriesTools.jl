@@ -1,27 +1,41 @@
+using CairoMakie
+using Makie
+import Makie.Linestyle
 using TimeseriesTools
-using Unitful
 using Documenter
+using Documenter: Documenter
+using Documenter.MarkdownAST
+using Documenter.MarkdownAST: @ast
+using DocumenterVitepress
+using Markdown
 
-DocMeta.setdocmeta!(TimeseriesTools, :DocTestSetup, :(using Unitful, TimeseriesTools);
-                    recursive = true)
+include("docs_blocks.jl")
+
+format = DocumenterVitepress.MarkdownVitepress(;
+                                               repo = "github.com/brendanjohnharris/TimeseriesTools.jl",
+                                               devbranch = "main",
+                                               devurl = "dev")
+
+begin
+    files = readdir(joinpath(@__DIR__, "src/reference"))
+    names = split.(files, r"\.md$") .|> first .|> uppercasefirst
+    reference = names .=> Base.joinpath.(["reference"], files)
+end
 
 makedocs(;
-         modules = [TimeseriesTools],
          authors = "brendanjohnharris <brendanjohnharris@gmail.com> and contributors",
-         repo = "https://github.com/brendanjohnharris/TimeseriesTools.jl/blob/{commit}{path}#{line}",
-         sitename = "TimeseriesTools.jl",
-         format = Documenter.HTML(;
-                                  prettyurls = get(ENV, "CI", "false") == "true",
-                                  canonical = "https://brendanjohnharris.github.io/TimeseriesTools.jl",
-                                  edit_link = "main",
-                                  assets = String[],),
-         pages = [
-             "Home" => "index.md",
+         sitename = "TimeseriesTools",
+         format,
+         pages = ["Home" => "index.md",
              "Types" => "types.md",
              "Utils" => "utils.md",
+             "Recipes" => "recipes.md",
              "Others" => "others.md",
-         ],)
+             "Reference" => reference])
 
-deploydocs(;
-           repo = "github.com/brendanjohnharris/TimeseriesTools.jl",
-           devbranch = "main",)
+DocumenterVitepress.deploydocs(;
+                               repo = "github.com/brendanjohnharris/TimeseriesTools.jl",
+                               target = "build", # this is where Vitepress stores its output
+                               branch = "gh-pages",
+                               devbranch = "main",
+                               push_preview = true)

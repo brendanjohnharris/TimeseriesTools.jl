@@ -47,8 +47,9 @@ end
     import TimeseriesTools: NDAAFT, NDIAAFT
     x = loadtimeseries("./test_timeseries.tsv")[:, 1]
     x = bandpass(x, 1000, [1, 20])
+    x = rectify(x, dims = 𝑡)
     S = abs.(fft(x)) .^ 2
-    s = spectrum(rectify(x, dims = 𝑡))
+    s = spectrum(x)
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), FT())
@@ -138,7 +139,8 @@ end
     using DSP, TimeseriesSurrogates, FFTW, LinearAlgebra, StatsBase
     import TimeseriesTools: NDAAFT, NDIAAFT, MVFT
     xs = -0.6:0.01:0.6
-    x = [stack(X(xs), [colorednoise(0:0.01:1) for _ in xs]) for _ in xs]
+    x = [ToolsArray([colorednoise(0:0.01:1) for _ in xs], DimensionalData.X(xs)) |> stack
+         for _ in xs]
     x = stack(Y(xs), x)
 
     S = abs.(rfft(x)) .^ 2

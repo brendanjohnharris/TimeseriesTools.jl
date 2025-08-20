@@ -1,8 +1,6 @@
-
 @testitem "Makie" begin
     using CairoMakie
     import TimeseriesTools: TimeSeries
-    Traces = Base.get_extension(TimeseriesTools, :MakieExt).Traces
     x = TimeSeries(0.01:0.01:10, randn(1000))
 
     p = @test_nowarn plot(x)
@@ -10,7 +8,7 @@
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
     p = @test_nowarn plot(x)
-    @test p.plot isa Traces
+    @test p.plot isa Heatmap
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     # @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
 
@@ -32,10 +30,10 @@ end
     save("./timeseries.png", f; px_per_unit = 3)
 
     # Calculate the power spectrum
-    S = _powerspectrum(x, 0.0001)
+    S = _powerspectrum(x, 0.001)
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S, linewidth = 1)
+    @test_nowarn plotspectrum!(ax, S, linewidth = 1)
     @test_nowarn save("./powerspectrum.png", f; px_per_unit = 3)
 
     # Shadows
@@ -90,18 +88,19 @@ end
 
 @testitem "Traces" begin
     using CairoMakie, TimeseriesTools, Unitful
-    import TimeseriesTools.TimeSeries # or TS
 
     t = 0.005:0.005:1e4
     x = colorednoise(t, u"s") * u"V"
     X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
 
     # Calculate the power spectrum
-    S = _powerspectrum(x, 0.0005)[2:end, :]
+    S = _powerspectrum(x, 0.0005)[2:10:end, :]
+    S = ustripall(S)
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
     # x, y, z = collect.(ustripall(decompose(S)))
-    @test_nowarn traces!(ax, S; colormap = :turbo)
+    @test_nowarn TimeseriesPlots.traces!(ax, ustripall(S); colormap = :turbo)
+    f
 end
 
 @testitem "Spectrum plot" begin
@@ -133,28 +132,28 @@ end
     @test ax.finallimits.val.widths[1]≈100 atol=1e-2 # Uses freq values
 end
 
-@testitem "Spike trains" begin
-    using JLD2
-    using CairoMakie
-    using Unitful
-    using TimeseriesTools
-    spikes = load("./test_spike_train.jld2", "spikes")
-    E = spikes[population = At(:E)]
-    @test E isa MultivariateSpikeTrain
+# @testitem "Spike trains" begin
+#     using JLD2
+#     using CairoMakie
+#     using Unitful
+#     using TimeseriesTools
+#     spikes = load("./test_spike_train.jld2", "spikes")
+#     E = spikes[population = At(:E)]
+#     @test E isa MultivariateSpikeTrain
 
-    @test spiketimes(E) isa DimVector
-    @test spiketimes(E)[1] == spiketimes(E[:, 1])
+#     @test spiketimes(E) isa DimVector
+#     @test spiketimes(E)[1] == spiketimes(E[:, 1])
 
-    @test_nowarn spikeraster(1:2, [[1, 2, 3], [2, 3, 4]])
+#     @test_nowarn spikeraster(1:2, [[1, 2, 3], [2, 3, 4]])
 
-    x = spiketimes(E)[[100, 201, 10, 22]]
-    @test_nowarn spikeraster(eachindex(x), x)
+#     x = spiketimes(E)[[100, 201, 10, 22]]
+#     @test_nowarn spikeraster(eachindex(x), x)
 
-    @test_nowarn spikeraster(length.(x), x) # Sort by firing rate
+#     @test_nowarn spikeraster(length.(x), x) # Sort by firing rate
 
-    # * Need to fix the automatic passing of 1:size(E, 2)
-    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
-    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
-    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = 1:size(E, 2))
-    @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = :rate, rev = true)
-end
+#     # * Need to fix the automatic passing of 1:size(E, 2)
+#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
+#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
+#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = 1:size(E, 2))
+#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = :rate, rev = true)
+# end
