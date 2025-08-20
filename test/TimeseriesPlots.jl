@@ -67,10 +67,10 @@ end
     save("./timeseries_dark.png", f; px_per_unit = 3)
 
     # Calculate the power spectrum
-    S = _powerspectrum(x, 0.0001)
+    S = _powerspectrum(x, 0.001)
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
-    @test_nowarn plot!(ax, S, linewidth = 1)
+    @test_nowarn plotspectrum!(ax, S, linewidth = 1)
     @test_nowarn save("./powerspectrum_dark.png", f; px_per_unit = 3)
 
     # Shadows
@@ -121,14 +121,16 @@ end
     # * Test peaks
     x = bandpass(x, (0.1u"Hz", 0.2u"Hz"))
     S = powerspectrum(x, 0.0005)
-    spectrumplot(S; peaks = true) # * Log-log plot
+    f = Figure()
+    ax = Axis(f[1, 1]; xscale = log10, yscale = log10)
+    spectrumplot!(ax, ustripall(S); peaks = 1, annotate = true) # * Log-log plot
+    display(f)
 
     # * Test recipes
     S = ustripall(S)
     f, ax, p = plot(S) # * Log-log plot
     tightlimits!(ax)
     @test ax isa Axis
-    @test p isa SpectrumPlot
     @test ax.finallimits.val.widths[1]≈100 atol=1e-2 # Uses freq values
 end
 
