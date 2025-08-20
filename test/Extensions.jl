@@ -51,7 +51,7 @@
 
     x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims = 1))
     m = msdist(x, 1:1000)
-    traces(m; color = (:gray, 0.4))
+    traces(m; linecolor = (:gray, 0.1), axis = (; xscale = log10, yscale = log10))
     m = dropdims(mean(m, dims = 2), dims = 2)
     plot!(decompose(m)...)
     current_figure()
@@ -63,7 +63,6 @@ end
     using TimeseriesTools
     import TimeseriesTools.TimeSeries # or TS
     using StatsBase
-    StackedTraces = Base.get_extension(TimeseriesTools, :MakieExt).StackedTraces
 
     N = 100000
     dt = 0.005
@@ -73,24 +72,23 @@ end
     x̂ = TimeSeries(dt:dt:(sum(length.(x)) * dt), vcat(collect.(x)...))
     x = phasestitch(x)
 
-    @test_nowarn heatmap(y) # Shoudl default to the DimensionalData recipe
+    p = @test_nowarn heatmap(y) # Should default to the DimensionalData recipe
+    @test p.plot isa CairoMakie.Heatmap
 
-    pargs = Makie.convert_arguments(StackedTraces, y)
+    pargs = Makie.convert_arguments(Traces, y)
     @test pargs[1] == lookup(y, 1) |> collect
     @test pargs[2] == lookup(y, 2) |> collect
     @test pargs[3] isa Matrix
 
     f = Figure()
     ax = Axis(f[1, 1])
-    p = @test_nowarn stackedtraces!(ax, y) # ! This is fine
+    p = @test_nowarn traces!(ax, y[Var(1:5)])
     f
 
-    @test_throws "BoundsError" stackedtraces(y[Var(1:10)], spacing = :even, linewidth = 5,
-                                             offset = 1.3; axis = (; xlabel = "Time")) # ! Why isn't this?
     @test_nowarn plot(x[𝑡(1:10000)])
     plot(x̂[𝑡(1500:(length(t) * 5))])
 
-    # And a power spectrumof a 'perfect' signal
+    # And a power spectrum of a 'perfect' signal
     _t = dt:dt:(dt * N)
     p = TimeSeries(_t, sin.(2 * _t))
     S′ = powerspectrum(p, dt * 4)

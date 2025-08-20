@@ -9,6 +9,7 @@ using ProgressLogging
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
+@reexport using TimeseriesPlots
 
 function __init__()
     ENV["UNITFUL_FANCY_EXPONENTS"] = true
@@ -22,7 +23,6 @@ include("Spectra.jl")
 include("Spectrograms.jl")
 include("Unitful.jl")
 include("Dates.jl")
-include("MakieCore.jl")
 include("IO.jl")
 include("TimeseriesSurrogates.jl")
 
@@ -50,21 +50,5 @@ function waveletspectrogram end
 function interpolate end
 function msdist end
 export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist
-
-# * MakieExt
-function spectrumplot! end
-function spectrumplot end
-function trajectory! end
-function trajectory end
-function shadows! end
-function traces! end
-function traces end
-function stackedtraces! end
-function stackedtraces end
-function spikeraster! end
-function spikeraster end
-
-export spectrumplot!, spectrumplot, trajectory!, trajectory, shadows!, traces!, traces,
-       stackedtraces!, stackedtraces, spikeraster!, spikeraster
 
 end

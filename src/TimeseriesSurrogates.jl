@@ -182,7 +182,7 @@ function (sg::SurrogateGenerator{<:NDFT})()
     shuffled𝓕 .= r .* exp.(coeffs .* 1im)
     _s = inverse * shuffled𝓕
     @assert all(isapprox.(imag.(_s), 0; atol = 1e-3))
-    s .= real.(_s) .+ m
+    s .= map(real, parent(_s)) .+ m
     return s
 end
 
