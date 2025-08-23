@@ -9,11 +9,7 @@ using ProgressLogging
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
-@reexport using TimeseriesPlots
 
-function __init__()
-    ENV["UNITFUL_FANCY_EXPONENTS"] = true
-end
 
 include("Types.jl")
 include("Utils.jl")
