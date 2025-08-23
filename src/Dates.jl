@@ -1,4 +1,4 @@
-using Dates
+using DimensionalData.Dates
 
 export DateIndex, DateTimeIndex, DateTimeSeries
 
