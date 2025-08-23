@@ -99,7 +99,7 @@ end
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
     # x, y, z = collect.(ustripall(decompose(S)))
-    @test_nowarn TimeseriesPlots.traces!(ax, ustripall(S); colormap = :turbo)
+    @test_nowarn TimeseriesMakie.traces!(ax, ustripall(S); colormap = :turbo)
     f
 end
 

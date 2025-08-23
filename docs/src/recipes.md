@@ -2,7 +2,7 @@
 CurrentModule = TimeseriesTools
 ```
 
-```@setup TimeseriesPlots
+```@setup TimeseriesMakie
 using CairoMakie
 using CairoMakie.Makie.PlotUtils
 using CairoMakie.Colors
@@ -25,7 +25,7 @@ Makie.set_theme!(Foresight.foresight())
 trajectory
 ```
 
-```@example TimeseriesPlots
+```@example TimeseriesMakie
 f = Figure(size = (600, 600))
 
 ϕ = 0:0.1:(8π) |> reverse
@@ -58,7 +58,7 @@ f
 shadows
 ```
 
-```@example TimeseriesPlots
+```@example TimeseriesMakie
 f = Figure(size = (400, 400))
 
 ϕ = 0:0.1:(8π) |> reverse
@@ -81,7 +81,7 @@ f
 traces
 ```
 
-```@example TimeseriesPlots
+```@example TimeseriesMakie
 f = Figure(size = (900, 300))
 
 x = 0:0.1:10
@@ -111,7 +111,7 @@ f
 kinetic
 ```
 
-```@example TimeseriesPlots
+```@example TimeseriesMakie
 x = -π:0.1:π
 kinetic(x, sin.(x), linewidth=:curv)
 ```
