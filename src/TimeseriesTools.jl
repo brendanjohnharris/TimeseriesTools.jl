@@ -10,7 +10,6 @@ using ProgressLogging
 @reexport using IntervalSets
 @reexport using Normalization
 
-
 include("Types.jl")
 include("Utils.jl")
 include("Operators.jl")
