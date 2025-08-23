@@ -73,7 +73,7 @@ Term = "2"
 TimeseriesPlots = "0.1.0"
 TimeseriesSurrogates = "2.6.3, 2.7"
 Unitful = "1"
-julia = "1.9"
+julia = "1.10"
 
 [extras]
 Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
