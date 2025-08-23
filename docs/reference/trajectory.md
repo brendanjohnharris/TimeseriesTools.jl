@@ -1,5 +1,5 @@
 ```@docs
-trajectory
+TimeseriesMakie.trajectory
 ```
 
 ```@docs

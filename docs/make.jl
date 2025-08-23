@@ -2,6 +2,7 @@ using CairoMakie
 using Makie
 import Makie.Linestyle
 using TimeseriesTools
+using TimeseriesMakie
 using Documenter
 using Documenter: Documenter
 using Documenter.MarkdownAST
@@ -16,22 +17,25 @@ format = DocumenterVitepress.MarkdownVitepress(;
                                                devbranch = "main",
                                                devurl = "dev")
 
-begin
-    files = readdir(joinpath(@__DIR__, "src/reference"))
-    names = split.(files, r"\.md$") .|> first .|> uppercasefirst
-    reference = names .=> Base.joinpath.(["reference"], files)
-end
+# begin
+#     files = readdir(joinpath(@__DIR__, "src/reference"))
+#     names = split.(files, r"\.md$") .|> first .|> uppercasefirst
+#     reference = names .=> Base.joinpath.(["reference"], files)
+# end
 
 makedocs(;
          authors = "brendanjohnharris <brendanjohnharris@gmail.com> and contributors",
          sitename = "TimeseriesTools",
          format,
+         doctest = false,
+         modules = [TimeseriesTools],
          pages = ["Home" => "index.md",
              "Types" => "types.md",
              "Utils" => "utils.md",
-             "Recipes" => "recipes.md",
-             "Others" => "others.md",
-             "Reference" => reference])
+             "Others" => "others.md"
+             #  "Recipes" => "recipes.md",
+             #  "Reference" => reference
+         ])
 
 DocumenterVitepress.deploydocs(;
                                repo = "github.com/brendanjohnharris/TimeseriesTools.jl",

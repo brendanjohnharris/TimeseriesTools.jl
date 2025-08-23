@@ -1,5 +1,5 @@
 ```@meta
-CurrentModule = TimeseriesTools
+CurrentModule = TimeseriesMakie
 ```
 
 ```@setup TimeseriesMakie
@@ -8,10 +8,10 @@ using CairoMakie.Makie.PlotUtils
 using CairoMakie.Colors
 using Makie
 using Foresight
-using TimeseriesTools
+using TimeseriesMakie
 using Statistics
 import Makie.Linestyle
-import TimeseriesTools: kinetic, kinetic!, trajectory, trajectory!
+import TimeseriesMakie: kinetic, kinetic!, trajectory, trajectory!
 showable(::MIME"text/plain", ::AbstractVector{C}) where {C<:Colorant} = false
 showable(::MIME"text/plain", ::PlotUtils.ContinuousColorGradient) = false
 Makie.set_theme!(Foresight.foresight())
@@ -22,7 +22,7 @@ Makie.set_theme!(Foresight.foresight())
 ## [trajectory](@ref)
 
 ```@shortdocs; canonical=false
-trajectory
+TimeseriesMakie.trajectory
 ```
 
 ```@example TimeseriesMakie
@@ -59,7 +59,7 @@ shadows
 ```
 
 ```@example TimeseriesMakie
-f = Figure(size = (400, 400))
+ f = Figure(size = (500, 500))
 
 ϕ = 0:0.1:(8π) |> reverse
 x = ϕ .* exp.(ϕ .* im)
@@ -113,5 +113,5 @@ kinetic
 
 ```@example TimeseriesMakie
 x = -π:0.1:π
-kinetic(x, sin.(x), linewidth=:curv)
+kinetic(x, sin.(x))
 ```

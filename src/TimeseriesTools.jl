@@ -9,6 +9,7 @@ using ProgressLogging
 @reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Normalization
+@reexport using TimeseriesMakie
 
 include("Types.jl")
 include("Utils.jl")
