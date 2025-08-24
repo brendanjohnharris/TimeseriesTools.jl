@@ -13,14 +13,16 @@ Or:
 
 ## Usage
 
-An instance of the most basic type of this package, the `AbstractTimeSeries`, can be generated with:
+An instance of the most basic type of this package, the `AbstractTimeseries`, can be generated with:
 
 ```julia
 using TimeseriesTools, CairoMakie
 t = 0:0.01:1
-TimeSeries(t, sin.(t))
+Timeseries(sin.(t), t)
 plot(x)
 ```
+
+All `TimeseriesTools` arrays are built on top of [DimensionalData.jl](https://github.com/JuliaDynamics/DimensionalData.jl) `AbstractDimArray`s.
 
 Here's another example, calculating a power spectrum:
 
@@ -29,7 +31,7 @@ using TimeseriesTools, CairoMakie, Unitful
 
 # Generate some quick brown noise
 t = range(0, stop=1e4, step=0.005)
-x = colorednoise(t, u"s")*u"V" # ::AbstractTimeSeries
+x = colorednoise(t, u"s")*u"V" # ::AbstractTimeseries
 
 f = Figure()
 uc = Makie.UnitfulConversion(u"s^-1"; units_in_label = false)

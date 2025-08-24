@@ -6,28 +6,24 @@ using Reexport
 using DimensionalData
 using IntervalSets
 using ProgressLogging
-@reexport using DimensionalData
 @reexport using IntervalSets
+@reexport using DimensionalData
+@reexport using TimeseriesBase
 @reexport using Normalization
 @reexport using TimeseriesMakie
 
-include("Types.jl")
 include("Utils.jl")
-include("Operators.jl")
 include("SpikeTrains.jl")
 include("Spectra.jl")
-include("Spectrograms.jl")
 include("Unitful.jl")
-include("Dates.jl")
-include("IO.jl")
 include("TimeseriesSurrogates.jl")
 
-bandpass(x::AbstractTimeSeries) = x
-highpass(x::AbstractTimeSeries) = x
-lowpass(x::AbstractTimeSeries) = x
+bandpass(x::AbstractTimeseries) = x
+highpass(x::AbstractTimeseries) = x
+lowpass(x::AbstractTimeseries) = x
 
-function timescale(x::UnivariateTimeSeries; method = :ac_crossing)
-    timescale(x::UnivariateTimeSeries, Val{method}())
+function timescale(x::UnivariateTimeseries; method = :ac_crossing)
+    timescale(x::UnivariateTimeseries, Val{method}())
 end
 
 # ? Placeholder functions for extensions

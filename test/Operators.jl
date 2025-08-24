@@ -1,8 +1,8 @@
-using TimeseriesTools.Operators
+using TimeseriesBase.Operators
 using Test
 
 @testitem "Operators" begin
-    import TimeseriesTools.Operators: ℬ!, ℒ!, ℬ, ℒ, 𝒯
+    import TimeseriesBase.Operators: ℬ!, ℒ!, ℬ, ℒ, 𝒯
     x = colorednoise(1:1000)
     _x = deepcopy(x)
     @test_nowarn ℬ!(x)

@@ -39,17 +39,17 @@ function _waveletspectrogram(t, x::AbstractVector; pass = nothing, moth, β, Q)
     res = ContinuousWavelets.cwt(x, c, W)[:, freqs .∈ [pass]]
 end
 
-function _waveletspectrogram(x::RegularTimeSeries; moth = Morlet(2π), β = 1,
+function _waveletspectrogram(x::RegularTimeseries; moth = Morlet(2π), β = 1,
                              Q = 32,
                              pass = nothing)::RegularSpectrogram
     t = times(x)
     res = _waveletspectrogram(t, x.data; moth, β, Q, pass)
     freqs = waveletfreqs(t; moth, β, Q, pass)
-    res = TimeSeries(t, 𝑓(freqs), res; metadata = DimensionalData.metadata(x),
+    res = Timeseries(res, t, 𝑓(freqs); metadata = DimensionalData.metadata(x),
                      refdims = refdims(x))
 end
 
-# function _waveletspectrogram(x::RegularTimeSeries, ::Val{:mmap}; window = 50000,
+# function _waveletspectrogram(x::RegularTimeseries, ::Val{:mmap}; window = 50000,
 #                            kwargs...)::RegularSpectrogram
 #     md = DimensionalData.metadata(x)
 #     rd = DimensionalData.refdims(x)
@@ -85,10 +85,10 @@ end
 
 _waveletspectrogram(x, s::Symbol; kwargs...) = _waveletspectrogram(x, Val(s); kwargs...)
 
-function waveletspectrogram(x::RegularTimeSeries, args...; kwargs...)::RegularSpectrogram
+function waveletspectrogram(x::RegularTimeseries, args...; kwargs...)::RegularSpectrogram
     _waveletspectrogram(x, args...; kwargs...)
 end
-function waveletspectrogram(x::MultivariateTimeSeries, args...; kwargs...)
+function waveletspectrogram(x::MultivariateTimeseries, args...; kwargs...)
     f = x -> waveletspectrogram(x)
     cat(dims(x, 2), f.(eachslice(x; dims = 2))...; dims = 3)
 end

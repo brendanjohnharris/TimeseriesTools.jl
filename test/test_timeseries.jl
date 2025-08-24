@@ -5,7 +5,7 @@ Pkg.add("DifferentialEquations")
 Pkg.add(name = "NonstationaryProcessesBase", rev = "main")
 Pkg.add(url = "https://www.github.com/brendanjohnharris/NonstationaryProcesses.jl",
         rev = "main")
-import TimeseriesTools.TimeSeries
+import TimeseriesTools.Timeseries
 using TimeseriesTools
 using DifferentialEquations
 using NonstationaryProcesses

@@ -3,9 +3,9 @@ using TimeseriesTools
 using SignalDecomposition
 import SignalDecompsition.decompose
 
-function decompose(x::AbstractTimeSeries, args...; kwargs...)
+function decompose(x::AbstractTimeseries, args...; kwargs...)
     s, n = decompose(TimeseriesTools.decompose(x)..., args...; kwargs...)
-    return TimeSeries(times(x), s), TimeSeries(times(x), n)
+    return Timeseries(s, times(x)), Timeseries(n, times(x))
 end
 
 end

@@ -34,7 +34,7 @@ using TimeseriesTools, CairoMakie, TimeseriesTools.FFTW, Unitful
 
 # Generate some quick brown noise
 t = 0.005:0.005:1e5
-x = colorednoise(t, u"s")*u"V" # ::AbstractTimeSeries
+x = colorednoise(t, u"s")*u"V" # ::AbstractTimeseries
 plot(x[1:10000])
 S = powerspectrum(x, 0.001)
 p = plot(S)
@@ -45,11 +45,11 @@ p = plot(S)
 ![Example Time-series Plot](test/timeseries.png#gh-light-mode-only)
 ![Example Spectrum Plot](test/powerspectrum.png#gh-light-mode-only)
 
-Note that an instance of the most basic type of this package, the `AbstractTimeSeries`, can be generated with:
+Note that an instance of the most basic type of this package, the `AbstractTimeseries`, can be generated with:
 ```julia
 t = 0:0.01:1
 x = sin.(t)
-TimeSeries(t, x)
+Timeseries(x, t)
 ```
 Please see the documentation for further functionality.
 

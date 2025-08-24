@@ -1,25 +1,25 @@
 @testitem "Makie" begin
     using CairoMakie
-    import TimeseriesTools: TimeSeries
-    x = TimeSeries(0.01:0.01:10, randn(1000))
+    import TimeseriesTools: Timeseries
+    x = Timeseries(randn(1000), 0.01:0.01:10)
 
     p = @test_nowarn plot(x)
     @test p.plot isa Lines
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
-    x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
+    x = Timeseries(randn(1000, 2), 0.01:0.01:10, 1:2)
     p = @test_nowarn plot(x)
     @test p.plot isa Heatmap
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     # @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
 
-    x = TimeSeries(0.01:0.01:10, [1, 3], randn(1000, 2))
+    x = Timeseries(randn(1000, 2), 0.01:0.01:10, [1, 3])
     p = @test_nowarn plot(x)
     @test p.plot isa Heatmap
 end
 
 @testitem "Readme" begin
     using TimeseriesTools, CairoMakie, Unitful, Foresight
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e5
     x = colorednoise(t, u"s") * u"V"
@@ -54,7 +54,7 @@ end
 
 @testitem "Readme_dark" begin
     using CairoMakie, TimeseriesTools, Unitful, Foresight
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
     set_theme!(foresight(:dark, :transparent))
 
     t = 0.005:0.005:1e5
@@ -106,7 +106,7 @@ end
 @testitem "Spectrum plot" begin
     using DSP
     using CairoMakie, TimeseriesTools, Unitful
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e4
     x = colorednoise(t, u"s") * u"V"

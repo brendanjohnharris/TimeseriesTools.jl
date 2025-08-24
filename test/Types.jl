@@ -92,10 +92,10 @@ end
 
 @testitem "TimeseriesTools.jl" begin
     ts = 1:100
-    x = @test_nowarn Timeseries(ts, randn(100))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa UnivariateTimeSeries
+    x = @test_nowarn Timeseries(randn(100), ts)
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa UnivariateTimeseries
 
     @test step(x) == step(ts)
     @test samplingrate(x) == 1 / step(ts)
@@ -110,7 +110,7 @@ end
 @testitem "Dim queries" begin
     ts = 1:100
     cs = 1:10
-    x = Timeseries(ts, TDim{:channel}(cs), randn(100, 10))
+    x = Timeseries(randn(100, 10), ts, TDim{:channel}(cs))
     @test x isa ToolsArray
     @test all(isa.(dims(x), ToolsDimension))
     @test dims(x) == (𝑡(ts), TDim{:channel}(cs))
@@ -131,10 +131,10 @@ end
 
 @testitem "Multivariate time series" begin
     ts = 1:100
-    x = @test_nowarn Timeseries(ts, 1:5, randn(100, 5))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultivariateTimeSeries
+    x = @test_nowarn Timeseries(randn(100, 5), ts, 1:5)
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultivariateTimeseries
 
     @test step(x) == step(ts)
     @test samplingrate(x) == 1 / step(ts)
@@ -145,25 +145,24 @@ end
 end
 
 @testitem "Multidimensional time series" begin
-    x = @test_nowarn Timeseries(𝑡(1:100), X(1:10), randn(100, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultidimensionalTimeSeries
+    x = @test_nowarn Timeseries(randn(100, 10), 𝑡(1:100), X(1:10))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultidimensionalTimeseries
 
-    x = @test_nowarn Timeseries(𝑡(1:100), X(1:10), Y(1:10), randn(100, 10, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa MultidimensionalTimeSeries
+    x = @test_nowarn Timeseries(randn(100, 10, 10), 𝑡(1:100), X(1:10), Y(1:10))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test x isa MultidimensionalTimeseries
     @test_nowarn x[𝑡(Near(4:10))]
 
-    x = @test_nowarn Timeseries(𝑡(1:100), X(randn(10) |> sort), Y(1:10),
-                                randn(100, 10, 10))
-    @test x isa AbstractTimeSeries
-    @test x isa RegularTimeSeries
-    @test !(x isa MultidimensionalTimeSeries)
+    x = @test_nowarn Timeseries(randn(100, 10, 10), 𝑡(1:100), X(randn(10) |> sort), Y(1:10))
+    @test x isa AbstractTimeseries
+    @test x isa RegularTimeseries
+    @test !(x isa MultidimensionalTimeseries)
 
-    x = @test_nowarn Timeseries(𝑡(sort(randn(100))), randn(100))
-    @test x isa AbstractTimeSeries
-    @test !(x isa RegularTimeSeries)
-    @test !(x isa MultidimensionalTimeSeries)
+    x = @test_nowarn Timeseries(randn(100), 𝑡(sort(randn(100))))
+    @test x isa AbstractTimeseries
+    @test !(x isa RegularTimeseries)
+    @test !(x isa MultidimensionalTimeseries)
 end

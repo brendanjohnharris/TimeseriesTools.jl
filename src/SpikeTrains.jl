@@ -96,7 +96,7 @@ function sttc(a, b; Δt = 0.025)
     return 0.5 * ((Pa - Tb) / (1 - Pa * Tb) + (Pb - Ta) / (1 - Pb * Ta))
 end
 
-function sttc(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwargs...)
+function sttc(a::UnivariateTimeseries, b::UnivariateTimeseries; τ = 0.0, kwargs...)
     if τ != 0.0
         b = 𝒯(τ)(b)
     end
@@ -215,7 +215,7 @@ function stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10, normalize = true)
     𝐶[1] ./ sqrt(𝐸a * 𝐸b)
 end
 
-function stoic(a::UnivariateTimeSeries, b::UnivariateTimeSeries; τ = 0.0, kwargs...)
+function stoic(a::UnivariateTimeseries, b::UnivariateTimeseries; τ = 0.0, kwargs...)
     if τ != 0.0
         b = 𝒯(τ)(b)
     end

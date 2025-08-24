@@ -7,8 +7,8 @@ using TestItemRunner
     using Dates, Unitful
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
-    y = @test_nowarn TimeSeries(t, x)
-    @test y isa RegularTimeSeries
+    y = @test_nowarn Timeseries(x, t)
+    @test y isa RegularTimeseries
     @test samplingperiod(y) == Year(1)
     @test times(y) == t
     @test duration(y) == last(t) - first(t)
@@ -21,7 +21,7 @@ end
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)
     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-    ts = x = TimeseriesTools.TimeSeries(t, x)
+    ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     Pxx = powerspectrum(ts, f_min)
     @test Pxx isa RegularSpectrum
@@ -58,7 +58,7 @@ end
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)
     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-    ts = x = TimeseriesTools.TimeSeries(t, x)
+    ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     Pa = powerspectrum(ts, f_min; padding = 0)
     Pb = powerspectrum(ts, f_min / 10; padding = 100)
