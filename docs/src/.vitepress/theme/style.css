@@ -15,7 +15,6 @@
 /* Colors */
 :root {
     /* Light theme colors - complement the dark theme */
-    /* Default is 272px */
     --vp-c-bg: #ffffff;
     --vp-c-bg-alt: #fafafa;
     --vp-c-bg-soft: #f5f5f5;
