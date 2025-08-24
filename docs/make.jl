@@ -20,13 +20,13 @@ format = DocumenterVitepress.MarkdownVitepress(;
                                                devurl = "dev")
 
 timeseriestools = [
-    "Introduction" => "TimeseriesTools/timeseriestools.md",
+    "Introduction" => "TimeseriesTools/index.md",
     "Types" => "TimeseriesTools/types.md",
     "Utils" => "TimeseriesTools/utils.md",
     "Others" => "TimeseriesTools/others.md"
 ]
 
-timeseriesmakie = ["Introduction" => "TimeseriesMakie/timeseriesmakie.md",
+timeseriesmakie = ["Introduction" => "TimeseriesMakie/index.md",
     "Recipes" => "TimeseriesMakie/recipes.md",
     "Reference" => "TimeseriesMakie/reference.md"]
 

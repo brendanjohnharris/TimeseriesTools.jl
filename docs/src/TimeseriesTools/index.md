@@ -18,4 +18,4 @@ Pkg.add("TimeseriesTools")
 
 ## Where to next?
 
-[TimeseriesMakie](../TimeseriesMakie/timeseriesmakie.md) provides tools and Makie recipes for visualizing time series, spectra, and related data.
+[TimeseriesMakie](../TimeseriesMakie/index.md) provides tools and Makie recipes for visualizing time series, spectra, and related data.

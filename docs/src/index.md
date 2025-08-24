@@ -25,11 +25,11 @@ features:
   - icon: <img width="64" height="64" src="https://rawcdn.githack.com/JuliaLang/julia-logo-graphics/f3a09eb033b653970c5b8412e7755e3c7d78db9e/images/juliadots.iconset/icon_512x512.png" alt="TimeseriesTools"/>
     title: TimeseriesTools
     details: Time-series analysis
-    link: /TimeseriesTools/timeseriestools
+    link: /TimeseriesTools/index
   - icon: <img width="64" height="64" src="https://rawcdn.githack.com/JuliaLang/julia-logo-graphics/f3a09eb033b653970c5b8412e7755e3c7d78db9e/images/juliadots.iconset/icon_512x512.png" />
     title: TimeseriesMakie
     details: Makie recipes for visualizing time-series
-    link: /TimeseriesMakie/timeseriesmakie
+    link: /TimeseriesMakie/index
 ---
 
 
