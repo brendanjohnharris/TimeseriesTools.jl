@@ -10,6 +10,8 @@ using Documenter.MarkdownAST: @ast
 using DocumenterVitepress
 using Markdown
 
+ENV["UNITFUL_FANCY_EXPONENTS"] = true
+
 include("docs_blocks.jl")
 
 format = DocumenterVitepress.MarkdownVitepress(;
@@ -17,25 +19,31 @@ format = DocumenterVitepress.MarkdownVitepress(;
                                                devbranch = "main",
                                                devurl = "dev")
 
-# begin
-#     files = readdir(joinpath(@__DIR__, "src/reference"))
-#     names = split.(files, r"\.md$") .|> first .|> uppercasefirst
-#     reference = names .=> Base.joinpath.(["reference"], files)
-# end
+timeseriestools = [
+    "Introduction" => "TimeseriesTools/timeseriestools.md",
+    "Types" => "TimeseriesTools/types.md",
+    "Utils" => "TimeseriesTools/utils.md",
+    "Others" => "TimeseriesTools/others.md"
+]
+
+timeseriesmakie = ["Introduction" => "TimeseriesMakie/timeseriesmakie.md",
+    "Recipes" => "TimeseriesMakie/recipes.md",
+    "Reference" => "TimeseriesMakie/reference.md"]
+
+pages = ["Home" => "index.md",
+    "Quick start" => "quickstart.md",
+    "TimeseriesTools" => timeseriestools,
+    "TimeseriesMakie" => timeseriesmakie
+]
 
 makedocs(;
          authors = "brendanjohnharris <brendanjohnharris@gmail.com> and contributors",
          sitename = "TimeseriesTools",
          format,
          doctest = false,
-         modules = [TimeseriesTools],
-         pages = ["Home" => "index.md",
-             "Types" => "types.md",
-             "Utils" => "utils.md",
-             "Others" => "others.md"
-             #  "Recipes" => "recipes.md",
-             #  "Reference" => reference
-         ])
+         warnonly = [:cross_references],
+         modules = [TimeseriesTools, TimeseriesMakie],
+         pages)
 
 DocumenterVitepress.deploydocs(;
                                repo = "github.com/brendanjohnharris/TimeseriesTools.jl",
