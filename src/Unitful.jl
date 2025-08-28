@@ -22,10 +22,10 @@ function FFTW.rfft(x::UnitfulTimeseries{<:Quantity}) # 🐕
 end
 
 # Extend Normalization.jl to unitful DimArrays
-function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
-    DimensionalData.modify(x -> normalize(x, T; kwargs...), X)
-end
-function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity};
-                     kwargs...)
-    error("Denormalization of unitful arrays currently not supported")
-end
+# function normalize(X::AbstractDimArray{<:Quantity}, T::NormUnion; kwargs...)
+#     DimensionalData.modify(x -> normalize(x, T; kwargs...), X)
+# end
+# function denormalize(Y::AbstractDimArray{<:Quantity}, T::AbstractNormalization{<:Quantity};
+#                      kwargs...)
+#     error("Denormalization of unitful arrays currently not supported")
+# end

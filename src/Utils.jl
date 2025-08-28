@@ -1,6 +1,7 @@
 import DimensionalData.Dimensions.LookupArrays: At, Near
 import DimensionalData.Dimensions.Dimension
 import Normalization: NormUnion, AbstractNormalization, nansafe
+import InverseFunctions: square
 using Peaks
 
 export UnitPower, findpeaks, maskpeaks!, maskpeaks, upsample
@@ -14,38 +15,20 @@ export UnitPower, findpeaks, maskpeaks!, maskpeaks, upsample
 #         return sum(x.^2)/(dur*u"s")
 #     end
 # end
-𝑝(x::RegularTimeseries) = sum(x .^ 2) / duration(x) # * Assume seconds.
-# TODO !!!
+
 """
     UnitPower <: AbstractNormalization
 
 A normalization that sets the total power of a signal to unity.
-
-# Fields
-- `dims`: The dimensions to normalize over.
-- `p`: Computed normalization parameters.
-- `𝑝`: A function that returns the power from a given time series.
-- `𝑓`: The normalization method
-- `𝑓⁻¹`: The inverse normalization method.
-
 """
 mutable struct UnitPower{T} <: AbstractNormalization{T}
     dims::Any
     p::NTuple{1, AbstractArray{T}}
-    𝑝::NTuple{1, Function}
-    𝑓::Function
-    𝑓⁻¹::Function
 end;
-
-function UnitPower{T}(; dims = nothing,
-                      p = (Vector{T}(),),
-                      𝑝 = (𝑝,),
-                      𝑓 = (x, 𝑃) -> x .= x ./ sqrt.(𝑃),
-                      𝑓⁻¹ = (y, 𝑃) -> y .= y .* sqrt.(𝑃)) where {T}
-    UnitPower(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
-end
-
-UnitPower(; kwargs...) = UnitPower{Nothing}(; kwargs...);
+rootpower(x::RegularTimeseries) = sqrt(sum(map(square, x)) / duration(x))
+unitpower(r𝑃) = Base.Fix2(/, r𝑃)
+Normalization.estimators(::Type{N}) where {N <: UnitPower} = (rootpower,);
+Normalization.forward(::Type{N}) where {N <: UnitPower} = unitpower
 
 function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
                    maxprom = nothing,

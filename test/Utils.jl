@@ -5,13 +5,10 @@
     @test all(collect(times(z)) .== 0.0:0.05:1.0)
 end
 
-@testitem "Cat" begin
+@testitem "Stack" begin
     x = Timeseries(randn(100, 100), 0.1:0.1:10, Var(1:100))
-    y = cat(𝑓(1:2), x, x)
-    @test dims(y, 3) == 𝑓(1:2)
-    z = stack(𝑓(1:2), [x, x])
-    @test y == z
-    y = stack(𝑓(1:2), [x, x]; dims = 1)
+    z = ToolsArray([x, x], 𝑓(1:2)) |> stack
+    y = stack(DimArray([x, x], 𝑓(1:2)); dims = 1)
     @test dims(y, 1) == 𝑓(1:2)
 end
 
@@ -54,7 +51,7 @@ end
 
     y = Timeseries(cos, ts .+ randn(length(ts)) .* 1e-10)
     @test issorted(times(y))
-    _x, _y = (rectifytime([x, y])...,)
+    _x, _y = (rectifytime(x, y)...,)
 
     @test all(x .== parent(_x))
     @test ts == times(_x)
@@ -80,7 +77,7 @@ end
 @testitem "Central differences" begin
     using DSP, StatsBase
     x = colorednoise(0.01:0.01:10)
-    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+    X = ToolsArray([colorednoise(0.1:0.1:100) for _ in 1:10], Var(1:10)) |> stack
 
     dx = @test_nowarn centraldiff(x)
     @test all(dx[2:(end - 1)] .== (parent(x)[3:end] - parent(x)[1:(end - 2)]) / 2)
@@ -108,7 +105,7 @@ end
 @testitem "Left and right derivatives" begin
     import TimeseriesTools: leftdiff, rightdiff
     x = colorednoise(0.01:0.01:10)
-    X = cat(Var(1:10), [colorednoise(0.1:0.1:100) for _ in 1:10]...)
+    X = ToolsArray([colorednoise(0.1:0.1:100) for _ in 1:10], Var(1:10)) |> stack
 
     dx = @test_nowarn leftdiff(x)
     @test all(parent(dx)[2:(end)] .== (parent(x)[2:end] - parent(x)[1:(end - 1)]))
@@ -210,7 +207,7 @@ end
     @test pks isa ToolsArray{<:Float64}
     @test proms isa ToolsArray{<:Float64}
 
-    xx = cat(Var(1:2), x, x .+ 1.0)
+    xx = cat(x, x .+ 1.0, dims = Var(1:2))
 
     # * test rebuild
     identity.(eachslice(xx; dims = 1)) isa ToolsArray

@@ -279,26 +279,32 @@ end
     _X = Timeseries(rand(100), 0.01:0.01:1)
     X = copy(_X)
     T = fit(N, X)
-    Y = normalize(X, T)
-    @test sum(Y .^ 2) / duration(Y) ≈ 1
+    x = normalize(X, T)
+    @test sum(x .^ 2) / duration(x) ≈ 1
     @test !isnothing(T.p)
-    @test denormalize(Y, T) ≈ X
+    @test denormalize(x, T) ≈ X
     @test_nowarn normalize!(X, T)
-    @test X == Y
-    @test_nowarn denormalize!(Y, T)
-    @test all(Y .≈ _X)
+    @test X == x
+    @test_nowarn denormalize!(x, T)
+    @test all(x .≈ _X)
 
-    _X = TimeseriesTools.unitfultimeseries(X, u"s") * u"V"
+    # _X = set(X, 𝑡 => times(X) .* u"s") * u"V"
+    _X = X * u"V"
     X = copy(_X)
     T = fit(N, X)
-    Y = normalize(X, T)
-    @test ustripall(sum(Y .^ 2) / duration(Y)) ≈ 1
+    x = normalize(X, T)
+    @test ustripall(sum(x .^ 2) / duration(x)) ≈ 1
     @test !isnothing(T.p)
-    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
+    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(x,
                                                                                          T)
     X = @test_nowarn normalize(X, T)
-    @test X == Y
-    Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
+    @test X == x
+    x = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(x,
                                                                                              T)
     # @test all(Y .≈ _X)
+
+    _X = rand(100) * u"V"
+    X = copy(_X)
+    T = fit(ZScore, X)
+    Y = normalize(X, T)
 end
