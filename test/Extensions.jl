@@ -288,23 +288,12 @@ end
     @test_nowarn denormalize!(x, T)
     @test all(x .≈ _X)
 
-    # _X = set(X, 𝑡 => times(X) .* u"s") * u"V"
-    _X = X * u"V"
+    _X = set(X, 𝑡 => times(X) .* u"s") * u"V"
+    # _X = X * u"V"
     X = copy(_X)
     T = fit(N, X)
     x = normalize(X, T)
     @test ustripall(sum(x .^ 2) / duration(x)) ≈ 1
     @test !isnothing(T.p)
-    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(x,
-                                                                                         T)
-    X = @test_nowarn normalize(X, T)
-    @test X == x
-    x = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(x,
-                                                                                             T)
-    # @test all(Y .≈ _X)
-
-    _X = rand(100) * u"V"
-    X = copy(_X)
-    T = fit(ZScore, X)
-    Y = normalize(X, T)
+    @test denormalize(x, T) == X
 end

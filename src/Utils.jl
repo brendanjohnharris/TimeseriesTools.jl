@@ -4,31 +4,8 @@ import Normalization: NormUnion, AbstractNormalization, nansafe
 import InverseFunctions: square
 using Peaks
 
-export UnitPower, findpeaks, maskpeaks!, maskpeaks, upsample
+export findpeaks, maskpeaks!, maskpeaks, upsample
 
-# function 𝑝(x::RegularTimeseries)
-#     dur = duration(x)
-#     if ~isnothing(unit(dur))
-#         return sum(x.^2)/dur
-#     else
-#         @warn "No time units found for unit power normalization. Assuming seconds."
-#         return sum(x.^2)/(dur*u"s")
-#     end
-# end
-
-"""
-    UnitPower <: AbstractNormalization
-
-A normalization that sets the total power of a signal to unity.
-"""
-mutable struct UnitPower{T} <: AbstractNormalization{T}
-    dims::Any
-    p::NTuple{1, AbstractArray{T}}
-end;
-rootpower(x::RegularTimeseries) = sqrt(sum(map(square, x)) / duration(x))
-unitpower(r𝑃) = Base.Fix2(/, r𝑃)
-Normalization.estimators(::Type{N}) where {N <: UnitPower} = (rootpower,);
-Normalization.forward(::Type{N}) where {N <: UnitPower} = unitpower
 
 function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
                    maxprom = nothing,
