@@ -61,11 +61,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           julia --project=docs -e '
-            using Pkg
-            Pkg.add("TimeseriesBase", rev="main")
-            Pkg.add("Normalization", rev="main")
-            Pkg.add("TimeseriesMakie", rev="main")
-            Pkg.add("Foresight", rev="main")
             using Documenter: DocMeta, doctest
             using TimeseriesTools
             DocMeta.setdocmeta!(TimeseriesTools, :DocTestSetup, :(using TimeseriesTools); recursive=true)
