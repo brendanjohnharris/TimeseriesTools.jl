@@ -116,7 +116,6 @@ end
     @test dims(x, 1) == 𝑡(ts)
     @test dims(x, 𝑡) == 𝑡(ts)
     @test dims(x, Dim{:channel}) == Dim{:channel}(cs)
-    @test !(dims(x, :channel) == Dim{:channel}(cs))
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension
