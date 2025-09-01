@@ -1,7 +1,7 @@
 @testitem "AutocorrelationsExt" begin # Optimize this some more?
     using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, CairoMakie,
           Unitful
-    import TimeseriesTools: TimeSeries
+    import TimeseriesTools: Timeseries
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
 
@@ -49,7 +49,7 @@
     @test median(a.times) < median(c.times) .* 2
     @test b.allocs ≤ c.allocs
 
-    x = TimeSeries(0.1:0.1:1000, 1:100, cumsum(randn(10000, 100), dims = 1))
+    x = Timeseries(cumsum(randn(10000, 100), dims = 1), 0.1:0.1:1000, 1:100)
     m = msdist(x, 1:1000)
     traces(m; linecolor = (:gray, 0.1), axis = (; xscale = log10, yscale = log10))
     m = dropdims(mean(m, dims = 2), dims = 2)
@@ -61,15 +61,15 @@ end
     using DSP
     using CairoMakie
     using TimeseriesTools
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
     using StatsBase
 
     N = 100000
     dt = 0.005
     t = dt:dt:10
     x = [0.00 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
-    y = hcat(Var(1:200), x...)
-    x̂ = TimeSeries(dt:dt:(sum(length.(x)) * dt), vcat(collect.(x)...))
+    y = ToolsArray(x, Var(1:200)) |> stack
+    x̂ = Timeseries(vcat(collect.(x)...), dt:dt:(sum(length.(x)) * dt))
     x = phasestitch(x)
 
     p = @test_nowarn heatmap(y) # Should default to the DimensionalData recipe
@@ -90,7 +90,7 @@ end
 
     # And a power spectrum of a 'perfect' signal
     _t = dt:dt:(dt * N)
-    p = TimeSeries(_t, sin.(2 * _t))
+    p = Timeseries(sin.(2 * _t), _t)
     S′ = powerspectrum(p, dt * 4)
     @test_nowarn spectrumplot(S′)
 
@@ -109,19 +109,19 @@ end
 end
 
 @testitem "ContinuousWaveletsExt" begin
-    import TimeseriesTools: TimeSeries
+    import TimeseriesTools: Timeseries
     using ContinuousWavelets, BenchmarkTools
     # Define a test time series
     fs = 200
     t = range(0, stop = 5, length = 100 * fs + 1)
     x = (0.8 .* sin.(2 * π * 40 * t) + 1.1 .* sin.(2 * π * 100 * t)) .^ 2
-    ts = x = TimeseriesTools.TimeSeries(t, x)
+    ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     S = waveletspectrogram(x)
-    @test S isa RegularSpectrogram
+    @test S isa TimeseriesTools.TimeseriesBase.Spectra.RegularSpectrogram
 
     # Multivariate
-    x = cat(Var(1:2), ts, ts .* randn(length(ts)))
+    x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
     S = @test_nowarn waveletspectrogram(x)
     @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
@@ -137,7 +137,7 @@ end
 
     if false
         using CUDA
-        x = cat(Var(1:2), ts, ts .* randn(length(ts)))
+        x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
         S = @test_nowarn waveletspectrogram(x)
         @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
@@ -188,13 +188,14 @@ end
 # @testitem "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
 #     2 tspan = (0.0, 1.0) prob = ODEProblem(f, u0, tspan, saveat=0.1) sol = solve(prob)
 
-#     x = TimeSeries(sol)
+#     x = Timeseries(sol)
 # end
 
 @testitem "GeneralizedPhaseExt" begin
     using GeneralizedPhase, Unitful
     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
-    X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
+    X = [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]
+    X = ToolsArray(X, Var(1:10)) |> stack
     _ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)
 
@@ -211,7 +212,7 @@ end
     σ = [2.0, 2.0]
     𝒩 = MvNormal(μ, LinearAlgebra.Diagonal(map(abs2, σ)))
     N = 500
-    D = Timeseries(1:N, 1:2, hcat(sort([rand(𝒩) for i in 1:N])...)')
+    D = Timeseries(hcat(sort([rand(𝒩) for i in 1:N])...)', 1:N, 1:2)
     p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
 
     ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
@@ -224,47 +225,47 @@ end
 
     # * Vector
     ts = (rand(100) .- 0.5) * 2π
-    x = Timeseries(ts, sinc.(ts))
+    x = Timeseries(sinc.(ts), ts)
     @test_throws "`interpolate` only supports forward" TimeseriesTools.interpolate(x)
 
     sort!(ts)
-    x = Timeseries(ts, sinc.(ts))
+    x = Timeseries(sinc.(ts), ts)
     itp = TimeseriesTools.interpolate(x)
     y = itp(dims(x) |> only)
     @test x ≈ y
 
     ts = (-π):0.1:π
-    x = Timeseries(ts, sinc.(ts))
+    x = Timeseries(sinc.(ts), ts)
     itp = TimeseriesTools.interpolate(x)
     z = @test_nowarn upsample(x, 2)
     @test all(z[𝑡(At(ts))] .≈ x)
     @test z≈sinc.(lookup(z) |> only) atol=1e-2
 
     # * Matrix
-    x = Timeseries(0.1:0.1:10, Var(1:100), randn(100, 100))
+    x = Timeseries(randn(100, 100), 0.1:0.1:10, Var(1:100))
     y = @test_nowarn upsample(x, 2)
     z = @test_nowarn upsample(x, 2, dims = 1)
     @test y == z
     z = @test_nowarn upsample(x, 2, dims = (1, 2))
     @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var)))])
     @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var)))])
-    @test dimname.(dims(x)) == dimname.(dims(z))
+    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
 
     # * 3D array
-    x = Timeseries(0.1:0.1:10, Var(1:100), X(1:100), randn(100, 100, 100))
+    x = Timeseries(randn(100, 100, 100), 0.1:0.1:10, Var(1:100), X(1:100))
     y = @test_nowarn upsample(x, 2)
     z = @test_nowarn upsample(x, 2, dims = 1)
     @test y == z
     z = @test_nowarn upsample(x, 2, dims = (3, 2, 1))
     @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var))), X(At(lookup(y, X)))])
     @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var))), X(At(lookup(x, X)))])
-    @test dimname.(dims(x)) == dimname.(dims(z))
+    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
 
     # * Unitful data
     ts = ((-π):0.1:π) * u"s"
-    x = Timeseries(ts, sinc.(ustrip(ts))) * u"V"
+    x = Timeseries(sinc.(ustrip(ts)), ts) * u"V"
     itp = TimeseriesTools.interpolate(x)
     @test unit(eltype(itp(dims(x) |> only))) == NoUnits
     z = @test_nowarn upsample(x, 2)
@@ -275,30 +276,26 @@ end
 
 @testitem "Unit Power" begin
     using Unitful
+    using Statistics
     N = UnitPower
-    _X = TimeSeries(0.01:0.01:1, rand(100))
-    X = copy(_X)
-    T = fit(N, X)
-    Y = normalize(X, T)
-    @test sum(Y .^ 2) / duration(Y) ≈ 1
+    _X = Timeseries(rand(100), 0.01:0.01:1)
+    y = copy(_X)
+    T = fit(N, y)
+    x = normalize(y, T)
+    @test mean(x .^ 2) ≈ 1
     @test !isnothing(T.p)
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
-    @test X == Y
-    @test_nowarn denormalize!(Y, T)
-    @test all(Y .≈ _X)
+    @test denormalize(x, T) ≈ y
+    @test_nowarn normalize!(y, T)
+    @test y == x
+    @test_nowarn denormalize!(x, T)
+    @test all(x .≈ _X)
 
-    _X = TimeseriesTools.unitfultimeseries(X, u"s") * u"V"
-    X = copy(_X)
-    T = fit(N, X)
-    Y = normalize(X, T)
-    @test ustripall(sum(Y .^ 2) / duration(Y)) ≈ 1
+    _X = set(y, 𝑡 => times(y) * u"s") * u"V"
+    # _X = X * u"V"
+    y = copy(_X)
+    T = fit(N, y)
+    x = normalize(y, T)
+    @test ustripall(mean(x .^ 2)) ≈ 1
     @test !isnothing(T.p)
-    @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                         T)
-    X = @test_nowarn normalize(X, T)
-    @test X == Y
-    Y = @test_throws "Denormalization of unitful arrays currently not supported" denormalize(Y,
-                                                                                             T)
-    # @test all(Y .≈ _X)
+    @test denormalize(x, T) == y
 end

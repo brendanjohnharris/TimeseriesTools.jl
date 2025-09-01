@@ -7,28 +7,28 @@ using LinearAlgebra
 import Autocorrelations: fftacf, fftacf!, dotacf, dotacf!, default_lags
 import TimeseriesTools.msdist
 
-function fftacf!(r::AbstractVector, x::RegularTimeSeries, args...; kwargs...)
+function fftacf!(r::AbstractVector, x::RegularTimeseries, args...; kwargs...)
     fftacf!(r, parent(x), args...; kwargs...)
 end
-function fftacf!(r::AbstractVector, x::IrregularTimeSeries, args...; kwargs...)
+function fftacf!(r::AbstractVector, x::IrregularTimeseries, args...; kwargs...)
     throw(MethodError(fftacf!, (r, x, args...)))
 end
-function dotacf!(r::AbstractVector, x::RegularTimeSeries, args...; kwargs...)
+function dotacf!(r::AbstractVector, x::RegularTimeseries, args...; kwargs...)
     dotacf!(r, parent(x), args...; kwargs...)
 end
-function dotacf!(r::AbstractVector, x::IrregularTimeSeries, args...; kwargs...)
+function dotacf!(r::AbstractVector, x::IrregularTimeseries, args...; kwargs...)
     throw(MethodError(dotacf!, (r, x, args...)))
 end
-function fftacf(x::RegularTimeSeries, lags = default_lags(x); kwargs...)
-    TimeSeries(lags .* samplingperiod(x), fftacf(parent(x), lags; kwargs...))
+function fftacf(x::RegularTimeseries, lags = default_lags(x); kwargs...)
+    Timeseries(fftacf(parent(x), lags; kwargs...), lags .* samplingperiod(x))
 end
-function fftacf(x::IrregularTimeSeries, args...; kwargs...)
+function fftacf(x::IrregularTimeseries, args...; kwargs...)
     throw(MethodError(fftacf, (x, args...)))
 end
-function dotacf(x::RegularTimeSeries, lags = default_lags(x); kwargs...)
-    TimeSeries(lags .* samplingperiod(x), dotacf(parent(x), lags; kwargs...))
+function dotacf(x::RegularTimeseries, lags = default_lags(x); kwargs...)
+    Timeseries(dotacf(parent(x), lags; kwargs...), lags .* samplingperiod(x))
 end
-function dotacf(x::IrregularTimeSeries, args...; kwargs...)
+function dotacf(x::IrregularTimeseries, args...; kwargs...)
     throw(MethodError(dotacf, (x, args...)))
 end
 
@@ -55,13 +55,13 @@ function msdist(x::AbstractVector,
     return S1
 end
 function msdist(x::UnivariateRegular, lags = range(0, length(x) - 1, step = 1))
-    return TimeSeries(lags .* samplingperiod(x), msdist(parent(x), lags))
+    return Timeseries(msdist(parent(x), lags), lags .* samplingperiod(x))
 end
 function msdist(x::MultivariateRegular,
                 lags = range(0, size(x, 1) - 1, step = 1))
     d = dims(x)[2:end]
     m = mapslices(x -> msdist(x, lags), parent(x); dims = 1)
-    return TimeSeries(lags .* samplingperiod(x), d..., m)
+    return Timeseries(m, lags .* samplingperiod(x), d...)
 end
 
 end

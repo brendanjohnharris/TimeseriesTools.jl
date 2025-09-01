@@ -7,8 +7,8 @@ using TestItemRunner
     using Dates, Unitful
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
-    y = @test_nowarn TimeSeries(t, x)
-    @test y isa RegularTimeSeries
+    y = @test_nowarn Timeseries(x, t)
+    @test y isa RegularTimeseries
     @test samplingperiod(y) == Year(1)
     @test times(y) == t
     @test duration(y) == last(t) - first(t)
@@ -21,7 +21,7 @@ end
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)
     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-    ts = x = TimeseriesTools.TimeSeries(t, x)
+    ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     Pxx = powerspectrum(ts, f_min)
     @test Pxx isa RegularSpectrum
@@ -48,9 +48,9 @@ end
     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx
 
     for i in axes(Pxx_mts, 2)
-        Pxx = Pxx_mts[:, i]
-        freqs = dims(Pxx, 𝑓)
-        peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
+        local Pxx = Pxx_mts[:, i]
+        local freqs = dims(Pxx, 𝑓)
+        local peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
         @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
     end
 
@@ -58,7 +58,7 @@ end
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)
     x = 0.8 .* sin.(2 * π * 50 * t) + 1.1 .* sin.(2 * π * 100 * t)
-    ts = x = TimeseriesTools.TimeSeries(t, x)
+    ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     Pa = powerspectrum(ts, f_min; padding = 0)
     Pb = powerspectrum(ts, f_min / 10; padding = 100)
@@ -74,6 +74,28 @@ end
     # # Plotting
     # f = Figure() ax = Axis(f[1, 1]) @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
     # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
+end
+
+@testitem "Operators" begin
+    import TimeseriesTools.TimeseriesBase.Operators: ℬ!, ℒ!, ℬ, ℒ, 𝒯
+    x = colorednoise(1:1000)
+    _x = deepcopy(x)
+    @test_nowarn ℬ!(x)
+    @test all(x[2:end] .== parent(_x)[1:(end - 1)])
+    ℬ!(x, 3)
+    @test all(x[5:end] .== parent(_x)[1:(end - 4)])
+    @test ℬ(_x, 4) == x
+
+    x = deepcopy(_x)
+    @test_nowarn ℒ!(x)
+    @test all(_x[2:end] .== parent(x)[1:(end - 1)])
+    ℒ!(x, 3)
+    @test all(_x[5:end] .== parent(x)[1:(end - 4)])
+    @test ℒ(_x, 4) == x
+
+    x = colorednoise(0.0:0.01:1)
+    T = 𝒯(-1)
+    @test times(T(x)) == -1:step(x):0
 end
 
 include("Types.jl")

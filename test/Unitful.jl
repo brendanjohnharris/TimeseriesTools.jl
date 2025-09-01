@@ -1,12 +1,12 @@
 @testitem "Unitful" begin
     using Unitful
     ts = (1:1000)u"s"
-    x = @test_nowarn TimeSeries(ts, randn(1000))
-    @test TimeSeries(ustripall(ts), collect(x), u"s") == x
-    @test x isa AbstractTimeSeries
-    @test x isa UnitfulTimeSeries
-    @test x isa RegularTimeSeries
-    @test x isa UnivariateTimeSeries
+    x = @test_nowarn Timeseries(randn(1000), ts)
+    @test Timeseries(collect(x), ustripall(ts) * u"s") == x
+    @test x isa AbstractTimeseries
+    @test x isa UnitfulTimeseries
+    @test x isa RegularTimeseries
+    @test x isa UnivariateTimeseries
 
     @test step(x) == step(ts)
     @test samplingrate(x) == 1 / step(ts)
@@ -21,11 +21,11 @@ end
 
 @testitem "Twice unitful" begin
     using Unitful, FFTW, CairoMakie
-    import TimeseriesTools.TimeSeries
+    import TimeseriesTools.Timeseries
     ts = ((-100 + 0.01):0.0005:100) * u"s"
     f = rfftfreq(length(ts), 1 / step(ts))
     x = 4.2u"V" .* sin.(2 * π * 50u"Hz" * ts) .+ 3.1u"V" .* sin.(2 * π * 100u"Hz" * ts)
-    x = TimeSeries(ts, x)
+    x = Timeseries(x, ts)
     S = energyspectrum(x, 0.0)
     P = powerspectrum(x, 0.0)
 
@@ -41,8 +41,8 @@ end
     @test first(peakamps) / last(peakamps)≈4.2 / 3.1 rtol=1e-1
 
     x = exp.(-ustripall(ts) .^ 2)
-    x = TimeSeries(ts, x * u"V")
-    ℱ = sqrt(π) .* exp.(-π^2 .* ustripall(f) .^ 2)
+    x = Timeseries(x * u"V", ts)
+    ℱ = sqrt(π) .* exp.(-π^2 * ustripall(f) .^ 2)
     _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
     S = energyspectrum(x, 0.0)
     @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, 𝑓)) rtol=0.05

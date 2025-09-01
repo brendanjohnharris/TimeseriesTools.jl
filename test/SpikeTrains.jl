@@ -1,10 +1,10 @@
 @testitem "Spike FFT" begin
     using CairoMakie
-    import TimeseriesTools: TimeSeries
+    import TimeseriesTools: Timeseries
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
     t = findall(t .> 0) ./ 100 # Should have a period of 1 second
-    t = TimeSeries(t, trues(length(t)))
+    t = Timeseries(trues(length(t)), t)
     @test t isa SpikeTrain
 
     p = @test_nowarn spikefft(0:0.1:10, t)
@@ -15,7 +15,7 @@
     p = @test_nowarn powerspectrum(t, fs; method = :schild)
 
     # Test this returns an identical result for spikes measured at regular intervals
-    x = TimeSeries(ts, zeros(length(ts)))
+    x = Timeseries(zeros(length(ts)), ts)
     x[𝑡(Near(times(t)))] .= 1.0 / sqrt(samplingperiod(x))
     et = energyspectrum(x, 0.01)
     @test (2 * sum(et[2:end]) + et[1]) * fs[1] ≈ sum(t)
@@ -29,7 +29,7 @@
     # end
 
     # Multivariate
-    T = hcat(Var(1:4), t, t, t, t)
+    T = cat(t, t, t, t, dims = Var(1:4))
     P = @test_nowarn powerspectrum(T, fs; method = :schild)
     @test P[:, 1] == p
 
@@ -51,7 +51,7 @@ end
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
     t = findall(t .> 0) ./ 100 # Should have a period of 1 second
-    t = TimeSeries(t, trues(length(t)))
+    t = Timeseries(trues(length(t)), t)
     Δt = 0.025
     c = @test_nowarn sttc(t, t .+ 0.02; Δt)
 

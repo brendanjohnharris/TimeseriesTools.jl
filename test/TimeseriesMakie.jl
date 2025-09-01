@@ -1,28 +1,28 @@
 @testitem "Makie" begin
     using CairoMakie
-    import TimeseriesTools: TimeSeries
-    x = TimeSeries(0.01:0.01:10, randn(1000))
+    import TimeseriesTools: Timeseries
+    x = Timeseries(randn(1000), 0.01:0.01:10)
 
     p = @test_nowarn plot(x)
     @test p.plot isa Lines
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
-    x = TimeSeries(0.01:0.01:10, 1:2, randn(1000, 2))
+    x = Timeseries(randn(1000, 2), 0.01:0.01:10, 1:2)
     p = @test_nowarn plot(x)
     @test p.plot isa Heatmap
     # @test 10 ≤ p.axis.finallimits.val.widths[1] < 12
     # @test 2 ≤ p.axis.finallimits.val.widths[2] < 3
 
-    x = TimeSeries(0.01:0.01:10, [1, 3], randn(1000, 2))
+    x = Timeseries(randn(1000, 2), 0.01:0.01:10, [1, 3])
     p = @test_nowarn plot(x)
     @test p.plot isa Heatmap
 end
 
 @testitem "Readme" begin
     using TimeseriesTools, CairoMakie, Unitful, Foresight
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e5
-    x = colorednoise(t, u"s") * u"V"
+    x = colorednoise(t * u"s") * u"V"
     # Plot the time series
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
@@ -41,11 +41,15 @@ end
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
-    shadows!(ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05)
+    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
+                color = :speed)
+    shadows!(ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05,
+             swapshadows = (true, false, false),
+             limits = Foresight.widen.(extrema.(eachcol(x)), 0.4))
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
-    ax.azimuth = ax.azimuth[] + 0.1
-    ax.elevation = ax.elevation[] + 0.1
+    ax.azimuth[] = 2.2
+    ax.elevation[] = 0.5
+    hidespines!(ax)
     save("./shadows.png", f; px_per_unit = 3)
 
     @test_nowarn trajectory!(ax, x)
@@ -54,11 +58,11 @@ end
 
 @testitem "Readme_dark" begin
     using CairoMakie, TimeseriesTools, Unitful, Foresight
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
     set_theme!(foresight(:dark, :transparent))
 
     t = 0.005:0.005:1e5
-    x = colorednoise(t, u"s") * u"V"
+    x = colorednoise(t * u"s") * u"V"
 
     # Plot the time series
     f = Figure(; size = (720, 480))
@@ -78,11 +82,15 @@ end
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1)
-    shadows!(ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05)
+    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
+                color = :speed)
+    shadows!(ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05,
+             swapshadows = (true, false, false),
+             limits = Foresight.widen.(extrema.(eachcol(x)), 0.4))
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
-    ax.azimuth = ax.azimuth[] + 0.1
-    ax.elevation = ax.elevation[] + 0.1
+    ax.azimuth[] = 2.2
+    ax.elevation[] = 0.5
+    hidespines!(ax)
     save("./shadows_dark.png", f; px_per_unit = 3)
 end
 
@@ -90,8 +98,8 @@ end
     using CairoMakie, TimeseriesTools, Unitful
 
     t = 0.005:0.005:1e4
-    x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    x = colorednoise(t * u"s") * u"V"
+    X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:10:end, :]
@@ -106,11 +114,11 @@ end
 @testitem "Spectrum plot" begin
     using DSP
     using CairoMakie, TimeseriesTools, Unitful
-    import TimeseriesTools.TimeSeries # or TS
+    import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e4
-    x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    x = colorednoise(t * u"s") * u"V"
+    X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]

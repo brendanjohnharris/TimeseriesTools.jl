@@ -6,10 +6,11 @@ using Unitful
 using IntervalSets
 import TimeseriesTools: bandpass, highpass, lowpass, isoamplitude, phasestitch,
                         instantaneousfreq, analyticphase, analyticamplitude
+import TimeseriesTools.TimeseriesBase.Utils: stitch
 import DSP
 import DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 
-hilbert(X::AbstractTimeSeries) = set(X, hilbert(ustripall(X.data)) * unit(eltype(X.data)))
+hilbert(X::AbstractTimeseries) = set(X, hilbert(ustripall(X.data)) * unit(eltype(X.data)))
 
 analyticphase(x) = x |> hilbert .|> angle
 analyticamplitude(x) = x |> hilbert .|> abs
@@ -46,7 +47,7 @@ function bandpass(x::AbstractDimArray, fs::A,
     set(x, bandpass(x.data, fs, pass; kwargs...))
 end
 
-function bandpass(x::RegularTimeSeries, pass::AbstractVector; kwargs...)
+function bandpass(x::RegularTimeseries, pass::AbstractVector; kwargs...)
     bandpass(x, samplingrate(x), pass; kwargs...)
 end
 
@@ -76,7 +77,7 @@ function highpass(x::AbstractDimArray, fs::Real,
                   pass::Real; kwargs...)
     set(x, highpass(x.data, fs, pass; kwargs...))
 end
-function highpass(x::RegularTimeSeries, pass::Number; kwargs...)
+function highpass(x::RegularTimeseries, pass::Number; kwargs...)
     highpass(x, samplingrate(x), pass; kwargs...)
 end
 
@@ -91,16 +92,16 @@ function lowpass(x::AbstractArray, fs::Real,
     DSP.filtfilt(digitalfilter(DSP.Lowpass(ustripall(pass); fs = ustripall(fs)),
                                designmethod), ustripall(x)) * unit(eltype(x))
 end
-function lowpass(x::AbstractTimeSeries, fs::Quantity,
+function lowpass(x::AbstractTimeseries, fs::Quantity,
                  pass::Quantity;
                  kwargs...)
     set(x, lowpass(x.data, fs, pass; kwargs...))
 end
-function lowpass(x::AbstractTimeSeries, fs::Real,
+function lowpass(x::AbstractTimeseries, fs::Real,
                  pass::Real; kwargs...)
     set(x, lowpass(x.data, fs, pass; kwargs...))
 end
-function lowpass(x::RegularTimeSeries, pass::Number; kwargs...)
+function lowpass(x::RegularTimeseries, pass::Number; kwargs...)
     lowpass(x, samplingrate(x), pass; kwargs...)
 end
 
@@ -146,21 +147,21 @@ function _phasestitch(a::Tuple, b::Tuple; tol = 0.05) # a = (LFP1, PHI1)
     return x
 end
 
-function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries; kwargs...)
+function phasestitch(a::UnivariateTimeseries, b::UnivariateTimeseries; kwargs...)
     pha = hilbert(a) .|> angle
     phb = hilbert(b) .|> angle
     return _phasestitch((a, pha), (b, phb); kwargs...)
 end
 
 """
-    phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, [pass]; kwargs...)
+    phasestitch(a::UnivariateTimeseries, b::UnivariateTimeseries, [pass]; kwargs...)
 
 Perform phase stitching on two univariate time series `a` and `b` using a specified frequency passband `pass`.
 The function applies a bandpass filter to both time series, computes the phase using the Hilbert transform, and then stitches the phases together.
 
 # Arguments
-- `a::UnivariateTimeSeries`: The first univariate time series.
-- `b::UnivariateTimeSeries`: The second univariate time series.
+- `a::UnivariateTimeseries`: The first univariate time series.
+- `b::UnivariateTimeseries`: The second univariate time series.
 - `pass`: The frequency passband for the bandpass filter.
 
 # Keyword Arguments
@@ -170,7 +171,7 @@ The function applies a bandpass filter to both time series, computes the phase u
 - A tuple containing the stitched time series and the stitched phase.
 
 """
-function phasestitch(a::UnivariateTimeSeries, b::UnivariateTimeSeries, pass; kwargs...)
+function phasestitch(a::UnivariateTimeseries, b::UnivariateTimeseries, pass; kwargs...)
     _a = bandpass(a, pass)
     _b = bandpass(b, pass)
     pha = hilbert(_a) .|> angle
@@ -191,8 +192,8 @@ The `phasestitch` function stitches together multiple univariate time series by 
 ## Returns
 - A single univariate time series obtained by stitching together the input time series.
 """
-function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
-                                              AbstractVector{<:UnivariateTimeSeries}},
+function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeseries},
+                                              AbstractVector{<:UnivariateTimeseries}},
                                      P = [hilbert(x) .|> angle for x in X]; tol = 0.05)
     _a = deepcopy(X)
     _ap = deepcopy(P)
@@ -227,8 +228,8 @@ function TimeseriesTools.phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
     reduce(stitch, aa)
 end
 
-function phasestitch(X::Union{Tuple{<:UnivariateTimeSeries},
-                              AbstractVector{<:UnivariateTimeSeries}},
+function phasestitch(X::Union{Tuple{<:UnivariateTimeseries},
+                              AbstractVector{<:UnivariateTimeseries}},
                      pass::Union{NTuple{2}, AbstractVector{<:Number}}; kwargs...)
     a = bandpass.(X, [pass])
     P = [hilbert(x) .|> angle for x in a] # Bandpass for phases only
