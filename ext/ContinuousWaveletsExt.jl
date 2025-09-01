@@ -5,6 +5,7 @@ using IntervalSets
 using DimensionalData
 using TimeseriesTools
 import TimeseriesTools: _waveletfreqs, _waveletspectrogram, waveletspectrogram
+import TimeseriesTools.TimeseriesBase.Spectra: RegularSpectrogram
 
 function _waveletfreqs(t; moth = Morlet(2π), β = 1, Q = 32)
     n = length(t)
@@ -90,7 +91,7 @@ function waveletspectrogram(x::RegularTimeseries, args...; kwargs...)::RegularSp
 end
 function waveletspectrogram(x::MultivariateTimeseries, args...; kwargs...)
     f = x -> waveletspectrogram(x)
-    cat(dims(x, 2), f.(eachslice(x; dims = 2))...; dims = 3)
+    ToolsArray(map(f, eachslice(x; dims = 2)), dims(x, 2)) |> stack
 end
 
 # ! Add normalized energy spectra and power spectra for wavelet transform

@@ -138,7 +138,7 @@ end
     using Unitful
     ts = 0.1:0.1:1000
     x = Timeseries(sin, ts)
-    y = set(x, 𝑡 => ts .* u"s")
+    y = set(x, 𝑡 => ts * u"s")
     @test ustripall(centralderiv(x)) == ustripall(centralderiv(y))
     @test unit(eltype(centralderiv(y))) == unit(u"1/s")
 end
@@ -228,55 +228,3 @@ end
     @test_nowarn findpeaks(xx)
     M = @test_nowarn maskpeaks(xx)
 end
-
-@testitem "ProgressLogging progressmap" begin
-    using DimensionalData
-    TimeseriesTools.PROGRESSMAP_BACKEND = :ProgressLogging
-    S = 1:1000
-    g = x -> (sleep(0.001); randn())
-    out = progressmap(g, S)
-
-    # * Check for matrix
-    S = randn(10, 10)
-    h(x) = (randn(1000, 1000)^10)^(-10)
-    out = progressmap(h, S)
-    @test out isa Matrix{Matrix{Float64}}
-
-    # * Check for DimArray
-    S = DimArray(randn(10, 10), (X(1:10), Y(1:10)))
-    out = progressmap(h, S)
-    @test out isa DimMatrix{Matrix{Float64}}
-end
-@testitem "progressmap schedulers" begin
-    TimeseriesTools.PROGRESSMAP_BACKEND = :Threads
-
-    # * Compare to Threads.@threads. Guess you should have some threads.
-    function f(X)
-        return sum(X * X)
-    end
-    Ns = 1:100:1000
-    Xs = [rand(n, n) for n in Ns]
-    @test progressmap(f, Xs, schedule = :dynamic) == progressmap(f, Xs, schedule = :static)
-
-    Ns = range(0, 1, length = 100)
-
-    if Threads.nthreads() > 2 && VERSION ≥ v"1.11"
-        _, bs = @timed progressmap(sleep, Ns, schedule = :static)
-        _, bd = @timed progressmap(sleep, Ns, schedule = :dynamic)
-        # _, bg = @timed progressmap(sleep, Ns, schedule = :greedy)
-
-        @test bs > bd # > bg
-    end
-end
-
-# begin
-#     D = DimensionalData.Dim{:x}(1:100)
-#     T = TimeseriesTools.Dim{:x}(1:100)
-#     @test D != T
-#     @test all(D .== T)
-#     @test DimensionalData.name(T) == DimensionalData.name(D)
-#     𝑡(1:10)
-#     𝑥(1:10)
-#     𝑦(1:10)
-#     𝑧(1:10)
-# end

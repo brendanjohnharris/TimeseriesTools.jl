@@ -141,7 +141,7 @@ end
     xs = -0.6:0.01:0.6
     x = [ToolsArray([colorednoise(0:0.01:1) for _ in xs], DimensionalData.X(xs)) |> stack
          for _ in xs]
-    x = stack(Y(xs), x)
+    x = ToolsArray(x, Y(xs)) |> stack
 
     S = abs.(rfft(x)) .^ 2
 
@@ -154,8 +154,8 @@ end
 
     # * Larger array, smoothed
     xs = -0.6:0.01:0.6
-    x = [stack(X(xs), [colorednoise(0:0.05:50) for _ in xs]) for _ in xs]
-    x = stack(Y(xs), x)
+    x = [stack(ToolsArray([colorednoise(0:0.05:50) for _ in xs], X(xs))) for _ in xs]
+    x = ToolsArray(x, Y(xs)) |> stack
 
     function G(x, μ, σ)
         d = length(μ)

@@ -110,15 +110,13 @@ end
 @testitem "Dim queries" begin
     ts = 1:100
     cs = 1:10
-    x = Timeseries(randn(100, 10), ts, TDim{:channel}(cs))
+    x = Timeseries(randn(100, 10), ts, Dim{:channel}(cs))
     @test x isa ToolsArray
-    @test all(isa.(dims(x), ToolsDimension))
-    @test dims(x) == (𝑡(ts), TDim{:channel}(cs))
+    @test dims(x) == (𝑡(ts), Dim{:channel}(cs))
     @test dims(x, 1) == 𝑡(ts)
     @test dims(x, 𝑡) == 𝑡(ts)
-    @test dims(x, TDim{:channel}) == TDim{:channel}(cs)
-    @test !(dims(x, :channel) == TDim{:channel}(cs)) # You CAN'T use symbols for TDim{}s because DimensionalData.name2dim always returns a Dim{}
-    # This breaks a lot of functionality, so avoid TDim{} for now.
+    @test dims(x, Dim{:channel}) == Dim{:channel}(cs)
+    @test !(dims(x, :channel) == Dim{:channel}(cs))
 
     DimensionalData.@dim U ToolsDim "U"
     @test U <: ToolsDimension

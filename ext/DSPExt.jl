@@ -6,6 +6,7 @@ using Unitful
 using IntervalSets
 import TimeseriesTools: bandpass, highpass, lowpass, isoamplitude, phasestitch,
                         instantaneousfreq, analyticphase, analyticamplitude
+import TimeseriesTools.TimeseriesBase.Utils: stitch
 import DSP
 import DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
 

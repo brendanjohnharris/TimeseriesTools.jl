@@ -1,5 +1,6 @@
 using FFTW
 using Statistics
+using Unitful
 
 import TimeseriesBase.Operators.𝒯
 
@@ -52,13 +53,13 @@ function _periodogram(x::AbstractVector, fs::Number,
     end
 
     # Calculate the frequencies
-    freqs = range(convertconst(0, fs), stop = fs / 2, length = size(S̄, 1))
+    freqs = range((0)unit(fs), stop = fs / 2, length = size(S̄, 1))
     df = step(freqs)
 
     # Normalize the mean energy spectrum to obey Parseval's theorem
     meanS̄ = mean(S̄, dims = 2)
     S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
-    S̄ = 0.5 * S̄ .* ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
+    S̄ = 0.5 * S̄ * ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
     Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
 
@@ -94,8 +95,9 @@ julia> S isa MultivariateSpectrum
 ```
 """
 function _energyspectrum(x::MultivariateTimeseries, args...; kwargs...)
-    cat([_energyspectrum(_x, args...; kwargs...)
-         for _x in eachslice(x, dims = 2)]..., dims = dims(x, 2))
+    X = [_energyspectrum(_x, args...; kwargs...)
+         for _x in eachslice(x, dims = 2)]
+    return ToolsArray(X, dims(x, 2)) |> stack
 end
 
 """
@@ -148,21 +150,24 @@ Generate a colored-noise time series with a specified power-law exponent `α` on
 
 # Example
 
-```@example 1
-julia> using TimeseriesTools
-julia> pink_noise = colorednoise(1:0.01:10; α=1.0)
-julia> pink_noise isa RegularTimeseries
+```julia
+using TimeseriesTools
+pink_noise = colorednoise(1:0.01:10; α=1.0)
+pink_noise isa RegularTimeseries
 ```
 """
-function colorednoise(ts::AbstractRange, args...; α = 2.0, kwargs...)
-    f = rfftfreq(length(ts), step(ts))
+function colorednoise(ts::AbstractRange{T}, args...; α = 2.0, kwargs...) where {T}
+    u = unit(T)
+    ts = T <: Quantity ? ustrip(ts) : ts
+    dt = step(ts)
+    f = rfftfreq(length(ts), dt)
     x̂ = sqrt.(1.0 ./ f .^ α) .* exp.(2π .* rand(length(f)) * im)
     x̂[1] = 0
     x = irfft(x̂, length(ts))
     dt = length(ts) * step(f)
     t = range(0, (length(x) - 1) * dt, length = length(x))
     @assert all(t .+ first(ts) .≈ ts)
-    Timeseries(x, ts, args...; kwargs...)
+    Timeseries(x, ts * u, args...; kwargs...)
 end
 
 function spikefft(t::AbstractVector, ::Val{:schild})
@@ -206,7 +211,7 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
     # Normalize the energy spectrum to obey Parseval's theorem
     S̄ = S̄ ./ ustripall((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
     # display(2 * sum(S̄[2:end]) + S̄[1])
-    S̄ = S̄ .* ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
+    S̄ = S̄ * ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
     Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 

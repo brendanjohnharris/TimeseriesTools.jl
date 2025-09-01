@@ -68,7 +68,7 @@ end
     dt = 0.005
     t = dt:dt:10
     x = [0.00 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
-    y = hcat(Var(1:200), x...)
+    y = ToolsArray(x, Var(1:200)) |> stack
     x̂ = Timeseries(vcat(collect.(x)...), dt:dt:(sum(length.(x)) * dt))
     x = phasestitch(x)
 
@@ -118,10 +118,10 @@ end
     ts = x = TimeseriesTools.Timeseries(x, t)
     f_min = fs / 100
     S = waveletspectrogram(x)
-    @test S isa RegularSpectrogram
+    @test S isa TimeseriesTools.TimeseriesBase.Spectra.RegularSpectrogram
 
     # Multivariate
-    x = cat(Var(1:2), ts, ts .* randn(length(ts)))
+    x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
     S = @test_nowarn waveletspectrogram(x)
     @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
@@ -137,7 +137,7 @@ end
 
     if false
         using CUDA
-        x = cat(Var(1:2), ts, ts .* randn(length(ts)))
+        x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
         S = @test_nowarn waveletspectrogram(x)
         @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
@@ -194,7 +194,8 @@ end
 @testitem "GeneralizedPhaseExt" begin
     using GeneralizedPhase, Unitful
     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
-    X = cat(Var(1:10), [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]...)
+    X = [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]
+    X = ToolsArray(X, Var(1:10)) |> stack
     _ϕ = @test_nowarn _generalized_phase(x)
     ϕ = @test_nowarn _generalized_phase(X)
 
@@ -248,7 +249,7 @@ end
     z = @test_nowarn upsample(x, 2, dims = (1, 2))
     @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var)))])
     @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var)))])
-    @test dimname.(dims(x)) == dimname.(dims(z))
+    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
 
     # * 3D array
@@ -259,7 +260,7 @@ end
     z = @test_nowarn upsample(x, 2, dims = (3, 2, 1))
     @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var))), X(At(lookup(y, X)))])
     @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var))), X(At(lookup(x, X)))])
-    @test dimname.(dims(x)) == dimname.(dims(z))
+    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
     @test length(dims(z, 1)) == length(dims(z, 2)) == 199
 
     # * Unitful data
@@ -275,25 +276,26 @@ end
 
 @testitem "Unit Power" begin
     using Unitful
+    using Statistics
     N = UnitPower
     _X = Timeseries(rand(100), 0.01:0.01:1)
-    X = copy(_X)
-    T = fit(N, X)
-    x = normalize(X, T)
-    @test sum(x .^ 2) / duration(x) ≈ 1
+    y = copy(_X)
+    T = fit(N, y)
+    x = normalize(y, T)
+    @test mean(x .^ 2) ≈ 1
     @test !isnothing(T.p)
-    @test denormalize(x, T) ≈ X
-    @test_nowarn normalize!(X, T)
-    @test X == x
+    @test denormalize(x, T) ≈ y
+    @test_nowarn normalize!(y, T)
+    @test y == x
     @test_nowarn denormalize!(x, T)
     @test all(x .≈ _X)
 
-    _X = set(X, 𝑡 => times(X) .* u"s") * u"V"
+    _X = set(y, 𝑡 => times(y) * u"s") * u"V"
     # _X = X * u"V"
-    X = copy(_X)
-    T = fit(N, X)
-    x = normalize(X, T)
-    @test ustripall(sum(x .^ 2) / duration(x)) ≈ 1
+    y = copy(_X)
+    T = fit(N, y)
+    x = normalize(y, T)
+    @test ustripall(mean(x .^ 2)) ≈ 1
     @test !isnothing(T.p)
-    @test denormalize(x, T) == X
+    @test denormalize(x, T) == y
 end

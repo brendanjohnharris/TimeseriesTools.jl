@@ -48,9 +48,9 @@ end
     @test Pxx_mts[:, 1] == Pxx_mts[:, 2] == Pxx
 
     for i in axes(Pxx_mts, 2)
-        Pxx = Pxx_mts[:, i]
-        freqs = dims(Pxx, 𝑓)
-        peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
+        local Pxx = Pxx_mts[:, i]
+        local freqs = dims(Pxx, 𝑓)
+        local peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
         @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
     end
 

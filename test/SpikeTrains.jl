@@ -29,7 +29,7 @@
     # end
 
     # Multivariate
-    T = hcat(Var(1:4), t, t, t, t)
+    T = cat(t, t, t, t, dims = Var(1:4))
     P = @test_nowarn powerspectrum(T, fs; method = :schild)
     @test P[:, 1] == p
 

@@ -36,8 +36,7 @@
     # Currently not the greatest way of handling non-serializable metadata
     x = Timeseries(rand(1000, 3), 0.001:0.001:1, 1:3;
                    metadata = Dict(:a => DimensionalData.NoName())) # Something that can't be serialized
-    @test_logs (:warn, ErrorException("Cannot serialize type DimensionalData.NoName")) savetimeseries(f,
-                                                                                                      x)
+    @test_logs (:warn, "Cannot serialize type DimensionalData.NoName") savetimeseries(f, x)
     _x = loadtimeseries(f)
     @test metadata(_x) == DimensionalData.Dimensions.LookupArrays.NoMetadata()
     @test all(x .≈ _x)
@@ -45,9 +44,8 @@
     @test parent(lookup(_x, 1)) isa Vector{Float64}
 
     x = Timeseries(rand(1000, 3), 0.001:0.001:1, 1:3; name = Timeseries) # Something that can't be serialized
-    @test_logs (:warn,
-                ErrorException("Cannot serialize type typeof(TimeseriesTools.Timeseries)")) savetimeseries(f,
-                                                                                                           x)
+    @test_logs (:warn, "Cannot serialize type typeof(TimeseriesBase.TimeSeries.Timeseries)") savetimeseries(f,
+                                                                                                            x)
     _x = loadtimeseries(f)
     @test name(_x) == DimensionalData.NoName()
     @test all(x .≈ _x)

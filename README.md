@@ -34,7 +34,7 @@ using TimeseriesTools, CairoMakie, TimeseriesTools.FFTW, Unitful
 
 # Generate some quick brown noise
 t = 0.005:0.005:1e5
-x = colorednoise(t, u"s")*u"V" # ::AbstractTimeseries
+x = colorednoise(t*u"s")*u"V" # ::AbstractTimeseries
 plot(x[1:10000])
 S = powerspectrum(x, 0.001)
 p = plot(S)

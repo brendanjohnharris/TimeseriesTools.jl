@@ -2,7 +2,7 @@
     using Unitful
     ts = (1:1000)u"s"
     x = @test_nowarn Timeseries(randn(1000), ts)
-    @test Timeseries(collect(x), ustripall(ts), u"s") == x
+    @test Timeseries(collect(x), ustripall(ts) * u"s") == x
     @test x isa AbstractTimeseries
     @test x isa UnitfulTimeseries
     @test x isa RegularTimeseries
@@ -42,7 +42,7 @@ end
 
     x = exp.(-ustripall(ts) .^ 2)
     x = Timeseries(x * u"V", ts)
-    ℱ = sqrt(π) .* exp.(-π^2 .* ustripall(f) .^ 2)
+    ℱ = sqrt(π) .* exp.(-π^2 * ustripall(f) .^ 2)
     _S = abs.(ℱ) .^ 2 * u"V^2*s^2"
     S = energyspectrum(x, 0.0)
     @test sum(_S) .* step(f)≈sum(S) .* step(dims(S, 𝑓)) rtol=0.05

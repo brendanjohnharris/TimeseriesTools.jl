@@ -22,7 +22,7 @@ end
     import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e5
-    x = colorednoise(t, u"s") * u"V"
+    x = colorednoise(t * u"s") * u"V"
     # Plot the time series
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1])
@@ -58,7 +58,7 @@ end
     set_theme!(foresight(:dark, :transparent))
 
     t = 0.005:0.005:1e5
-    x = colorednoise(t, u"s") * u"V"
+    x = colorednoise(t * u"s") * u"V"
 
     # Plot the time series
     f = Figure(; size = (720, 480))
@@ -90,8 +90,8 @@ end
     using CairoMakie, TimeseriesTools, Unitful
 
     t = 0.005:0.005:1e4
-    x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    x = colorednoise(t * u"s") * u"V"
+    X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:10:end, :]
@@ -109,8 +109,8 @@ end
     import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e4
-    x = colorednoise(t, u"s") * u"V"
-    X = cat(Var(1:2), x, x .+ 1.0 * u"V", dims = 2)
+    x = colorednoise(t * u"s") * u"V"
+    X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
     # Calculate the power spectrum
     S = _powerspectrum(x, 0.0005)[2:end, :]
