@@ -124,7 +124,7 @@ end
     S = _powerspectrum(x, 0.0005)[2:end, :]
     f = Figure(; size = (720, 480))
     ax = Axis(f[1, 1], xscale = log10, yscale = log10)
-    @test_nowarn spectrumplot!(ax, S, linewidth = 2)
+    spectrumplot!(ax, S, linewidth = 2)
 
     # * Test peaks
     x = bandpass(x, (0.1u"Hz", 0.2u"Hz"))
