@@ -3,6 +3,11 @@ using TestItemRunner
 
 @run_package_tests
 
+@testitem "Aqua" begin
+    using Aqua
+    Aqua.test_all(TimeseriesTools)
+end
+
 @testitem "Dates" begin
     using Dates, Unitful
     x = 1:100

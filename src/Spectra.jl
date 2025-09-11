@@ -68,9 +68,10 @@ end
 
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
-function _energyspectrum(x::typeintersect(RegularTimeseries, UnivariateTimeseries), args...;
+function _energyspectrum(x::typeintersect(RegularTimeseries, UnivariateTimeseries),
+                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
                          kwargs...)
-    return _periodogram(x, samplingrate(x), args...; kwargs...)
+    return _periodogram(x, samplingrate(x), f_min; kwargs...)
 end
 
 """

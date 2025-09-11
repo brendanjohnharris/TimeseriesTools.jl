@@ -37,6 +37,7 @@ DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
 GeneralizedPhase = "13235c25-d339-4138-a8bf-65c4e89d8d0a"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
+SpectralFitting = "f2c56810-742e-4b72-8bf4-27af3bb81a12"
 
 [extensions]
 AutocorrelationsExt = ["Autocorrelations"]
@@ -47,6 +48,7 @@ DSPExt = ["DSP"]
 DataInterpolationsExt = ["DataInterpolations"]
 GeneralizedPhaseExt = ["GeneralizedPhase"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
+SpectralFittingExt = ["SpectralFitting"]
 
 [compat]
 Autocorrelations = "0.1"
@@ -70,9 +72,15 @@ Normalization = "0.9"
 Peaks = "0.4, 0.5"
 ProgressLogging = "0.1"
 Reexport = "1"
+SpectralFitting = "0.7"
 Statistics = "1.10"
 TimeseriesBase = "0.1"
-TimeseriesMakie = "0.1.1, 0.2"
+TimeseriesMakie = "0.2"
 TimeseriesSurrogates = "2.6.3, 2.7"
 Unitful = "1"
+Random = "1.10"
+Dates = "1.10"
+LinearAlgebra = "1.10"
+SparseArrays = "1.10"
+Mmap = "1.10"
 julia = "1.10"

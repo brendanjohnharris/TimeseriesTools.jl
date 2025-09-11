@@ -1,4 +1,5 @@
 [deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Autocorrelations = "b9118d5e-f165-4cbd-b2ae-b030566b7b26"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -22,6 +23,7 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MeanSquaredDisplacement = "13c93d70-909c-440c-af92-39d48ffa2ba2"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SpectralFitting = "f2c56810-742e-4b72-8bf4-27af3bb81a12"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"

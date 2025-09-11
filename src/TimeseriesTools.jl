@@ -11,6 +11,7 @@ using ProgressLogging
 @reexport using TimeseriesBase
 @reexport using Normalization
 @reexport using TimeseriesMakie
+import Normalization: params!
 
 include("Utils.jl")
 include("SpikeTrains.jl")
