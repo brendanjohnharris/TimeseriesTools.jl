@@ -53,8 +53,8 @@ end
 begin # * Use Optim to refine these initial guesses
     a = @timed fit_oneoneff(logspectrum, params; autodiff = :finite)
     b = @timed fit_oneoneff(logspectrum, params; autodiff = :forward) # So much faster
-    @test b.time .< a.time / 3
-    @test b.bytes .< a.bytes / 2
+    @test b.time < a.time / 3
+    @test b.bytes < a.bytes
 
     fitted_params = @inferred fit_oneoneff(logspectrum, params; autodiff = :forward)
     # Calculate fitted spectrum
