@@ -299,3 +299,67 @@ end
     @test !isnothing(T.p)
     @test denormalize(x, T) == y
 end
+
+@testitem "SpectralFittingExt" begin
+    using SpectralFitting
+    using SpectralFitting, CairoMakie
+    using Statistics
+
+    x = collect(range(-5, 5, 200))
+
+    A_true = 3.0
+    pos_true = 1.3
+    sigma_true = 0.8
+    err_true = 0.2
+
+    y = @. A_true * exp(-(x - pos_true)^2 / (2 * sigma_true^2))
+
+    y_noisy = y .+ (0.2 * randn(length(y)))
+
+    z = ToolsArray(y_noisy, 𝑓(x))
+
+    data = @inferred InjectiveData(x, y_noisy) # Time series gets passed in here
+    zdata = @inferred InjectiveData(z)
+
+    model = GaussianLine(μ = FitParam(0.0))
+    prob = FittingProblem(model => data)
+    result = SpectralFitting.fit(prob, LevenbergMarquadt())
+
+    zprob = FittingProblem(model => zdata)
+    zresult = SpectralFitting.fit(zprob, LevenbergMarquadt())
+    @test result.u == zresult.u
+
+    # * Multivariate
+    Y = [y_noisy .+ 0.1 * randn(length(y)) for _ in 1:5] |> stack
+    Z = ToolsArray(Y, (𝑓(x), Var(1:size(Y, 2))))
+    zdata = @inferred InjectiveData(Z)
+    zprob = @inferred FittingProblem(model => zdata)
+    zresult = SpectralFitting.fit(zprob, LevenbergMarquadt())
+
+    # * Try 1/f fitting
+    α = 2.0
+    x = colorednoise(0.001:0.001:10; α)
+    s = spectrum(x)[𝑓 = OpenInterval(1, Inf)]
+    model = PowerLaw()
+    data = InjectiveData(s)
+    prob = FittingProblem(model => data)
+    result = SpectralFitting.fit(prob, LevenbergMarquadt()) # * Need to have a balanced optimizer that accounts for loglog spacing/errors
+    update_model!(model, result)
+
+    f = make_model_domain(ContiguouslyBinned(), data)
+    y = invokemodel(f, model)
+
+    plotspectrum(s)
+    lines!(data.domain, y)
+    display(current_figure())
+end
+
+
+@testitem "OptimExt" begin
+    # For fitting power spectra
+    include("./optim.jl")
+
+end
+
+
+end

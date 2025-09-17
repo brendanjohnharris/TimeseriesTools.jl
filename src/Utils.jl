@@ -6,7 +6,6 @@ using Peaks
 
 export findpeaks, maskpeaks!, maskpeaks, upsample
 
-
 function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
                    maxprom = nothing,
                    strict = true, N = nothing)

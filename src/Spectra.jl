@@ -1,11 +1,13 @@
 using FFTW
 using Statistics
 using Unitful
+using UnPack
+using ComponentArrays
 
 import TimeseriesBase.Operators.𝒯
 
 export spectrum, energyspectrum, powerspectrum, _energyspectrum, _powerspectrum,
-       colorednoise
+       colorednoise, logsample, logbin, oneoneff, fit_oneoneff
 
 function _periodogram(x::AbstractVector, fs::Number,
                       f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
@@ -157,7 +159,8 @@ pink_noise = colorednoise(1:0.01:10; α=1.0)
 pink_noise isa RegularTimeseries
 ```
 """
-function colorednoise(ts::AbstractRange{T}, args...; α = 2.0, kwargs...) where {T}
+function colorednoise(ts::AbstractRange{T}, args...; α = 2.0,
+                      kwargs...) where {T}
     u = unit(T)
     ts = T <: Quantity ? ustrip(ts) : ts
     dt = step(ts)
@@ -218,4 +221,91 @@ end
 
 function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)
     _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
+end
+
+function logbin(_s::UnivariateSpectrum{T, N, D}) where {T, N, D <: Tuple{<:𝑓}}
+    if first(freqs(_s)) <= 0
+        throw(ArgumentError("Frequencies must be positive"))
+    end
+    if !issorted(freqs(_s))
+        throw(ArgumentError("Frequencies must be ascending"))
+    end
+    _s = set(map(log10, _s), 𝑓 => map(log10, freqs(_s)))
+    _f = freqs(_s)
+    df = _f[2] - _f[1] # The smallest sensible binning
+    f = range(first(_f) - df / 2, stop = last(_f), step = df)
+    bins = intervals(f)
+    s = groupby(_s, 𝑓 => Bins(bins))
+    return set(s, 𝑓 => Log10𝑓(f))
+end
+function logsample(_s::A, average = mean) where {A <: AbstractDimArray}
+    _s = logbin(_s)
+    return map(average, _s)
+end
+
+function oneoneff(log_f, p)
+    @unpack log_b, β, log_k, log_c, peaks = p
+    k = exp10(log_k) # Knee frequency
+    f = exp10.(log_f) # Frequency
+    b = exp10(log_b) # Power law amplitude
+    c = exp10(log_c) # Noise floor
+
+    # power_law = @. log_b - log_c - log(k + f^β)
+    s = @. b / (k + f^β) + c
+
+    # Add peaks
+    for p in peaks
+        f_peak = exp10(p[:log_f])
+        A_peak = exp10(p[:log_A])
+        σ_peak = f_peak * tanh(p[:σ̃]) # log_σ gives a constant width in log_f space
+        # σ̃ = log[(f_peak - σ)/(f_peak + σ)] = atanh(σ / f_peak)
+        @. s += A_peak * exp(-(f - f_peak)^2 / (2 * σ_peak^2))
+    end
+
+    return log10.(s)
+end
+
+"""
+The one-argument form makes a guess at initial parameters. The two-argument form runs
+optimization from the given parameters as a starting point.
+"""
+function fit_oneoneff(logspectrum::AbstractDimVector;
+                      w = maximum(1, length(logspectrum) ÷ 100),
+                      n_peaks = nothing,
+                      minprom = (maximum(logspectrum) - minimum(logspectrum)) / 50,
+                      kwargs...)
+    log_f, log_s = lookup(logspectrum, 1), parent(logspectrum)
+
+    log_c = minimum(log_s)
+    log_b = first(log_s)
+    β = -last([ones(length(log_f)) log_f] \ log_s) # Simple linear regression
+    log_k = -1 # A guess
+
+    # * Find peaks by looking for local maxima
+    _, proms, bounds = findpeaks(logspectrum, w; minprom, kwargs...)
+
+    if !isnothing(n_peaks)
+        if n_peaks > length(proms)
+            proms = vcat(proms, [mean(log_s) for _ in 1:(n_peaks - length(proms))])
+            bounds = vcat(bounds,
+                          [deepcopy(first(bounds))
+                           for _ in 1:(n_peaks - length(bounds))])
+        end
+
+        ps = sortperm(proms; rev = true)[1:n_peaks]
+        proms = proms[ps]
+        bounds = bounds[ps]
+    else
+        n_peaks = length(proms)
+    end
+
+    peaks = map(proms, bounds) do prom, bound
+        log_f = mean(bound)
+        σ̃ = (maximum(bound) - minimum(bound)) / 2
+        s_f = logspectrum[Near(maximum(bound) + σ̃)]
+        log_A = prom + s_f
+        return ComponentArray(; log_f, σ̃, log_A)
+    end
+
+    return ComponentArray(; log_b, β, log_k, log_c, peaks)
 end
