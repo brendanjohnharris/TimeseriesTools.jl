@@ -20,7 +20,7 @@
 end
 
 @testitem "Twice unitful" begin
-    using Unitful, FFTW, CairoMakie
+    using Unitful, FFTW, CairoMakie, TimeseriesMakie
     import TimeseriesTools.Timeseries
     ts = ((-100 + 0.01):0.0005:100) * u"s"
     f = rfftfreq(length(ts), 1 / step(ts))

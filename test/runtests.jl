@@ -21,7 +21,7 @@ end
 end
 
 @testitem "Spectra" begin
-    using Unitful, CairoMakie
+    using Unitful, CairoMakie, TimeseriesMakie
     # Define a test time series
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)

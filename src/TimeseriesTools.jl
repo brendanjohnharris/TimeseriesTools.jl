@@ -10,7 +10,6 @@ using ProgressLogging
 @reexport using DimensionalData
 @reexport using TimeseriesBase
 @reexport using Normalization
-@reexport using TimeseriesMakie
 import Normalization: params!
 
 include("Utils.jl")

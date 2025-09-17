@@ -1,6 +1,6 @@
 @testitem "AutocorrelationsExt" begin # Optimize this some more?
     using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, CairoMakie,
-          Unitful
+          Unitful, TimeseriesMakie
     import TimeseriesTools: Timeseries
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
@@ -60,6 +60,7 @@ end
 @testitem "DSPExt" begin
     using DSP
     using CairoMakie
+    using TimeseriesMakie
     using TimeseriesTools
     import TimeseriesTools.Timeseries # or TS
     using StatsBase
@@ -302,7 +303,7 @@ end
 
 @testitem "SpectralFittingExt" begin
     using SpectralFitting
-    using SpectralFitting, CairoMakie
+    using SpectralFitting, CairoMakie, TimeseriesMakie
     using Statistics
 
     x = collect(range(-5, 5, 200))
@@ -354,12 +355,7 @@ end
     display(current_figure())
 end
 
-
 @testitem "OptimExt" begin
     # For fitting power spectra
     include("./optim.jl")
-
-end
-
-
 end

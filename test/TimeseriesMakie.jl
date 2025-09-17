@@ -1,5 +1,5 @@
 @testitem "Makie" begin
-    using CairoMakie
+    using CairoMakie, TimeseriesMakie
     import TimeseriesTools: Timeseries
     x = Timeseries(randn(1000), 0.01:0.01:10)
 
@@ -18,7 +18,7 @@
 end
 
 @testitem "Readme" begin
-    using TimeseriesTools, CairoMakie, Unitful, Foresight
+    using TimeseriesTools, CairoMakie, Unitful, Foresight, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e5
@@ -57,7 +57,7 @@ end
 end
 
 @testitem "Readme_dark" begin
-    using CairoMakie, TimeseriesTools, Unitful, Foresight
+    using CairoMakie, TimeseriesTools, Unitful, Foresight, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
     set_theme!(foresight(:dark, :transparent))
 
@@ -95,7 +95,7 @@ end
 end
 
 @testitem "Traces" begin
-    using CairoMakie, TimeseriesTools, Unitful
+    using CairoMakie, TimeseriesTools, Unitful, TimeseriesMakie
 
     t = 0.005:0.005:1e4
     x = colorednoise(t * u"s") * u"V"
@@ -113,7 +113,7 @@ end
 
 @testitem "Spectrum plot" begin
     using DSP
-    using CairoMakie, TimeseriesTools, Unitful
+    using CairoMakie, TimeseriesTools, Unitful, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1e4

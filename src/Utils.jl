@@ -6,13 +6,14 @@ using Peaks
 
 export findpeaks, maskpeaks!, maskpeaks, upsample
 
-function findpeaks(x::DimensionalData.AbstractDimVector, w = 1; minprom = nothing,
+function findpeaks(x::DimensionalData.AbstractDimVector, w = 1;
+                   minprom = nothing,
                    maxprom = nothing,
                    strict = true, N = nothing)
     minprom isa Function && (minprom = minprom(x))
     maxprom isa Function && (maxprom = maxprom(x))
     _pks, vals = findmaxima(x, w)
-    pks, proms = peakproms(_pks, x; minprom, maxprom, strict)
+    pks, proms = peakproms(_pks, x; min = minprom, max = maxprom, strict)
     if !isempty(pks)
         pks, widths, leftedge, rightedge = peakwidths(pks, x, proms)
         leftedge = [only(lookup(x))[ceil(Int, l)] for l in leftedge]

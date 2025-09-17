@@ -282,7 +282,7 @@ function fit_oneoneff(logspectrum::AbstractDimVector;
     log_k = -1 # A guess
 
     # * Find peaks by looking for local maxima
-    _, proms, bounds = findpeaks(logspectrum, w; minprom, kwargs...)
+    _, proms, bounds = findpeaks(logspectrum, w; min = minprom, kwargs...)
 
     if !isnothing(n_peaks)
         if n_peaks > length(proms)

@@ -1,5 +1,5 @@
 @testitem "Spike FFT" begin
-    using CairoMakie
+    using CairoMakie, TimeseriesMakie
     import TimeseriesTools: Timeseries
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
@@ -79,7 +79,7 @@ end
 end
 
 @testitem "Spike-time overlap-integral coefficient (stoic)" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
     x = randn(1000) |> sort
     y = randn(1000) |> sort
     σ = 0.25
@@ -128,7 +128,7 @@ end
 end
 
 @testitem "Stoic spike-train length" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     Ns = range(start = 100, step = 100, length = 100)
@@ -143,7 +143,7 @@ end
     Colorbar(f[1, 2], p, label = "stoic")
 end
 @testitem "Stoic spike-train fano" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     θs = range(start = 0.1, step = 0.01, length = 150)

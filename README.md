@@ -25,6 +25,7 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 > 2. Plotting utilities have been moved to [TimeseriesMakie.jl](https://www.github.com/brendanjohnharris/TimeseriesMakie.jl), with recipes updated for the latest breaking Makie version
 > 3. `progressmap` functionality has been moved to [MoreMaps.jl](https://www.github.com/brendanjohnharris/MoreMaps.jl)
 > 4. Documentation has been moved to [TimeseriesDocs.jl](https://www.github.com/brendanjohnharris/TimeseriesDocs.jl)
+> Please import these packages separately as needed.
 
 
 
