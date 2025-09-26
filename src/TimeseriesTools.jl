@@ -10,11 +10,13 @@ using ProgressLogging
 @reexport using DimensionalData
 @reexport using TimeseriesBase
 @reexport using Normalization
+@reexport using StatsAPI
 import Normalization: params!
 
 include("Utils.jl")
 include("SpikeTrains.jl")
 include("Spectra.jl")
+include("Apple.jl")
 include("Unitful.jl")
 include("TimeseriesSurrogates.jl")
 

@@ -359,3 +359,62 @@ end
     # For fitting power spectra
     include("./optim.jl")
 end
+
+@testitem "APPLE" begin
+    using ComponentArrays
+    components = ComponentVector([ComponentVector(; β = 4.0, log_f_stop = 5.0),
+                                     ComponentVector(; β = 2.0, log_f_stop = 1.5)])
+    peaks = ComponentVector([ComponentArray(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
+                                ComponentVector(; log_f = 0.7, log_σ = 0.1, log_A = 1.5)])
+    params = ComponentVector(; components, peaks, transition_width = 0.2, log_A = 1.0)
+
+    log_f = range(0, 3, length = 500)
+    f = map(exp10, log_f)
+    s = apple(f, params)
+    log_s = log10.(s) .+ 0.1 * randn(length(s))
+    s = exp10.(log_s)
+
+    m = APPLE(params)
+    @test !issorted(m.params.peaks.log_f)
+    @test !issorted(m.params.components.log_f_stop)
+
+    m2 = sort(m)
+    @test issorted(m2.params.peaks.log_f)
+    @test issorted(m2.params.components.log_f_stop)
+
+    sort!(m)
+    @test issorted(m.params.peaks.log_f)
+    @test issorted(m.params.components.log_f_stop)
+end
+
+@testitem "APPLE MAD" begin
+    using CairoMakie
+    using Optim
+
+    x = zeros(100000)
+    x[1] = 0.0
+    noise_strength = 0.1
+    for i in 2:length(x)
+        x[i] = x[i - 1] - 0.01 * x[i - 1] + 0.0001 * randn()
+    end
+    x = ToolsArray(x, 𝑡(1:length(x)))
+
+    mad = madev(x)
+
+    m = fit(APPLE, logsample(mad[10:end]); peaks = 0, components = 2)
+    mad_guess = StatsAPI.predict(m, mad)
+    _mad = logsample(mad[1:end], median)
+    fit!(m, _mad; show_trace = true)
+    mad_refined = StatsAPI.predict(m, mad)
+
+    f = Figure()
+    ax = CairoMakie.Axis(f[1, 1]; xscale = log10, yscale = log10)
+    lines!(ax, mad; label = "MAD", color = :blue)
+    scatter!(ax, _mad; color = :blue, markersize = 10)
+    lines!(ax, mad_guess; label = "APPLE fit", color = :red)
+    lines!(ax, mad_refined; label = "APPLE refined", color = :black)
+    display(f)
+
+    @test m.params.components[1].β≈-0.5 atol=0.05
+    @test m.params.components[2].β≈0.0 atol=0.05
+end

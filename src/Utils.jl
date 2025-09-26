@@ -3,8 +3,9 @@ import DimensionalData.Dimensions.Dimension
 import Normalization: NormUnion, AbstractNormalization, nansafe
 import InverseFunctions: square
 using Peaks
+using LinearAlgebra
 
-export findpeaks, maskpeaks!, maskpeaks, upsample
+export findpeaks, maskpeaks!, maskpeaks, upsample, madev
 
 function findpeaks(x::DimensionalData.AbstractDimVector, w = 1;
                    minprom = nothing,
@@ -73,4 +74,36 @@ function upsample(d::DimensionalData.Dimension, factor)
     rebuild(d,
             range(start = minimum(d), stop = maximum(d),
                   step = mean(diff(lookup(d))) / factor))
+end
+
+_default_lags(x::AbstractVector) = range(1, length(x) - Int(length(x) ÷ 2), step = 1)
+_default_lags(x::AbstractMatrix) = range(1, size(x, 1) - Int(size(x, 1) ÷ 2), step = 1)
+
+function madev(x::AbstractVector, lags = _default_lags(x); p = 1)
+    if !issorted(lags)
+        throw(ArgumentError("Lags must be sorted"))
+    end
+    l = length(x)
+    result = similar(x, length(lags))
+    @inbounds for (i, k) in enumerate(lags)
+        if k >= l
+            result[i] = 0.0
+        else
+            n_pairs = l - k
+            x1 = @view x[1:n_pairs]           # x[1:n-k]
+            x2 = @view x[(k + 1):(k + n_pairs)]   # x[k+1:n]
+
+            result[i] = norm(x1 .- x2, p) / n_pairs
+        end
+    end
+    return result
+end
+
+function madev(x::UnivariateRegular, lags = _default_lags(x); kwargs...)
+    return Timeseries(madev(parent(x), lags; kwargs...), lags .* samplingperiod(x))
+end
+function madev(x::MultivariateRegular, lags = _default_lags(x); kwargs...)
+    d = dims(x)[2:end]
+    m = mapslices(x -> madev(x, lags; kwargs...), parent(x); dims = 1)
+    return Timeseries(m, lags .* samplingperiod(x), d...)
 end
