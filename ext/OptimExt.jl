@@ -39,32 +39,24 @@ function mapple_bounds(log_f, log_s, initial_params)
     return lower, upper
 end
 
-function huber(x, y; δ)
-    a = abs(x - y)
-    if a > δ
-        return δ * a - 0.5 * δ^2
-    else
-        return 0.5 * a^2
-    end
-end
-
-function mapple_loss(params; f, log_s, min_log_f_separation, overlap_threshold, λ, δ)
-
-    # * Sort components and peaks by frequency
-    params = mapple_sort(params)
+function mapple_loss(params; f, log_s, min_log_f_separation, overlap_threshold, λ)
     components = params.components
     peaks = params.peaks
+
+    # * Sort components and peaks by frequency
+    cidxs = sortperm(components, by = c -> c.log_f_stop)
+    pidxs = sortperm(peaks, by = p -> p.log_f)
 
     # Main prediction error
     pred = mapple(f, params)
     pred_log = map(log10, pred)
-    # mse_loss = sum((log_s .- pred_log) .^ 2)
-    loss = sum(huber.(log_s, pred_log; δ))
+    loss = sum((log_s .- pred_log) .^ 2)
 
+    # !!! How to make this faster????
     # Penalty for f_stops being too close together
     separation_penalty = zero(eltype(params))
-    for i in eachindex(components)[2:end]
-        gap = components[i].log_f_stop - components[i - 1].log_f_stop
+    for i in eachindex(cidxs)[2:end]
+        gap = components[cidxs[i]].log_f_stop - components[cidxs[i - 1]].log_f_stop
         if gap < min_log_f_separation
             # Quadratic penalty that increases as gap decreases
             separation_penalty += (min_log_f_separation - gap)^2
@@ -73,37 +65,44 @@ function mapple_loss(params; f, log_s, min_log_f_separation, overlap_threshold, 
 
     # Penalty for overlapping Gaussian peaks
     overlap_penalty = zero(eltype(params))
-    n_peaks = length(peaks)
-    for i in eachindex(peaks)[2:end]
-        peak_i = params.peaks[i - 1]
-        peak_j = params.peaks[i]
+    n_peaks = length(pidxs)
 
-        # Calculate overlap between two Gaussians
-        f_i = exp10(peak_i.log_f)
-        f_j = exp10(peak_j.log_f)
-        σ_i = f_i * tanh(peak_i.log_σ)
-        σ_j = f_j * tanh(peak_j.log_σ)
-        A_i = exp10(peak_i.log_A)
-        A_j = exp10(peak_j.log_A)
+    # Pre-compute all peak parameters once
+    f_peaks = [exp10(params.peaks[pidxs[i]].log_f) for i in 1:n_peaks]
+    σ_peaks = [f_peaks[i] * tanh(params.peaks[pidxs[i]].log_σ) for i in 1:n_peaks]
+    A_peaks = [exp10(params.peaks[pidxs[i]].log_A) for i in 1:n_peaks]
 
-        σ_combined = sqrt(σ_i^2 + σ_j^2)
-        overlap_integral = (A_i * A_j * sqrt(2π) * σ_i * σ_j / σ_combined) *
-                           exp(-(f_i - f_j)^2 / (2 * σ_combined^2))
+    # Pre-compute norms (sqrt(2π) cancels in normalized overlap)
+    norms = A_peaks .* σ_peaks
 
-        norm_i = A_i * σ_i * sqrt(2π)
-        norm_j = A_j * σ_j * sqrt(2π)
-        normalized_overlap = 2 * overlap_integral / (norm_i + norm_j)
+    @inbounds @fastmath for i in 2:n_peaks
+        # Use pre-computed values
+        Δf = f_peaks[i] - f_peaks[i - 1]
+        σ_i, σ_j = σ_peaks[i - 1], σ_peaks[i]
 
-        # Apply penalty if overlap exceeds threshold
+        # Early exit if peaks are far apart (>5σ separation = negligible overlap)
+        if abs(Δf) > 5 * (σ_i + σ_j)
+            continue
+        end
+
+        σ_combined_sq = σ_i^2 + σ_j^2
+        σ_combined = sqrt(σ_combined_sq)
+
+        # Simplified formula (constants cancel)
+        overlap_integral = (norms[i - 1] * norms[i] / σ_combined) *
+                           exp(-Δf^2 / (2 * σ_combined_sq))
+
+        normalized_overlap = 2 * overlap_integral / (norms[i - 1] + norms[i])
+
+        # Apply penalty
         if normalized_overlap > overlap_threshold
             overlap_penalty += (normalized_overlap - overlap_threshold)^2
         end
     end
-
     # Combined loss with regularization terms
-    total_loss = loss + λ * (separation_penalty + overlap_penalty)
+    loss += λ * (separation_penalty + overlap_penalty)
 
-    return total_loss
+    return loss
 end
 
 mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
@@ -112,13 +111,18 @@ function fit_mapple(log_f, log_s, initial_params;
                     algorithm = LBFGS(), autodiff = :forward, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
 
+    # function objective(params)
+    #     pred = mapple(f, params)
+    #     pred = map(log10, pred)
+    #     return sum((log_s .- pred) .^ 2) # May want to choose smarter loss
+    # end
+
     lower, upper = mapple_bounds(log_f, log_s, initial_params)
 
     objective = mapple_loss(; f, log_s,
                             min_log_f_separation = maximum(diff(log_f)),
                             overlap_threshold = 0.2,
-                            λ = 10.0,
-                            δ = 3 * median(abs.(diff(log_s))))
+                            λ = 10.0)
 
     result = optimize(objective, lower, upper, initial_params, Fminbox(algorithm),
                       Optim.Options(; kwargs...); autodiff)
