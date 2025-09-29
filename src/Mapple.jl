@@ -140,8 +140,8 @@ function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
             end
 
             # * Calculate smooth window weight
-            start_weight = (one(ElType) + tanh((log_f - log_f_start) / width)) / 2
-            stop_weight = (one(ElType) + tanh((log_f_stop - log_f) / width)) / 2
+            start_weight = (one(ElType) + tanh((log_f[i] - log_f_start) / width)) / 2
+            stop_weight = (one(ElType) + tanh((log_f_stop - log_f[i]) / width)) / 2
             weight = start_weight * stop_weight
 
             # * Add weighted contribution

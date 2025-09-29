@@ -4,7 +4,7 @@ using DimensionalData
 using StatsAPI
 using StatsBase
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort
+                        frequency_check, mapple_sort
 
 function mapple_bounds(log_f, log_s, initial_params)
     lower = deepcopy(initial_params)
@@ -39,7 +39,6 @@ function mapple_bounds(log_f, log_s, initial_params)
     return lower, upper
 end
 
-
 function huber(x, y; δ)
     a = abs(x - y)
     if a > δ
@@ -65,7 +64,7 @@ function mapple_loss(params; f, log_s, min_log_f_separation, overlap_threshold, 
     # Penalty for f_stops being too close together
     separation_penalty = zero(eltype(params))
     for i in eachindex(components)[2:end]
-        gap = components[i].log_f_stop - components[i-1].log_f_stop
+        gap = components[i].log_f_stop - components[i - 1].log_f_stop
         if gap < min_log_f_separation
             # Quadratic penalty that increases as gap decreases
             separation_penalty += (min_log_f_separation - gap)^2
@@ -76,7 +75,7 @@ function mapple_loss(params; f, log_s, min_log_f_separation, overlap_threshold, 
     overlap_penalty = zero(eltype(params))
     n_peaks = length(peaks)
     for i in eachindex(peaks)[2:end]
-        peak_i = params.peaks[i-1]
+        peak_i = params.peaks[i - 1]
         peak_j = params.peaks[i]
 
         # Calculate overlap between two Gaussians
@@ -109,24 +108,20 @@ end
 
 mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
 
-
 function fit_mapple(log_f, log_s, initial_params;
-    algorithm=LBFGS(), autodiff=:forward, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
+                    algorithm = LBFGS(), autodiff = :forward, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
-    # function mapple_loss(params)
-    #     pred = mapple(f, params)
-    #     pred = map(log10, pred)
-    #     return sum((log_s .- pred) .^ 2) # May want to choose smarter loss
-    # end
 
     lower, upper = mapple_bounds(log_f, log_s, initial_params)
-    objective = mapple_loss(; f, log_s,
-        min_log_f_separation=maximum(diff(log_f)),
-        overlap_threshold=0.2,
-        λ=10.0,
-        δ=3 * median(abs.(diff(log_s))))
 
-    result = optimize(objective, lower, upper, initial_params, Fminbox(algorithm), Optim.Options(; kwargs...); autodiff)
+    objective = mapple_loss(; f, log_s,
+                            min_log_f_separation = maximum(diff(log_f)),
+                            overlap_threshold = 0.2,
+                            λ = 10.0,
+                            δ = 3 * median(abs.(diff(log_s))))
+
+    result = optimize(objective, lower, upper, initial_params, Fminbox(algorithm),
+                      Optim.Options(; kwargs...); autodiff)
     return Optim.minimizer(result)
 end
 
@@ -134,8 +129,8 @@ end
     fit!(m::MAPPLE, logspectrum; kwargs...)
 Refine the parameters of a MAPPLE model `m` to fit the provided `spectrum`.
 """
-function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector{T,D};
-    kwargs...) where {T,d,D<:Tuple{<:d}}
+function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector{T, D};
+                       kwargs...) where {T, d, D <: Tuple{<:d}}
     log_f = map(log10, lookup(spectrum, 1))
     log_s = map(log10, parent(spectrum))
 
