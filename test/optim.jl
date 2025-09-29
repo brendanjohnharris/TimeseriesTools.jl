@@ -21,7 +21,7 @@ end
 begin # * Generate test data
     log_f = range(0, 3, length = 500)
     f = map(exp10, log_f)
-    s = apple(f, params)
+    s = mapple(f, params)
     log_s = log10.(s) .+ 0.1 * randn(length(s))
     s = exp10.(log_s)
     lines(f, s; axis = (; xscale = log10, yscale = log10))
@@ -29,11 +29,11 @@ end
 
 begin # * Try fit
     log_s = log10.(s)
-    fitted_params = fit_apple(log_f, log_s; components = 2, peaks = 2, w = 50)
-    refined_params = fit_apple(log_f, log_s, fitted_params; autodiff = :forward)
+    fitted_params = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    refined_params = fit_mapple(log_f, log_s, fitted_params; autodiff = :forward)
 
-    a = @timed fit_apple(log_f, log_s, fitted_params; autodiff = :finite)
-    b = @timed fit_apple(log_f, log_s, fitted_params; autodiff = :forward) # So much faster
+    a = @timed fit_mapple(log_f, log_s, fitted_params; autodiff = :finite)
+    b = @timed fit_mapple(log_f, log_s, fitted_params; autodiff = :forward) # So much faster
     @test b.time < a.time / 3
     @test b.bytes < a.bytes
 
@@ -41,12 +41,12 @@ begin # * Try fit
     ax = Axis(fig[1, 1];
               xlabel = "Frequency (Hz)",
               ylabel = "Power",
-              title = "Spectrum Fitting with apple Model",
+              title = "Spectrum Fitting with mapple Model",
               xscale = log10, yscale = log10)
     lines!(ax, f, s; label = "Data", color = :black, linewidth = 2, alpha = 0.4)
-    fitted_s = apple(f, fitted_params)
+    fitted_s = mapple(f, fitted_params)
     lines!(ax, f, fitted_s; label = "Fit", color = :crimson, linewidth = 2)
-    refined_s = apple(f, refined_params)
+    refined_s = mapple(f, refined_params)
     lines!(ax, f, refined_s;
            label = "Refined Fit", color = :black, linewidth = 2)
     axislegend(ax, position = :rt)

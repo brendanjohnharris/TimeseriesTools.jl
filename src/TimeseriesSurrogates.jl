@@ -3,7 +3,7 @@ import TimeseriesSurrogates
 import TimeseriesSurrogates: Surrogate, SurrogateGenerator, surrogenerator
 # using TimeseriesTools
 using Statistics
-using Distributions
+import Distributions: Gamma, Normal, Uniform, truncated
 # using TimeseriesTools.Statistics
 # using TimeseriesTools.Distributions
 # using TimeseriesTools.DimensionalData

@@ -360,7 +360,7 @@ end
     include("./optim.jl")
 end
 
-@testitem "APPLE" begin
+@testitem "MAPPLE" begin
     using ComponentArrays
     components = ComponentVector([ComponentVector(; β = 4.0, log_f_stop = 5.0),
                                      ComponentVector(; β = 2.0, log_f_stop = 1.5)])
@@ -370,11 +370,11 @@ end
 
     log_f = range(0, 3, length = 500)
     f = map(exp10, log_f)
-    s = apple(f, params)
+    s = mapple(f, params)
     log_s = log10.(s) .+ 0.1 * randn(length(s))
     s = exp10.(log_s)
 
-    m = APPLE(params)
+    m = MAPPLE(params)
     @test !issorted(m.params.peaks.log_f)
     @test !issorted(m.params.components.log_f_stop)
 
@@ -387,7 +387,7 @@ end
     @test issorted(m.params.components.log_f_stop)
 end
 
-@testitem "APPLE MAD" begin
+@testitem "MAPPLE MAD" begin
     using CairoMakie
     using Optim
 
@@ -401,9 +401,9 @@ end
 
     mad = madev(x)
 
-    m = fit(APPLE, logsample(mad[10:end]); peaks = 0, components = 2)
+    m = fit(MAPPLE, logsample(mad[10:end]); peaks = 0, components = 2)
     mad_guess = StatsAPI.predict(m, mad)
-    _mad = logsample(mad[1:end], median)
+    _mad = logsample(mad[1:end])
     fit!(m, _mad; show_trace = true)
     mad_refined = StatsAPI.predict(m, mad)
 
@@ -411,8 +411,8 @@ end
     ax = CairoMakie.Axis(f[1, 1]; xscale = log10, yscale = log10)
     lines!(ax, mad; label = "MAD", color = :blue)
     scatter!(ax, _mad; color = :blue, markersize = 10)
-    lines!(ax, mad_guess; label = "APPLE fit", color = :red)
-    lines!(ax, mad_refined; label = "APPLE refined", color = :black)
+    lines!(ax, mad_guess; label = "MAPPLE fit", color = :red)
+    lines!(ax, mad_refined; label = "MAPPLE refined", color = :black)
     display(f)
 
     @test m.params.components[1].β≈-0.5 atol=0.05
