@@ -3,6 +3,7 @@ using Optim
 using DimensionalData
 using StatsAPI
 using StatsBase
+using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
                         frequency_check, mapple_sort
 
@@ -14,7 +15,7 @@ function mapple_bounds(log_f, log_s, initial_params)
     upper.log_A = 100 * (maximum(log_s) - minimum(log_s))
 
     lower.transition_width = minimum(diff(log_f)) / 4
-    upper.transition_width = (maximum(log_f) - minimum(log_f))
+    upper.transition_width = (maximum(log_f) - minimum(log_f)) / 10
 
     for i in eachindex(lower.peaks)
         lower.peaks[i].log_A = lower.log_A
@@ -38,13 +39,14 @@ function mapple_bounds(log_f, log_s, initial_params)
 
     return lower, upper
 end
+
 function mapple_loss(params; f, log_s)
-    components = params.components
-    peaks = params.peaks
+    # components = params.components
+    # peaks = params.peaks
 
     # * Sort components and peaks by frequency
-    cidxs = sortperm(components, by = c -> c.log_f_stop)
-    pidxs = sortperm(peaks, by = p -> p.log_f)
+    # cidxs = sortperm(components, by = c -> c.log_f_stop)
+    # pidxs = sortperm(peaks, by = p -> p.log_f)
 
     # Main prediction error
     pred = mapple(f, params)
@@ -127,18 +129,64 @@ end
 
 mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
 
+function component_loss(components; f, log_s, peaks)
+    pred = mapple(f, components, peaks)
+    pred_log = map(log10, pred)
+    loss = sum((log_s .- pred_log) .^ 2)
+end
+component_loss(; kwargs...) = params -> component_loss(params; kwargs...)
+function peak_loss(peaks; f, log_s, components)
+    pred = mapple(f, components, peaks)
+    pred_log = map(log10, pred)
+    loss = sum((log_s .- pred_log) .^ 2)
+end
+peak_loss(; kwargs...) = params -> peak_loss(params; kwargs...)
+
 function fit_mapple(log_f, log_s, initial_params;
-                    algorithm = LBFGS(), autodiff = :forward, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
+                    algorithm = LBFGS(), autodiff = :forward, altol = 1e-6, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
 
     lower, upper = mapple_bounds(log_f, log_s, initial_params)
 
-    min_peak_log_A = log10((exp10(maximum(log_s)) - exp10(minimum(log_s))) / 50)
-
     objective = mapple_loss(; f, log_s)
+    loss = objective(initial_params)
 
-    result = optimize(objective, lower, upper, initial_params, Fminbox(algorithm),
+    # * Do alternating minimization between component parameters and peak parameters
+    params = deepcopy(initial_params)
+    pidxs = [:peaks]
+    cidxs = [:log_A, :components, :transition_width]
+
+    prev_loss = Inf
+    if !isempty(params[pidxs]) && !isempty(params[cidxs])
+        while abs(loss / prev_loss) < altol
+            # * First, component optimization
+            components = params[cidxs]
+            peaks = params[pidxs]
+
+            obj = component_loss(; f, log_s, peaks)
+            result = optimize(obj, lower[cidxs], upper[cidxs], params[cidxs],
+                              Fminbox(algorithm),
+                              Optim.Options(; kwargs...); autodiff)
+            components .= Optim.minimizer(result) # Update component params
+            params[cidxs] .= components
+
+            # * Then peak optimization
+            obj = peak_loss(; f, log_s, components)
+            result = optimize(obj, lower[pidxs], upper[pidxs], params[pidxs],
+                              Fminbox(algorithm),
+                              Optim.Options(; kwargs...); autodiff)
+            peaks .= Optim.minimizer(result) # Update peak params
+            params[pidxs] .= peaks
+
+            prev_loss = loss
+            loss = objective(params)
+        end
+    end
+
+    # * Final joint optimization
+    result = optimize(objective, lower, upper, params, Fminbox(algorithm),
                       Optim.Options(; kwargs...); autodiff)
+    loss = objective(Optim.minimizer(result))
     return Optim.minimizer(result)
 end
 
@@ -150,9 +198,7 @@ function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector{T, D};
                        kwargs...) where {T, d, D <: Tuple{<:d}}
     log_f = map(log10, lookup(spectrum, 1))
     log_s = map(log10, parent(spectrum))
-
     frequency_check(lookup(spectrum, 1), log_f)
-
     params = fit_mapple(log_f, log_s, m.params; kwargs...)
     m.params .= params
     sort!(m)

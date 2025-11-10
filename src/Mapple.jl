@@ -79,23 +79,56 @@ peaks(m::MAPPLE) = m.params.peaks
 components(m::MAPPLE) = m.params.components
 
 function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
-    width = model.transition_width
-    A_base = exp10(model.log_A)
+    components = model[[:log_A, :transition_width, :components]]
+    peaks = model[[:peaks]]
+    ElType = promote_type(eltype(f), T)
+    s = similar(f, ElType)
+    fill!(s, zero(ElType))
+    mapple!(s, f, components, peaks)
+    return s
+end
+function mapple(f, component_params::ComponentArray{T},
+                peaks::ComponentArray{F}) where {T, F <: AbstractFloat}
+    ElType = promote_type(eltype(f), T)
+    s = similar(f, ElType)
+    fill!(s, zero(ElType))
+    mapple!(s, f, component_params, peaks)
+    return s
+end
+function mapple(f, component_params::ComponentArray{F},
+                peaks::ComponentArray{T}) where {T, F <: AbstractFloat}
+    ElType = promote_type(eltype(f), T)
+    s = similar(f, ElType)
+    fill!(s, zero(ElType))
+    mapple!(s, f, component_params, peaks)
+    return s
+end
+function mapple(f, component_params::ComponentArray{F},
+                peaks::ComponentArray{F}) where {F <: AbstractFloat}
+    ElType = promote_type(eltype(f), F)
+    s = similar(f, ElType)
+    fill!(s, zero(ElType))
+    mapple!(s, f, component_params, peaks)
+    return s
+end
+
+function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
+    fill!(s, zero(El))
+
+    components = component_params.components
+    peaks = peaks.peaks
+
+    width = component_params.transition_width
+    A_base = exp10(component_params.log_A)
 
     # Use type-stable operations without mutation
-    components = model.components
     n_components = length(components)
 
     # Get sorted indices instead of sorting the array
     sorted_indices = sortperm(components; by = c -> c.log_f_stop)
 
-    # Pre-allocate with proper type promotion
-    ElType = promote_type(eltype(f), T)
-    s = similar(f, ElType)
-    fill!(s, zero(ElType))
-
     # Pre-calculate component amplitudes for continuity
-    component_amplitudes = Vector{ElType}(undef, n_components)
+    component_amplitudes = Vector{El}(undef, n_components)
     component_amplitudes[sorted_indices[1]] = A_base
 
     for j in 2:n_components
@@ -111,13 +144,13 @@ function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
         β_curr = components[idx_curr].β
 
         component_amplitudes[idx_curr] = component_amplitudes[idx_prev] *
-                                         f_transition^(β_curr - β_prev)
+                                         f_transition^(β_prev - β_curr)
     end
 
     # * Evaluate the model
     log_f = log10.(f)
-    f_min = minimum(f) - 5.0
-    f_max = 2 * maximum(f) - minimum(f)
+    log_f_min = log10(minimum(f)) - 5.0
+    # f_max = 2 * maximum(f) - minimum(f)
 
     @inbounds @fastmath for i in eachindex(f, s)
         # * Add contribution from each component
@@ -128,29 +161,25 @@ function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
 
             # * Determine component boundaries without Inf
             log_f_start = if j == 1
-                f_min
+                log_f_min
             else
                 components[sorted_indices[j - 1]].log_f_stop
             end
 
-            log_f_stop = if j == n_components
-                f_max
-            else
-                seg.log_f_stop
-            end
+            log_f_stop = seg.log_f_stop
 
             # * Calculate smooth window weight
-            start_weight = (one(ElType) + tanh((log_f[i] - log_f_start) / width)) / 2
-            stop_weight = (one(ElType) + tanh((log_f_stop - log_f[i]) / width)) / 2
+            start_weight = (one(El) + tanh((log_f[i] - log_f_start) / width)) / 2
+            stop_weight = (one(El) + tanh((log_f_stop - log_f[i]) / width)) / 2
             weight = start_weight * stop_weight
 
             # * Add weighted contribution
-            s[i] += weight * A_seg / f[i]^seg.β
+            s[i] += weight * A_seg * f[i]^seg.β
         end
     end
 
     # * Add Gaussian peaks
-    for peak in model.peaks
+    for peak in peaks
         f_peak = exp10(peak.log_f)
         A_peak = exp10(peak.log_A)
         σ_peak = f_peak * tanh(peak.log_σ) # log_σ gives a constant width in log_f space
@@ -160,7 +189,6 @@ function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
             s[i] += A_peak * exp(-Δf^2 / (2 * σ_peak^2))
         end
     end
-    return s
 end
 
 function fit_mapple(log_f, log_s;
@@ -172,10 +200,10 @@ function fit_mapple(log_f, log_s;
     logspectrum = ToolsArray(log_s, Log10𝑓(log_f))
     log_A = first(log_s) # Estimate of amplitude
 
-    β = -last([ones(length(log_f)) log_f] \ log_s) # Simple linear regression. Start by guessing all components have the same exponent, and evenly distribute the breaks
+    β = last([ones(length(log_f)) log_f] \ log_s) # Simple linear regression. Start by guessing all components have the same exponent, and evenly distribute the breaks
     log_f_stop = range(extrema(log_f)..., length = components + 1)[2:end]
-    transition_width = (maximum(log_f) - minimum(log_f)) / (10 * components)
-    transition_width = max(transition_width, 3 * minimum(diff(log_f)))
+    transition_width = (maximum(log_f) - minimum(log_f)) / (20)
+    # transition_width = max(transition_width, minimum(diff(log_f)))
 
     components = map(1:components) do i
         ComponentArray(; log_f_stop = log_f_stop[i], β = β)
@@ -195,8 +223,11 @@ function fit_mapple(log_f, log_s;
         ps = sortperm(proms; rev = true)[1:peaks]
         proms = proms[ps]
         bounds = bounds[ps]
-    else
-        peaks = length(proms)
+    elseif peaks > 0
+        @warn "Number of guessed peaks ($(length(proms))) does not match expected peaks ($peaks)"
+        proms = zeros(peaks)
+        df = maximum(log_f) - minimum(log_f)
+        bounds = [(minimum(log_f) + df / 3) .. (maximum(log_f) - df / 3) for _ in 1:peaks]
     end
 
     peaks = map(proms, bounds) do prom, bound
@@ -205,7 +236,7 @@ function fit_mapple(log_f, log_s;
         s_f = logspectrum[Near(maximum(bound) + log_σ)]
         log_A = prom + s_f
         if log_σ ≤ 0
-            log_σ = 0.0001
+            log_σ = transition_width # A guess
         end
         return ComponentArray(; log_f, log_σ, log_A)
     end

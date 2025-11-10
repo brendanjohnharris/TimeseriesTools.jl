@@ -2,7 +2,7 @@ using SparseArrays
 using Random
 using Distributions
 export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammarenewal!,
-       gammarenewal
+       gammarenewal, fano
 
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
 normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ (σ^2))

@@ -99,11 +99,13 @@ function madev(x::AbstractVector, lags = _default_lags(x); p = 1)
     return result
 end
 
-function madev(x::UnivariateRegular, lags = _default_lags(x); kwargs...)
-    return Timeseries(madev(parent(x), lags; kwargs...), lags .* samplingperiod(x))
+function madev(x::UnivariateRegular, _lags = _default_lags(x); kwargs...)
+    lags = round.(Int, _lags ./ samplingperiod(x))
+    return Timeseries(madev(parent(x), lags; kwargs...), _lags)
 end
-function madev(x::MultivariateRegular, lags = _default_lags(x); kwargs...)
+function madev(x::MultivariateRegular, _lags = _default_lags(x); kwargs...)
+    lags = round.(Int, _lags .* samplingperiod(x))
     d = dims(x)[2:end]
     m = mapslices(x -> madev(x, lags; kwargs...), parent(x); dims = 1)
-    return Timeseries(m, lags .* samplingperiod(x), d...)
+    return Timeseries(m, _lags, d...)
 end
