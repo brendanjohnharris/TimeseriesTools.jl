@@ -14,8 +14,8 @@ function mapple_bounds(log_f, log_s, initial_params)
     lower.log_A = -Inf
     upper.log_A = 100 * (maximum(log_s) - minimum(log_s))
 
-    lower.transition_width = minimum(diff(log_f)) / 4
-    upper.transition_width = (maximum(log_f) - minimum(log_f)) / 10
+    lower_width = minimum(diff(log_f)) / 4
+    upper_width = (maximum(log_f) - minimum(log_f)) / 10
 
     for i in eachindex(lower.peaks)
         lower.peaks[i].log_A = lower.log_A
@@ -24,8 +24,8 @@ function mapple_bounds(log_f, log_s, initial_params)
         lower.peaks[i].log_f = minimum(log_f)
         upper.peaks[i].log_f = maximum(log_f)
 
-        lower.peaks[i].log_σ = lower.transition_width / 2
-        upper.peaks[i].log_σ = upper.transition_width
+        lower.peaks[i].log_σ = lower_width / 2
+        upper.peaks[i].log_σ = upper_width
     end
 
     for i in eachindex(lower.components)
@@ -154,7 +154,7 @@ function fit_mapple(log_f, log_s, initial_params;
     # * Do alternating minimization between component parameters and peak parameters
     params = deepcopy(initial_params)
     pidxs = [:peaks]
-    cidxs = [:log_A, :components, :transition_width]
+    cidxs = [:log_A, :components]
 
     prev_loss = Inf
     if !isempty(params[pidxs]) && !isempty(params[cidxs])

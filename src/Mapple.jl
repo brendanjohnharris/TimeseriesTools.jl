@@ -11,14 +11,13 @@ An MAPPLE (Adaptive Peaks and Power-Law Exponents) model for fitting power spect
     - `log_f`: Log-10 center frequency of the peak.
     - `log_σ`: Width of the peak in log-frequency space.
     - `log_A`: Log-10 amplitude of the peak.
-- `transition_width`: Width of the transition between components in log-frequency space.
 """
 struct MAPPLE <: StatsAPI.RegressionModel
     params::ComponentArray
 end
 
-function MAPPLE(; peaks, components, log_A, transition_width)
-    ComponentArray(; log_A, peaks, components, transition_width) |> MAPPLE
+function MAPPLE(; peaks, components, log_A)
+    ComponentArray(; log_A, peaks, components) |> MAPPLE
 end
 
 function mapple_sort!(params)
@@ -79,7 +78,7 @@ peaks(m::MAPPLE) = m.params.peaks
 components(m::MAPPLE) = m.params.components
 
 function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
-    components = model[[:log_A, :transition_width, :components]]
+    components = model[[:log_A, :components]]
     peaks = model[[:peaks]]
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
@@ -118,7 +117,6 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
     components = component_params.components
     peaks = peaks.peaks
 
-    width = component_params.transition_width
     A_base = exp10(component_params.log_A)
 
     # Use type-stable operations without mutation
@@ -149,33 +147,13 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
 
     # * Evaluate the model
     log_f = log10.(f)
-    log_f_min = log10(minimum(f)) - 5.0
-    # f_max = 2 * maximum(f) - minimum(f)
+    log_f_stops = components.log_f_stop
+    @assert issorted(log_f)
 
     @inbounds @fastmath for i in eachindex(f, s)
-        # * Add contribution from each component
-        for j in 1:n_components
-            idx = sorted_indices[j]
-            seg = components[idx]
-            A_seg = component_amplitudes[idx]
-
-            # * Determine component boundaries without Inf
-            log_f_start = if j == 1
-                log_f_min
-            else
-                components[sorted_indices[j - 1]].log_f_stop
-            end
-
-            log_f_stop = seg.log_f_stop
-
-            # * Calculate smooth window weight
-            start_weight = (one(El) + tanh((log_f[i] - log_f_start) / width)) / 2
-            stop_weight = (one(El) + tanh((log_f_stop - log_f[i]) / width)) / 2
-            weight = start_weight * stop_weight
-
-            # * Add weighted contribution
-            s[i] += weight * A_seg * f[i]^seg.β
-        end
+        idx = searchsortedfirst(log_f_stops, log_f[i])
+        idx = idx > n_components ? n_components : idx
+        s[i] = component_amplitudes[idx] * f[i]^components.β[idx]
     end
 
     # * Add Gaussian peaks
@@ -202,7 +180,7 @@ function fit_mapple(log_f, log_s;
 
     β = last([ones(length(log_f)) log_f] \ log_s) # Simple linear regression. Start by guessing all components have the same exponent, and evenly distribute the breaks
     log_f_stop = range(extrema(log_f)..., length = components + 1)[2:end]
-    transition_width = (maximum(log_f) - minimum(log_f)) / (20)
+    # transition_width = (maximum(log_f) - minimum(log_f)) / (20)
     # transition_width = max(transition_width, minimum(diff(log_f)))
 
     components = map(1:components) do i
@@ -236,10 +214,10 @@ function fit_mapple(log_f, log_s;
         s_f = logspectrum[Near(maximum(bound) + log_σ)]
         log_A = prom + s_f
         if log_σ ≤ 0
-            log_σ = transition_width # A guess
+            log_σ = (maximum(log_f) - minimum(log_f)) / (20) # A guess
         end
         return ComponentArray(; log_f, log_σ, log_A)
     end
 
-    return ComponentArray(; log_A, peaks, components, transition_width)
+    return ComponentArray(; log_A, peaks, components)
 end
