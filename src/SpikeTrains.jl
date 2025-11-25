@@ -2,7 +2,7 @@ using SparseArrays
 using Random
 using Distributions
 export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammarenewal!,
-       gammarenewal, fano
+       gammarenewal, fano_factor
 
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
 normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ (σ^2))
@@ -318,4 +318,104 @@ function gammarenewal(spikes::SpikeTrain, args...; kwargs...)
     t = collect(times(spikes))
     gammarenewal!(t, args...; kwargs...)
     return SpikeTrain(t)
+end
+
+"""
+    _count(spike_times, τ; bins = minimum(spike_times):τ:maximum(spike_times))
+
+Count spikes within time bins of width `τ`.
+
+# Arguments
+- `spike_times`: Vector of spike times.
+- `τ`: Bin width for counting spikes.
+- `bins`: Time bins to use for counting. Defaults to bins spanning from minimum to maximum spike time with width `τ`.
+
+# Returns
+- Vector of spike counts per bin.
+"""
+function _count(spike_times, τ; bins = minimum(spike_times):τ:maximum(spike_times))
+    return fit(Histogram, spike_times, bins).weights
+end
+
+"""
+    rates(spike_times, τ)
+
+Calculate firing rates from spike times using bins of width `τ`.
+
+# Arguments
+- `spike_times`: Vector of spike times.
+- `τ`: Bin width for rate calculation.
+
+# Returns
+- Vector of firing rates (spikes per unit time) for each bin. Returns NaN values if no bins can be created.
+"""
+function rates(spike_times, τ)
+    bins = minimum(spike_times):τ:maximum(spike_times)
+    if isempty(bins)
+        return bins .* NaN
+    else
+        counts = _count(spike_times, τ; bins)
+        return counts ./ τ
+    end
+end
+
+"""
+    fano_factor(spike_times, τ)
+
+Calculate the Fano factor of spike counts at a single timescale.
+
+The Fano factor is the ratio of variance to mean of spike counts, measuring the
+variability of neural activity. A value of 1 indicates Poisson-like variability.
+
+# Arguments
+- `spike_times`: Vector of spike times.
+- `τ`: Timescale (bin width) at which to compute spike counts.
+
+# Returns
+- The Fano factor (variance/mean) of spike counts.
+"""
+function fano_factor(spike_times::AbstractVector{<:Number}, τ::Number)
+    counts = _count(spike_times, τ)
+    m = mean(counts)
+    return var(counts, mean = m) / m
+end
+
+"""
+    fano_factor(spike_times, τ_values::AbstractVector = defaultfanobins(spike_times))
+
+Calculate the Fano factor across multiple timescales.
+
+# Arguments
+- `spike_times`: Vector of spike times or a SpikeTrain.
+- `τ_values`: Vector of timescales at which to compute the Fano factor. Defaults to `defaultfanobins(spike_times)`.
+
+# Returns
+- A [`Timeseries`](@ref) object containing Fano factor values at each timescale.
+"""
+function fano_factor(spike_times::AbstractVector{<:Number},
+                     τ_values::AbstractVector = defaultfanobins(spike_times))
+    f = [fano_factor(spike_times, τ) for τ in τ_values]
+    return Timeseries(f, τ_values)
+end
+
+function fano_factor(spike_times::AbstractVector{<:AbstractVector{<:Number}}, args...)
+    map(spike_times) do s
+        fano_factor(s, args...)
+    end |> stack
+end
+
+function fano_factor(spike_train::SpikeTrain, τ::Number)
+    fano_factor(spiketimes(spike_train), τ)
+end
+
+function fano_factor(spike_train::SpikeTrain,
+                     τs::AbstractVector = defaultfanobins(spiketimes(spike_train)))
+    fano_factor(spiketimes(spike_train), τs)
+end
+
+function defaultfanobins(ts)
+    maxwidth = (first ∘ diff ∘ collect ∘ extrema)(ts) / 10
+    minwidth = max((mean ∘ diff)(ts), maxwidth / 10000)
+    # spacing = minwidth
+    return logrange(minwidth, maxwidth, length = 100)
 end

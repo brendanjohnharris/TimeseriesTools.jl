@@ -17,6 +17,41 @@ struct MAPPLE <: StatsAPI.RegressionModel
     params::ComponentArray
 end
 
+function Base.show(io::IO, m::MAPPLE)
+    # Check if we're in a terminal that supports colors
+    use_color = get(io, :color, false)
+
+    # Global Parameters (Blue)
+    printstyled(io, "\nGlobal Parameters:\n", color = :blue, bold = true)
+    printstyled(io, "  log_A:            ")
+    println(io, round(m.params.log_A, digits = 4))
+    printstyled(io, "  transition_width: ")
+    println(io, round(m.params.transition_width, digits = 4))
+
+    # Components (Red)
+    printstyled(io, "\nComponents ($(length(m.params.components))):\n", color = :red,
+                bold = true)
+    for (i, comp) in enumerate(m.params.components)
+        printstyled(io, "  Component $i:\n")
+        printstyled(io, "    log_f_stop: ")
+        println(io, round(comp.log_f_stop, digits = 4))
+        printstyled(io, "    β:          ")
+        println(io, round(comp.β, digits = 4))
+    end
+
+    # Peaks (Green)
+    printstyled(io, "\nPeaks ($(length(m.params.peaks))):\n", color = :green, bold = true)
+    for (i, peak) in enumerate(m.params.peaks)
+        printstyled(io, "  Peak $i:\n")
+        printstyled(io, "    log_f:  ")
+        println(io, round(peak.log_f, digits = 4))
+        printstyled(io, "    log_σ:  ")
+        println(io, round(peak.log_σ, digits = 4))
+        printstyled(io, "    log_A:  ")
+        println(io, round(peak.log_A, digits = 4))
+    end
+end
+
 function MAPPLE(; peaks, components, log_A, transition_width)
     ComponentArray(; log_A, peaks, components, transition_width) |> MAPPLE
 end
@@ -166,12 +201,20 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
                 components[sorted_indices[j - 1]].log_f_stop
             end
 
-            log_f_stop = seg.log_f_stop
+            log_f_stop = if j == n_components
+                seg.log_f_stop# Inf # No transition width for final component
+            else
+                seg.log_f_stop
+            end
 
             # * Calculate smooth window weight
-            start_weight = (one(El) + tanh((log_f[i] - log_f_start) / width)) / 2
-            stop_weight = (one(El) + tanh((log_f_stop - log_f[i]) / width)) / 2
-            weight = start_weight * stop_weight
+            if n_components == 1 # No transition width
+                weight = one(El)
+            else
+                start_weight = (one(El) + tanh((log_f[i] - log_f_start) / width)) / 2
+                stop_weight = (one(El) + tanh((log_f_stop - log_f[i]) / width)) / 2
+                weight = start_weight * stop_weight
+            end
 
             # * Add weighted contribution
             s[i] += weight * A_seg * f[i]^seg.β
