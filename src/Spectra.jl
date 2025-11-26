@@ -1,4 +1,5 @@
 using FFTW
+using LinearAlgebra
 using Statistics
 using Unitful
 using UnPack
@@ -9,11 +10,24 @@ using ComponentArrays
 import TimeseriesBase.Operators.𝒯
 
 export spectrum, energyspectrum, powerspectrum, _energyspectrum, _powerspectrum,
-    colorednoise, logsample, logbin
+       colorednoise, logsample, logbin, flos
+
+function absp(x, p)
+    if p == 1
+        return abs(x)
+    elseif p == 2
+        return abs2(x)
+    else
+        return abs(x)^p
+    end
+end
+
+absp(p::Number) = Base.Fix2(absp, p)
 
 function _periodogram(x::AbstractVector, fs::Number,
-    f_min::Number=fs / min(length(x) ÷ 4, 1000); padding=0,
-    kwargs...)
+                      f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
+                      p = 2,
+                      kwargs...)
     n = length(x)
     validfreqs = rfftfreq(n, fs)
     if f_min == 0
@@ -30,14 +44,14 @@ function _periodogram(x::AbstractVector, fs::Number,
     isodd(padding) && (padding += 1)
     nfft = nfft - padding
     overlap = nfft ÷ 2
-    hann_window = 0.5 .- 0.5 .* cos.(2 * π * (0:(nfft-1)) / (nfft - 1))
-    A = sum(hann_window .^ 2)
+    hann_window = 0.5 .- 0.5 .* cos.(2 * π * (0:(nfft - 1)) / (nfft - 1))
+    A = sum(absp(p), hann_window)
     (nfft - overlap ≤ 0) && error("FFT padding is too high")
     n_segments = floor(Int, (n - nfft) / (nfft - overlap) + 1)
 
     # Get the type of the spectrum
     u = unit(eltype(x)) / unit(fs)
-    S̄ = zeros((nfft + padding) ÷ 2 + 1, n_segments) * u^2
+    S̄ = zeros((nfft + padding) ÷ 2 + 1, n_segments) * u^p
     @debug "Calculating spectrum for $n_segments segments of length $(nfft + padding)"
     for i in 1:n_segments
         start_idx = (i - 1) * (nfft - overlap) + 1
@@ -45,25 +59,25 @@ function _periodogram(x::AbstractVector, fs::Number,
         segment = x[start_idx:end_idx] .* hann_window
         if padding > 0
             dt = samplingperiod(segment)
-            padts = range(start=minimum(times(segment)) + dt, step=dt,
-                length=padding + length(segment))
+            padts = range(start = minimum(times(segment)) + dt, step = dt,
+                          length = padding + length(segment))
             segment = Timeseries([segment.data; zeros(padding) * unit(eltype(segment))],
-                padts)
+                                 padts)
         end
 
         y = rfft(segment) / (nfft + padding)
         y |> eltype |> unit == NoUnits && (y = y * u)
-        S̄[:, i] .= (abs.(y) .^ 2) / A
+        S̄[:, i] .= (map(absp(p), y)) / A
     end
 
     # Calculate the frequencies
-    freqs = range((0)unit(fs), stop=fs / 2, length=size(S̄, 1))
+    freqs = range((0)unit(fs), stop = fs / 2, length = size(S̄, 1))
     df = step(freqs)
 
     # Normalize the mean energy spectrum to obey Parseval's theorem
-    meanS̄ = mean(S̄, dims=2)
+    meanS̄ = mean(S̄, dims = 2)
     S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
-    S̄ = 0.5 * S̄ * ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
+    S̄ = 0.5 * S̄ * ustripall(sum(absp(p), x) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum. Not valid for p != 2
     Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
 
@@ -73,8 +87,8 @@ end
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
 function _energyspectrum(x::typeintersect(RegularTimeseries, UnivariateTimeseries),
-    f_min::Number=samplingrate(x) / min(length(x) ÷ 4, 1000);
-    kwargs...)
+                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
+                         kwargs...)
     return _periodogram(x, samplingrate(x), f_min; kwargs...)
 end
 
@@ -101,7 +115,7 @@ julia> S isa MultivariateSpectrum
 """
 function _energyspectrum(x::MultivariateTimeseries, args...; kwargs...)
     X = [_energyspectrum(_x, args...; kwargs...)
-         for _x in eachslice(x, dims=2)]
+         for _x in eachslice(x, dims = 2)]
     return ToolsArray(X, dims(x, 2)) |> stack
 end
 
@@ -113,8 +127,8 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 See [`_energyspectrum`](@ref).
 """
 function energyspectrum(x, args...; kwargs...)
-    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims=Dim{:window});
-        dims=Dim{:window})
+    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
 end
 
 """
@@ -135,8 +149,8 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 function powerspectrum(x::AbstractTimeseries, args...; kwargs...)
-    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims=Dim{:window});
-        dims=Dim{:window})
+    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
+             dims = Dim{:window})
 end
 
 spectrum = powerspectrum
@@ -161,8 +175,8 @@ pink_noise = colorednoise(1:0.01:10; α=1.0)
 pink_noise isa RegularTimeseries
 ```
 """
-function colorednoise(ts::AbstractRange{T}, args...; α=2.0,
-    kwargs...) where {T}
+function colorednoise(ts::AbstractRange{T}, args...; α = 2.0,
+                      kwargs...) where {T}
     u = unit(T)
     ts = T <: Quantity ? ustrip(ts) : ts
     dt = step(ts)
@@ -171,7 +185,7 @@ function colorednoise(ts::AbstractRange{T}, args...; α=2.0,
     x̂[1] = 0
     x = irfft(x̂, length(ts))
     dt = length(ts) * step(f)
-    t = range(0, (length(x) - 1) * dt, length=length(x))
+    t = range(0, (length(x) - 1) * dt, length = length(x))
     @assert all(t .+ first(ts) .≈ ts)
     Timeseries(x, ts * u, args...; kwargs...)
 end
@@ -187,25 +201,25 @@ end
 
 spikefft(fs, t::AbstractVector, method) = spikefft(t, method).(fs)
 
-function spikefft(fs, t::SpikeTrain, method=:schild)
+function spikefft(fs, t::SpikeTrain, method = :schild)
     isempty(findfirst(t)) && error("Spike train contains no spikes")
     F = spikefft(times(t[t]), Val(method))
     return Spectrum(fs, F.(fs))
 end
 
-function _energyspectrum(x::SpikeTrain{T,1} where {T}, frange::AbstractRange;
-    method=stoic(; σ=0.005), kwargs...)
+function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
+                         method = stoic(; σ = 0.005), kwargs...)
     t = times(x[x])
     n = length(t)
     df = step(frange)
-    isodd(length(frange)) && (frange = frange[1:(end-1)])
+    isodd(length(frange)) && (frange = frange[1:(end - 1)])
     nfft = length(frange)
 
     u = unit(eltype(x)) * unit(eltype(t))
 
     if method isa Function
         # Find the autocovariance function and take the Fourier transform
-        τs = range(start=0, stop=1 / step(frange) / 2, length=nfft)
+        τs = range(start = 0, stop = 1 / step(frange) / 2, length = nfft)
         τs = [-reverse(τs[2:end]); τs]
         ρ = [method(x, 𝒯(τ)(x)) for τ in τs]
         S̄ = abs.(rfft(ρ))
@@ -221,11 +235,11 @@ function _energyspectrum(x::SpikeTrain{T,1} where {T}, frange::AbstractRange;
     Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 
-function _energyspectrum(x::SpikeTrain{T,1} where {T}, frange::Tuple; kwargs...)
+function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)
     _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
 end
 
-function logbin(_s::AbstractDimVector{T,D}) where {T,d,D<:Tuple{<:d}}
+function logbin(_s::AbstractDimVector{T, D}) where {T, d, D <: Tuple{<:d}}
     __f = lookup(_s, 1)
     if first(__f) <= 0
         throw(ArgumentError("Frequencies must be positive"))
@@ -237,12 +251,12 @@ function logbin(_s::AbstractDimVector{T,D}) where {T,d,D<:Tuple{<:d}}
     _f = lookup(_s, 1)
 
     df = _f[2] - _f[1] # The smallest sensible binning
-    f = range(first(_f) - df / 2, stop=last(_f), step=df)
+    f = range(first(_f) - df / 2, stop = last(_f), step = df)
     bins = intervals(f)
     s = groupby(_s, d => Bins(bins))
     return set(s, d => map(exp10, mean.(bins)))
 end
-function logsample(s::A, average=geomean) where {A<:AbstractDimArray}
+function logsample(s::A, average = geomean) where {A <: AbstractDimArray}
     return map(logbin(s)) do _s
         average(_s)
     end
