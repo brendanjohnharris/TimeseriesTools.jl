@@ -5,7 +5,6 @@ import Unitful.unit
 using Reexport
 using DimensionalData
 using IntervalSets
-using ProgressLogging
 @reexport using IntervalSets
 @reexport using DimensionalData
 @reexport using TimeseriesBase
@@ -45,5 +44,11 @@ function waveletspectrogram end
 function interpolate end
 function msdist end
 export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist
+
+# * BootstrapExt
+function bootstrapaverage end
+function bootstrapmedian end
+function bootstrapmean end
+export bootstrapaverage, bootstrapmedian, bootstrapmean
 
 end
