@@ -1,18 +1,18 @@
-@testitem "Interlace" begin
+@testitem "Interlace" tags=[:fast] begin
     x = Timeseries(randn(11), 0:0.1:1)
     y = Timeseries(randn(10), 0.05:0.1:1)
     z = @test_nowarn interlace(x, y)
     @test all(collect(times(z)) .== 0.0:0.05:1.0)
 end
 
-@testitem "Stack" begin
+@testitem "Stack" tags=[:fast] begin
     x = Timeseries(randn(100, 100), 0.1:0.1:10, Var(1:100))
     z = ToolsArray([x, x], 𝑓(1:2)) |> stack
     y = stack(DimArray([x, x], 𝑓(1:2)); dims = 1)
     @test dims(y, 1) == 𝑓(1:2)
 end
 
-@testitem "Buffer" begin
+@testitem "Buffer" tags=[:fast] begin
     N = 10
     x = Timeseries(randn(100), 0.1:0.1:10)
     y = @test_nowarn buffer(x, 10)
@@ -40,7 +40,7 @@ end
     y = @test_nowarn delayembed(x, 2, 2, 1)
 end
 
-@testitem "Rectification" begin
+@testitem "Rectification" tags=[:fast] begin
     import TimeseriesTools: rectifytime
     ts = 0.1:0.1:1000
     x = Timeseries(sin, ts .+ randn(length(ts)) .* 1e-10)
@@ -74,7 +74,7 @@ end
     @test dims(y2, X) == dims(x, X)
 end
 
-@testitem "Central differences" begin
+@testitem "Central differences" tags=[:fast] begin
     using DSP, StatsBase
     x = colorednoise(0.01:0.01:10)
     X = ToolsArray([colorednoise(0.1:0.1:100) for _ in 1:10], Var(1:10)) |> stack
@@ -102,7 +102,7 @@ end
     @test sum(dϕ .!= centraldiff(ϕ)) > 4000
 end
 
-@testitem "Left and right derivatives" begin
+@testitem "Left and right derivatives" tags=[:fast] begin
     import TimeseriesTools: leftdiff, rightdiff
     x = colorednoise(0.01:0.01:10)
     X = ToolsArray([colorednoise(0.1:0.1:100) for _ in 1:10], Var(1:10)) |> stack
@@ -134,7 +134,7 @@ end
 #     @test centralderiv(x) ≈ centralderiv(y)
 # end
 
-@testitem "Unitful derivative" begin
+@testitem "Unitful derivative" tags=[:fast] begin
     using Unitful
     ts = 0.1:0.1:1000
     x = Timeseries(sin, ts)
@@ -143,7 +143,7 @@ end
     @test unit(eltype(centralderiv(y))) == unit(u"1/s")
 end
 
-@testitem "coarsegrain" begin
+@testitem "coarsegrain" tags=[:fast] begin
     using StatsBase
     X = repeat(1:11, 1, 100)
     C = coarsegrain(X, dims = 1)
@@ -189,7 +189,7 @@ end
     @test_nowarn C[𝑡(Near(0.1))]
 end
 
-@testitem "matchdim" begin
+@testitem "matchdim" tags=[:fast] begin
     ts = 0:1:100
     X = [Timeseries(sin, ts .+ 1e-6 .* randn(101)) for _ in 1:10]
     X = Timeseries(X, 1:10)
@@ -199,7 +199,7 @@ end
     @test dims(Y[1], 𝑡) == 𝑡(ts)
 end
 
-@testitem "findpeaks" begin
+@testitem "findpeaks" tags=[:fast] begin
     x = TimeseriesTools.Timeseries(x -> sin(x .* 2π / 4), 0.1:0.1:100)
     peaks = spiketrain(range(start = 1, stop = 100, step = 4))
     pks, proms = findpeaks(x)

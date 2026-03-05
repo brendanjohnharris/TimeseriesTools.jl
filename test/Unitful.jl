@@ -1,4 +1,4 @@
-@testitem "Unitful" begin
+@testitem "Unitful" tags=[:fast] begin
     using Unitful
     ts = (1:1000)u"s"
     x = @test_nowarn Timeseries(randn(1000), ts)

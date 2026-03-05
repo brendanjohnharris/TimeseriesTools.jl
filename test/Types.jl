@@ -1,4 +1,4 @@
-@testitem "ToolsArrays" begin
+@testitem "ToolsArrays" tags=[:fast] begin
     import DimensionalData: span, DimArrayInterface
     import Interfaces
 
@@ -51,7 +51,7 @@
     @test intervalbounds(da_intervals) == intervalbounds(db_intervals)
 end
 
-@testitem "Printing" begin
+@testitem "Printing" tags=[:fast] begin
     # * Vector
     x = ToolsArray(randn(10), (𝑡(1:10),))
     @test_nowarn show(x)
@@ -90,7 +90,7 @@ end
     @test_nowarn display(x)
 end
 
-@testitem "TimeseriesTools.jl" begin
+@testitem "TimeseriesTools.jl" tags=[:fast] begin
     ts = 1:100
     x = @test_nowarn Timeseries(randn(100), ts)
     @test x isa AbstractTimeseries
@@ -107,7 +107,7 @@ end
     # @test x[ 𝑡(At(1:10))] != x[1:10]
 end
 
-@testitem "Dim queries" begin
+@testitem "Dim queries" tags=[:fast] begin
     ts = 1:100
     cs = 1:10
     x = Timeseries(randn(100, 10), ts, Dim{:channel}(cs))
@@ -126,7 +126,7 @@ end
     @test all(lookup(x[At(dims(x, 1))]) .== lookup(x[At(1:10)])) # But same elements
 end
 
-@testitem "Multivariate time series" begin
+@testitem "Multivariate time series" tags=[:fast] begin
     ts = 1:100
     x = @test_nowarn Timeseries(randn(100, 5), ts, 1:5)
     @test x isa AbstractTimeseries
@@ -141,7 +141,7 @@ end
     @test x[𝑡(1 .. 10)] == x[1:10, :]
 end
 
-@testitem "Multidimensional time series" begin
+@testitem "Multidimensional time series" tags=[:fast] begin
     x = @test_nowarn Timeseries(randn(100, 10), 𝑡(1:100), X(1:10))
     @test x isa AbstractTimeseries
     @test x isa RegularTimeseries

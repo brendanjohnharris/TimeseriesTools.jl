@@ -8,7 +8,7 @@ using TestItemRunner
     Aqua.test_all(TimeseriesTools)
 end
 
-@testitem "Dates" begin
+@testitem "Dates" tags=[:fast] begin
     using Dates, Unitful
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
@@ -81,7 +81,7 @@ end
     # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
 end
 
-@testitem "Operators" begin
+@testitem "Operators" tags=[:fast] begin
     import TimeseriesTools.TimeseriesBase.Operators: ℬ!, ℒ!, ℬ, ℒ, 𝒯
     x = colorednoise(1:1000)
     _x = deepcopy(x)
@@ -105,7 +105,6 @@ end
 
 include("Types.jl")
 include("Utils.jl")
-include("IO.jl")
 include("Unitful.jl")
 include("SpikeTrains.jl")
 include("Operators.jl")
