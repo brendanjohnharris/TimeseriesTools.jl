@@ -1,6 +1,6 @@
 name = "TimeseriesTools"
 uuid = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
-version = "0.8.3"
+version = "0.8.1"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
 
 [deps]

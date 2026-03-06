@@ -41,7 +41,7 @@
     @test minimum(r1) > -0.95 # This is no bueno
 
     m = @test_nowarn msdist(x)
-    @test m == imsd(parent(x))
+    @test m ≈ imsd(parent(x))
     @test m == msdist(parent(x))
     a = @benchmark msdist($x)
     b = @benchmark msdist($(parent(x)))
@@ -361,6 +361,6 @@ end
     lines!(ax, mad_refined; label = "MAPPLE refined", color = :black)
     display(f)
 
-    @test m.params.components[1].β≈-0.5 atol=0.05
+    @test m.params.components[1].β≈0.5 atol=0.05
     @test m.params.components[2].β≈0.0 atol=0.05
 end

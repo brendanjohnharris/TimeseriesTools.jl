@@ -239,8 +239,10 @@ function logbin(_s::AbstractDimVector{T, D}) where {T, d, D <: Tuple{<:d}}
     f = range(first(_f) - df / 2, stop = last(_f), step = df)
     bins = intervals(f)
     s = groupby(_s, d => Bins(bins))
-    return set(s, d => map(exp10, mean.(bins)))
+    ds = set(dims(s), d => map(exp10, mean.(bins)))
+    return rebuild(s; dims = ds)
 end
+
 function logsample(s::A, average = geomean) where {A <: AbstractDimArray}
     return map(logbin(s)) do _s
         average(_s)

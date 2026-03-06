@@ -15,7 +15,7 @@ function mapple_bounds(log_f, log_s, initial_params)
     upper.log_A = 100 * (maximum(log_s) - minimum(log_s))
 
     lower.transition_width = minimum(diff(log_f)) / 4
-    upper.transition_width = (maximum(log_f) - minimum(log_f)) / 10
+    upper.transition_width = (maximum(log_f) - minimum(log_f)) / 3
 
     for i in eachindex(lower.peaks)
         lower.peaks[i].log_A = lower.log_A
@@ -143,7 +143,8 @@ end
 peak_loss(; kwargs...) = params -> peak_loss(params; kwargs...)
 
 function fit_mapple(log_f, log_s, initial_params;
-                    algorithm = LBFGS(), autodiff = :forward, altol = 1e-6, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
+                    algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
+                    altol = 1e-6, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
 
     lower, upper = mapple_bounds(log_f, log_s, initial_params)

@@ -52,6 +52,7 @@ end
     hidespines!(ax)
     save("./shadows.png", f; px_per_unit = 3)
 
+    x = rectify(x; dims = 𝑡)
     @test_nowarn trajectory!(ax, x)
     @test_nowarn shadows!(ax, x; color = (:slategray, 0.5), linewidth = 0.05)
 end

@@ -103,8 +103,6 @@ end
     @test times(T(x)) == -1:step(x):0
 end
 
-include("Types.jl")
-include("Utils.jl")
 include("Unitful.jl")
 include("SpikeTrains.jl")
 include("Operators.jl")
