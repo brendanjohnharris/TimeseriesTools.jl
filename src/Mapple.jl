@@ -138,9 +138,9 @@ function mapple(f, component_params::ComponentArray{F},
     mapple!(s, f, component_params, peaks)
     return s
 end
-function mapple(f, component_params::ComponentArray{F},
-                peaks::ComponentArray{F}) where {F <: AbstractFloat}
-    ElType = promote_type(eltype(f), F)
+function mapple(f, component_params::ComponentArray{F1},
+                peaks::ComponentArray{F2}) where {F1 <: AbstractFloat, F2 <: AbstractFloat}
+    ElType = promote_type(eltype(f), F1, F2)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
     mapple!(s, f, component_params, peaks)
