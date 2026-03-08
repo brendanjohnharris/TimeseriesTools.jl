@@ -7,6 +7,7 @@ using CairoMakie
 import CairoMakie: Axis
 using ComponentArrays
 using ForwardDiff
+using Random
 
 Random.seed!(42)
 
