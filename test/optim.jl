@@ -8,6 +8,8 @@ import CairoMakie: Axis
 using ComponentArrays
 using ForwardDiff
 
+Random.seed!(42)
+
 begin # * Generate test data
     components = ComponentArray([
                                     ComponentArray(; β = 2.0, log_f_stop = 1.5),
