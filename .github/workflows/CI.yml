@@ -5,6 +5,9 @@ on:
       - '**'
     tags: ['*']
   pull_request:
+  schedule:
+    - cron: '0 0 1 * *'  # Runs at midnight UTC on the 1st of every month
+  workflow_dispatch:       # Allows manual trigger from the Actions tab
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
