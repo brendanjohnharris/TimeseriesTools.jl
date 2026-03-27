@@ -36,6 +36,7 @@ Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NaturalNeighbours = "f16ad982-4edb-46b1-8125-78e5a8b5a9e6"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 TimeseriesMakie = "5e3e9a77-7bbf-480c-931c-0802e2453f5a"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
 [extensions]
 AutocorrelationsExt = ["Autocorrelations"]
@@ -47,7 +48,7 @@ DSPExt = ["DSP"]
 DataInterpolationsExt = ["DataInterpolations"]
 GeneralizedPhaseExt = ["GeneralizedPhase"]
 NaturalNeighboursExt = ["NaturalNeighbours"]
-OptimExt = ["Optim"]
+OptimExt = ["Optim", "ForwardDiff"]
 
 [compat]
 Autocorrelations = "0.1"
@@ -56,6 +57,7 @@ CUDA = "3, 4, 5"
 ComplexityMeasures = "3"
 ComponentArrays = "0.15.29"
 ContinuousWavelets = "1"
+ForwardDiff = "1"
 DSP = "0.6, 0.7, 0.8"
 DataInterpolations = "7, 8"
 DimensionalData = "0.30"

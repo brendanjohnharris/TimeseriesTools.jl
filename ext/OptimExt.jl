@@ -1,5 +1,6 @@
 module OptimExt
 using Optim
+using ForwardDiff
 using DimensionalData
 using StatsAPI
 using StatsBase

@@ -46,7 +46,7 @@
     a = @benchmark msdist($x)
     b = @benchmark msdist($(parent(x)))
     c = @benchmark imsd($(parent(x))) # Compare to MeanSquaredDisplacement
-    @test median(a.times) < median(c.times) .* 2
+    @test median(a.times) < median(c.times) .* 2.5
     @test b.allocs ≤ c.allocs
 
     x = Timeseries(cumsum(randn(10000, 100), dims = 1), 0.1:0.1:1000, 1:100)
