@@ -6,6 +6,7 @@
 [![Coverage](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/brendanjohnharris/TimeseriesTools.jl)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14511321.svg)](https://doi.org/10.5281/zenodo.14511321)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
 
 TimeseriesTools.jl is a package for analyzing and visualizing time-series data in Julia.
 
@@ -26,6 +27,9 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 > 3. `progressmap` functionality has been moved to [MoreMaps.jl](https://www.github.com/brendanjohnharris/MoreMaps.jl)
 > 4. Documentation has been moved to [TimeseriesDocs.jl](https://www.github.com/brendanjohnharris/TimeseriesDocs.jl)
 > Please import these packages separately as needed.
+
+### Detailed feaure list:
+- .......................
 
 
 
