@@ -21,7 +21,7 @@ end
     using TimeseriesTools, CairoMakie, Unitful, Foresight, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
 
-    t = 0.005:0.005:1e5
+    t = 0.005:0.005:1.0e5
     x = colorednoise(t * u"s") * u"V"
     # Plot the time series
     f = Figure(; size = (720, 480))
@@ -41,11 +41,15 @@ end
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
-                color = :speed)
-    shadows!(ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05,
-             swapshadows = (true, false, false),
-             limits = Foresight.widen.(extrema.(eachcol(x)), 0.4))
+    trajectory!(
+        ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
+        color = :speed
+    )
+    shadows!(
+        ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05,
+        swapshadows = (true, false, false),
+        limits = Foresight.widen.(extrema.(eachcol(x)), 0.4)
+    )
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth[] = 2.2
     ax.elevation[] = 0.5
@@ -62,7 +66,7 @@ end
     import TimeseriesTools.Timeseries # or TS
     set_theme!(foresight(:dark, :transparent))
 
-    t = 0.005:0.005:1e5
+    t = 0.005:0.005:1.0e5
     x = colorednoise(t * u"s") * u"V"
 
     # Plot the time series
@@ -83,11 +87,15 @@ end
 
     f = Figure(; size = (500, 480))
     ax = Axis3(f[1, 1])
-    trajectory!(ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
-                color = :speed)
-    shadows!(ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05,
-             swapshadows = (true, false, false),
-             limits = Foresight.widen.(extrema.(eachcol(x)), 0.4))
+    trajectory!(
+        ax, collect.(eachcol(x))...; colormap = :turbo, linewidth = 0.1,
+        color = :speed
+    )
+    shadows!(
+        ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05,
+        swapshadows = (true, false, false),
+        limits = Foresight.widen.(extrema.(eachcol(x)), 0.4)
+    )
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth[] = 2.2
     ax.elevation[] = 0.5
@@ -98,7 +106,7 @@ end
 @testitem "Traces" begin
     using CairoMakie, TimeseriesTools, Unitful, TimeseriesMakie
 
-    t = 0.005:0.005:1e4
+    t = 0.005:0.005:1.0e4
     x = colorednoise(t * u"s") * u"V"
     X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
@@ -117,7 +125,7 @@ end
     using CairoMakie, TimeseriesTools, Unitful, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
 
-    t = 0.005:0.005:1e4
+    t = 0.005:0.005:1.0e4
     x = colorednoise(t * u"s") * u"V"
     X = cat(x, x .+ 1.0 * u"V", dims = Var(1:2))
 
@@ -140,7 +148,7 @@ end
     f, ax, p = plot(S) # * Log-log plot
     tightlimits!(ax)
     @test ax isa Axis
-    @test ax.finallimits.val.widths[1]≈100 atol=1e-2 # Uses freq values
+    @test ax.finallimits.val.widths[1] ≈ 100 atol = 1.0e-2 # Uses freq values
 end
 
 # @testitem "Spike trains" begin

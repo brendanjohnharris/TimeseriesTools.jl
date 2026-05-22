@@ -5,10 +5,12 @@ using LinearAlgebra
 
 export findpeaks, maskpeaks!, maskpeaks, upsample, madev
 
-function findpeaks(x::DimensionalData.AbstractDimVector, w = 1;
-                   minprom = nothing,
-                   maxprom = nothing,
-                   strict = true, N = nothing)
+function findpeaks(
+        x::DimensionalData.AbstractDimVector, w = 1;
+        minprom = nothing,
+        maxprom = nothing,
+        strict = true, N = nothing
+    )
     minprom isa Function && (minprom = minprom(x))
     maxprom isa Function && (maxprom = maxprom(x))
     _pks, vals = findmaxima(x, w)
@@ -35,8 +37,14 @@ end
 
 function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
     @assert length(dims) == 1
-    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
-                                                                                      dims)]]
+    _dims = DimensionalData.dims(x)[
+        DimensionalData.dims(x) .!= [
+            DimensionalData.dims(
+                x,
+                dims
+            ),
+        ],
+    ]
     P = findpeaks.(eachslice(x; dims = _dims); kwargs...)
     return [getindex.(P, i) for i in 1:3] # vals, proms, widths
 end
@@ -57,21 +65,33 @@ end
 
 function maskpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwargs...)
     @assert length(dims) == 1
-    _dims = DimensionalData.dims(x)[DimensionalData.dims(x) .!= [DimensionalData.dims(x,
-                                                                                      dims)]]
+    _dims = DimensionalData.dims(x)[
+        DimensionalData.dims(x) .!= [
+            DimensionalData.dims(
+                x,
+                dims
+            ),
+        ],
+    ]
     y = similar(x, Int)
-    maskpeaks!.(eachslice(y; dims = _dims), eachslice(x; dims = _dims), args...;
-                kwargs...)
+    maskpeaks!.(
+        eachslice(y; dims = _dims), eachslice(x; dims = _dims), args...;
+        kwargs...
+    )
     return y
 end
 
 function upsample(d::DimensionalData.Dimension{<:RegularIndex}, factor::Number)
-    rebuild(d, range(start = minimum(d), stop = maximum(d), step = step(d) / factor))
+    return rebuild(d, range(start = minimum(d), stop = maximum(d), step = step(d) / factor))
 end
 function upsample(d::DimensionalData.Dimension, factor)
-    rebuild(d,
-            range(start = minimum(d), stop = maximum(d),
-                  step = mean(diff(lookup(d))) / factor))
+    return rebuild(
+        d,
+        range(
+            start = minimum(d), stop = maximum(d),
+            step = mean(diff(lookup(d))) / factor
+        )
+    )
 end
 
 _default_lags(x::AbstractVector) = range(1, length(x) - Int(length(x) ÷ 2), step = 1)

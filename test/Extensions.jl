@@ -1,6 +1,6 @@
 @testitem "AutocorrelationsExt" begin # Optimize this some more?
     using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, CairoMakie,
-          Unitful, TimeseriesMakie
+        Unitful, TimeseriesMakie
     import TimeseriesTools: Timeseries
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
@@ -37,7 +37,7 @@
     y = set(x, sin.(times(x)))
     r1 = autocor(y, 800:1000; demean = true) # StatsBase method is biased
     r2 = dotacf(y, 800:1000; demean = false, normalize = true)
-    @test minimum(r2)≈-1 rtol=1e-3
+    @test minimum(r2) ≈ -1 rtol = 1.0e-3
     @test minimum(r1) > -0.95 # This is no bueno
 
     m = @test_nowarn msdist(x)
@@ -68,7 +68,7 @@ end
     N = 100000
     dt = 0.005
     t = dt:dt:10
-    x = [0.00 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
+    x = [0.0 .* colorednoise(t) .+ sin.(2 * t .+ 2 * randn()) for _ in 1:200]
     y = ToolsArray(x, Var(1:200)) |> stack
     x̂ = Timeseries(vcat(collect.(x)...), dt:dt:(sum(length.(x)) * dt))
     x = phasestitch(x)
@@ -104,7 +104,7 @@ end
     fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
-    @test ≈(pac, autocor(x[𝑡(1:10000)] |> collect, [10])[1]; rtol = 1e-2)
+    @test ≈(pac, autocor(x[𝑡(1:10000)] |> collect, [10])[1]; rtol = 1.0e-2)
     # @test pac - autocor(x̂[ 𝑡(1:10000)] |> collect, [10])[1] >   pac -
     # autocor(x[ 𝑡(1:10000)] |> collect, [10])[1]
 end
@@ -161,15 +161,15 @@ end
     dt = diff(times(x))
     F = var(dt) / mean(dt)
     @test x isa SpikeTrain
-    @test F≈θ rtol=5e-2
-    @test mean(dt)≈α * F rtol=5e-2
+    @test F ≈ θ rtol = 5.0e-2
+    @test mean(dt) ≈ α * F rtol = 5.0e-2
 
     # Jitter surrogate
     y = set(x, 𝑡 => surrogate(times(x), RandomJitter(0.1, 0.1)))
     @test y isa SpikeTrain
     @test issorted(times(y))
-    @test minimum(times(y))≈minimum(times(x)) atol=0.5
-    @test maximum(times(y))≈maximum(times(x)) atol=0.5
+    @test minimum(times(y)) ≈ minimum(times(x)) atol = 0.5
+    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.5
     @test x != y
     sur = @test_nowarn surrogenerator(times(x), RandomJitter(0.1, 0.1))
     @test all(copy(sur()) .!= sur())
@@ -180,10 +180,10 @@ end
     F̂ = var(dt̂) / mean(dt̂)
     @test y isa SpikeTrain
     @test issorted(times(y))
-    @test F̂≈θ rtol=5e-2
-    @test mean(dt̂)≈α * F̂ rtol=5e-2
-    @test minimum(times(y))≈minimum(times(x)) atol=10 * μ
-    @test maximum(times(y))≈maximum(times(x)) atol=0.01 * N
+    @test F̂ ≈ θ rtol = 5.0e-2
+    @test mean(dt̂) ≈ α * F̂ rtol = 5.0e-2
+    @test minimum(times(y)) ≈ minimum(times(x)) atol = 10 * μ
+    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.01 * N
 end
 
 # @testitem "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
@@ -216,8 +216,10 @@ end
     D = Timeseries(hcat(sort([rand(𝒩) for i in 1:N])...)', 1:N, 1:2)
     p = probabilities(NaiveKernel(1.5), StateSpaceSet(D))
 
-    ComplexityMeasures.entropy(Shannon(), ValueBinning(RectangularBinning(100)),
-                               StateSpaceSet(D))
+    ComplexityMeasures.entropy(
+        Shannon(), ValueBinning(RectangularBinning(100)),
+        StateSpaceSet(D)
+    )
 end
 
 @testitem "Upsampling" begin
@@ -240,7 +242,7 @@ end
     itp = TimeseriesTools.interpolate(x)
     z = @test_nowarn upsample(x, 2)
     @test all(z[𝑡(At(ts))] .≈ x)
-    @test z≈sinc.(lookup(z) |> only) atol=1e-2
+    @test z ≈ sinc.(lookup(z) |> only) atol = 1.0e-2
 
     # * Matrix
     x = Timeseries(randn(100, 100), 0.1:0.1:10, Var(1:100))
@@ -308,10 +310,18 @@ end
 
 @testitem "MAPPLE" begin
     using ComponentArrays
-    components = ComponentVector([ComponentVector(; β = 4.0, log_f_stop = 5.0),
-                                     ComponentVector(; β = 2.0, log_f_stop = 1.5)])
-    peaks = ComponentVector([ComponentArray(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
-                                ComponentVector(; log_f = 0.7, log_σ = 0.1, log_A = 1.5)])
+    components = ComponentVector(
+        [
+            ComponentVector(; β = 4.0, log_f_stop = 5.0),
+            ComponentVector(; β = 2.0, log_f_stop = 1.5),
+        ]
+    )
+    peaks = ComponentVector(
+        [
+            ComponentArray(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
+            ComponentVector(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
+        ]
+    )
     params = ComponentVector(; components, peaks, transition_width = 0.2, log_A = 1.0)
 
     log_f = range(0, 3, length = 500)
@@ -361,6 +371,6 @@ end
     lines!(ax, mad_refined; label = "MAPPLE refined", color = :black)
     display(f)
 
-    @test m.params.components[1].β≈0.5 atol=0.05
-    @test m.params.components[2].β≈0.0 atol=0.05
+    @test m.params.components[1].β ≈ 0.5 atol = 0.05
+    @test m.params.components[2].β ≈ 0.0 atol = 0.05
 end

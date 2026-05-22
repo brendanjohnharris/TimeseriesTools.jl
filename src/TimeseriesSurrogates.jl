@@ -147,6 +147,7 @@ function phaserand!(ϕ, rng = Random.default_rng(), n = size(ϕ))
         any(isnothing.(idx₋)) && continue
         ϕ[idx₋...] = -ϕ[idx...]
     end
+    return
 end
 
 struct NDFT <: Surrogate
@@ -159,14 +160,16 @@ function surrogenerator(x, method::NDFT, rng = Random.default_rng())
     inverse = plan_ifft(forward * x)
     𝓕 = forward * (x .- m)
 
-    init = (inverse = inverse,
-            m = m,
-            𝓕 = 𝓕,
-            r = abs.(𝓕),
-            ϕ = angle.(𝓕),
-            shuffled𝓕 = similar(𝓕),
-            coeffs = zeros(size(𝓕)),
-            n = n)
+    init = (
+        inverse = inverse,
+        m = m,
+        𝓕 = 𝓕,
+        r = abs.(𝓕),
+        ϕ = angle.(𝓕),
+        shuffled𝓕 = similar(𝓕),
+        coeffs = zeros(size(𝓕)),
+        n = n,
+    )
 
     return SurrogateGenerator(method, x, similar(x), init, rng)
 end
@@ -175,13 +178,15 @@ function (sg::SurrogateGenerator{<:NDFT})()
     s, rng = sg.s, sg.rng
 
     init_fields = (:inverse, :m, :r, :ϕ, :shuffled𝓕, :coeffs, :n)
-    inverse, m, r, ϕ, shuffled𝓕, coeffs, n = getfield.(Ref(sg.init),
-                                                       init_fields)
+    inverse, m, r, ϕ, shuffled𝓕, coeffs, n = getfield.(
+        Ref(sg.init),
+        init_fields
+    )
     coeffs .= ϕ
     phaserand!(coeffs, rng)
     shuffled𝓕 .= r .* exp.(coeffs .* 1im)
     _s = inverse * shuffled𝓕
-    @assert all(isapprox.(imag.(_s), 0; atol = 1e-3))
+    @assert all(isapprox.(imag.(_s), 0; atol = 1.0e-3))
     s .= map(real, parent(_s)) .+ m
     return s
 end
@@ -199,16 +204,18 @@ function surrogenerator(x, method::NDAAFT, rng = Random.default_rng())
     x_sorted = deepcopy(x)
     sort!(view(x_sorted, :))
 
-    init = (inverse = inverse,
-            x_sorted = x_sorted,
-            ix = zeros(Int, size(x)),
-            m = m,
-            𝓕 = 𝓕,
-            r = abs.(𝓕),
-            ϕ = angle.(𝓕),
-            shuffled𝓕 = similar(𝓕),
-            coeffs = zeros(size(𝓕)),
-            n = n)
+    init = (
+        inverse = inverse,
+        x_sorted = x_sorted,
+        ix = zeros(Int, size(x)),
+        m = m,
+        𝓕 = 𝓕,
+        r = abs.(𝓕),
+        ϕ = angle.(𝓕),
+        shuffled𝓕 = similar(𝓕),
+        coeffs = zeros(size(𝓕)),
+        n = n,
+    )
 
     return SurrogateGenerator(method, x, similar(x), init, rng)
 end
@@ -217,13 +224,15 @@ function (sg::SurrogateGenerator{<:NDAAFT})()
     s, rng = sg.s, sg.rng
 
     init_fields = (:inverse, :x_sorted, :ix, :m, :r, :ϕ, :shuffled𝓕, :coeffs, :n)
-    inverse, x_sorted, ix, m, r, ϕ, shuffled𝓕, coeffs, n = getfield.(Ref(sg.init),
-                                                                     init_fields)
+    inverse, x_sorted, ix, m, r, ϕ, shuffled𝓕, coeffs, n = getfield.(
+        Ref(sg.init),
+        init_fields
+    )
     coeffs .= ϕ
     phaserand!(coeffs, rng)
     shuffled𝓕 .= r .* exp.(coeffs .* 1im)
     _s = inverse * shuffled𝓕
-    @assert all(isapprox.(imag.(_s), 0; atol = 1e-3))
+    @assert all(isapprox.(imag.(_s), 0; atol = 1.0e-3))
     s .= real.(_s) .+ m
 
     sortperm!(view(ix, :), view(s, :))
@@ -235,8 +244,8 @@ struct NDIAAFT <: Surrogate
     M::Int
     tol::Real
 
-    function NDIAAFT(; M::Int = 100, tol::Real = 1e-9)
-        new(M, tol)
+    function NDIAAFT(; M::Int = 100, tol::Real = 1.0e-9)
+        return new(M, tol)
     end
 end
 
@@ -255,35 +264,41 @@ function surrogenerator(x, method::NDIAAFT, rng = Random.default_rng())
     xpower = abs.(similar(𝓕)) .^ 2
     spower = copy(xpower)
 
-    init = (forward = forward,
-            inverse = inverse,
-            x_sorted = x_sorted,
-            ix = zeros(Int, size(x)),
-            xpower = xpower,
-            spower = spower,
-            m = m,
-            𝓕 = 𝓕,
-            r = abs.(𝓕),
-            ϕ = angle.(𝓕),
-            shuffled𝓕 = similar(𝓕),
-            coeffs = zeros(size(𝓕)),
-            n = n)
+    init = (
+        forward = forward,
+        inverse = inverse,
+        x_sorted = x_sorted,
+        ix = zeros(Int, size(x)),
+        xpower = xpower,
+        spower = spower,
+        m = m,
+        𝓕 = 𝓕,
+        r = abs.(𝓕),
+        ϕ = angle.(𝓕),
+        shuffled𝓕 = similar(𝓕),
+        coeffs = zeros(size(𝓕)),
+        n = n,
+    )
 
     return SurrogateGenerator(method, x, similar(x), init, rng)
 end
 
 function spectraloss(x, y)
-    sum(abs.((x .- y) ./ (x .+ y))) / 2
+    return sum(abs.((x .- y) ./ (x .+ y))) / 2
 end
 
 function (sg::SurrogateGenerator{<:NDIAAFT})()
     x, s, rng = sg.x, sg.s, sg.rng
 
-    init_fields = (:forward, :inverse, :x_sorted, :ix, :xpower, :spower, :m, :r, :ϕ, :𝓕,
-                   :shuffled𝓕,
-                   :coeffs, :n)
-    forward, inverse, x_sorted, ix, xpower, spower, m, r, ϕ, 𝓕, shuffled𝓕, coeffs, n = getfield.(Ref(sg.init),
-                                                                                                 init_fields)
+    init_fields = (
+        :forward, :inverse, :x_sorted, :ix, :xpower, :spower, :m, :r, :ϕ, :𝓕,
+        :shuffled𝓕,
+        :coeffs, :n,
+    )
+    forward, inverse, x_sorted, ix, xpower, spower, m, r, ϕ, 𝓕, shuffled𝓕, coeffs, n = getfield.(
+        Ref(sg.init),
+        init_fields
+    )
     M = sg.method.M
     tol = sg.method.tol
 
@@ -337,15 +352,21 @@ function surrogenerator(X::AbstractMatrix, rf::MVFT, rng = Random.default_rng())
     ϕ = angle.(𝓕)
     coeffs = zero(r[:, 1])
 
-    init = (inverse = inverse, m = m, coeffs = coeffs, n = n, r = r,
-            ϕ = ϕ, shuffled𝓕 = shuffled𝓕)
+    init = (
+        inverse = inverse, m = m, coeffs = coeffs, n = n, r = r,
+        ϕ = ϕ, shuffled𝓕 = shuffled𝓕,
+    )
     return SurrogateGenerator(rf, X, S, init, rng)
 end
 
 function (sg::SurrogateGenerator{<:MVFT})()
-    inverse, m, coeffs, n, r, ϕ, shuffled𝓕 = getfield.(Ref(sg.init),
-                                                       (:inverse, :m, :coeffs, :n, :r, :ϕ,
-                                                        :shuffled𝓕))
+    inverse, m, coeffs, n, r, ϕ, shuffled𝓕 = getfield.(
+        Ref(sg.init),
+        (
+            :inverse, :m, :coeffs, :n, :r, :ϕ,
+            :shuffled𝓕,
+        )
+    )
     S, rng = sg.s, sg.rng
 
     rand!(rng, Uniform(0, 2π), coeffs)

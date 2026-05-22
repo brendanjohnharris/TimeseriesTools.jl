@@ -2,7 +2,7 @@ using SparseArrays
 using Random
 using Distributions
 export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammarenewal!,
-       gammarenewal, fano_factor
+    gammarenewal, fano_factor
 
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
 normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ (σ^2))
@@ -11,24 +11,24 @@ function convolve(t::SpikeTrain; kernel::Function, range = 0.0)
     @assert all(t .== true)
     fs = [(x -> kernel(x .- _t)) for _t in times(t)]
     isempty(fs) && return x -> 0.0
-    if range > 0
+    return if range > 0
         function f(x)
             inrange = [abs(x - b) < range for b in times(t)] # Only consider spikes that are within a reasonable time of one another; the others should be negligible if the kernel decays
             _x = [g(x) for (i, g) in enumerate(fs) if inrange[i]]
             isempty(_x) && return x -> 0.0
-            sum(_x)
+            return sum(_x)
         end
     else
         function h(x)
             _x = [g(x) for g in fs]
             isempty(_x) && return 0.0
-            sum(_x)
+            return sum(_x)
         end
     end
 end
 
 function convolve(t::SpikeTrain, p; kernel::Function = normal, kwargs...)
-    convolve(t; kernel = kernel(p), kwargs...)
+    return convolve(t; kernel = kernel(p), kwargs...)
 end
 """
     sttc(a, b; Δt = 0.025)
@@ -100,12 +100,14 @@ function sttc(a::UnivariateTimeseries, b::UnivariateTimeseries; τ = 0.0, kwargs
     if τ != 0.0
         b = 𝒯(τ)(b)
     end
-    sttc(times(a), times(b); kwargs...)
+    return sttc(times(a), times(b); kwargs...)
 end
 sttc(; kwargs...) = (x, y) -> sttc(x, y; kwargs...)
-function sttc(a::AbstractVector{<:AbstractVector},
-              b::AbstractVector{<:AbstractVector}; kwargs...)
-    map(Iterators.product(a, b)) do (x, y)
+function sttc(
+        a::AbstractVector{<:AbstractVector},
+        b::AbstractVector{<:AbstractVector}; kwargs...
+    )
+    return map(Iterators.product(a, b)) do (x, y)
         sttc(x, y; kwargs...)
     end
 end
@@ -120,13 +122,17 @@ function sttc(a::AbstractVector{<:AbstractVector}; kwargs...)
     end
     return C
 end
-function sttc(a::DimensionalData.AbstractDimVector{<:AbstractVector},
-              b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
-    rebuild(a; data = sttc(parent(a), parent(b); kwargs...),
-            dims = (dims(a, 1), dims(b, 1)))
+function sttc(
+        a::DimensionalData.AbstractDimVector{<:AbstractVector},
+        b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...
+    )
+    return rebuild(
+        a; data = sttc(parent(a), parent(b); kwargs...),
+        dims = (dims(a, 1), dims(b, 1))
+    )
 end
 function sttc(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
-    rebuild(a; data = sttc(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
+    return rebuild(a; data = sttc(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
 end
 
 function mapneighbours!(x, y, f!; Δt)
@@ -153,6 +159,7 @@ function mapneighbours!(x, y, f!; Δt)
             j += 1
         end
     end
+    return
 end
 
 """
@@ -168,20 +175,22 @@ Constructs a sparse matrix of distances between neighbouring spikes in two sorte
 # Returns
 A sparse matrix `D` where `D[i, j]` represents the distance between the `i`-th spike in `x` and the `j`-th spike in `y`, for pairs of spikes within `Δt` of each other.
 """
-function closeneighbours(x::AbstractVector{T}, y::AbstractVector{T};
-                         kwargs...) where {T <: Real}
+function closeneighbours(
+        x::AbstractVector{T}, y::AbstractVector{T};
+        kwargs...
+    ) where {T <: Real}
     I = Vector{Int64}()
     J = Vector{Int64}()
     V = Vector{T}()
     function f!(a, b, i, j)
         push!(V, abs(a - b))
         push!(I, i)
-        push!(J, j)
+        return push!(J, j)
     end
     mapneighbours!(x, y, f!; kwargs...)
     lx = length(x)
     ly = length(y)
-    D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, lx, ly)
+    return D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, lx, ly)
 end
 
 """
@@ -209,23 +218,25 @@ function stoic(a, b; kpi = npi, σ = 0.025, Δt = σ * 10, normalize = true)
     end
     𝐶 = [0.0]
     function f!(a, b, i, j)
-        𝐶[1] = 𝐶[1] + kpi(σ)(abs(a - b))
+        return 𝐶[1] = 𝐶[1] + kpi(σ)(abs(a - b))
     end
     mapneighbours!(a, b, f!; Δt)
-    𝐶[1] ./ sqrt(𝐸a * 𝐸b)
+    return 𝐶[1] ./ sqrt(𝐸a * 𝐸b)
 end
 
 function stoic(a::UnivariateTimeseries, b::UnivariateTimeseries; τ = 0.0, kwargs...)
     if τ != 0.0
         b = 𝒯(τ)(b)
     end
-    stoic(times(a), times(b); kwargs...)
+    return stoic(times(a), times(b); kwargs...)
 end
 stoic(; kwargs...) = (x, y) -> stoic(x, y; kwargs...)
 
-function stoic(a::AbstractVector{<:AbstractVector},
-               b::AbstractVector{<:AbstractVector}; kwargs...)
-    map(Iterators.product(a, b)) do (x, y)
+function stoic(
+        a::AbstractVector{<:AbstractVector},
+        b::AbstractVector{<:AbstractVector}; kwargs...
+    )
+    return map(Iterators.product(a, b)) do (x, y)
         stoic(x, y; kwargs...)
     end
 end
@@ -240,13 +251,17 @@ function stoic(a::AbstractVector{<:AbstractVector}; kwargs...)
     end
     return C
 end
-function stoic(a::DimensionalData.AbstractDimVector{<:AbstractVector},
-               b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
-    rebuild(a; data = stoic(parent(a), parent(b); kwargs...),
-            dims = (dims(a, 1), dims(b, 1)))
+function stoic(
+        a::DimensionalData.AbstractDimVector{<:AbstractVector},
+        b::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...
+    )
+    return rebuild(
+        a; data = stoic(parent(a), parent(b); kwargs...),
+        dims = (dims(a, 1), dims(b, 1))
+    )
 end
 function stoic(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
-    rebuild(a; data = stoic(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
+    return rebuild(a; data = stoic(parent(a); kwargs...), dims = (dims(a, 1), dims(a, 1)))
 end
 
 """
@@ -268,6 +283,7 @@ function pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 =
         t += isis[i]
         spikes[i] = t
     end
+    return
 end
 
 """
@@ -283,11 +299,13 @@ Arguments:
   distribution with mean of 0 and standard deviation equal to the mean firing rate.
 - `kwargs...`: Additional keyword arguments to be passed to [`pointprocess!`](@ref).
 """
-function gammarenewal!(spikes::AbstractVector, α, θ;
-                       t0 = randn(Random.default_rng()) * α * θ, kwargs...)
+function gammarenewal!(
+        spikes::AbstractVector, α, θ;
+        t0 = randn(Random.default_rng()) * α * θ, kwargs...
+    )
     N = length(spikes)
     D = Distributions.Gamma(α, θ)
-    pointprocess!(spikes, D; t0, kwargs...)
+    return pointprocess!(spikes, D; t0, kwargs...)
 end
 
 """
@@ -392,25 +410,29 @@ Calculate the Fano factor across multiple timescales.
 # Returns
 - A [`Timeseries`](@ref) object containing Fano factor values at each timescale.
 """
-function fano_factor(spike_times::AbstractVector{<:Number},
-                     τ_values::AbstractVector = defaultfanobins(spike_times))
+function fano_factor(
+        spike_times::AbstractVector{<:Number},
+        τ_values::AbstractVector = defaultfanobins(spike_times)
+    )
     f = [fano_factor(spike_times, τ) for τ in τ_values]
     return Timeseries(f, τ_values)
 end
 
 function fano_factor(spike_times::AbstractVector{<:AbstractVector{<:Number}}, args...)
-    map(spike_times) do s
+    return map(spike_times) do s
         fano_factor(s, args...)
     end |> stack
 end
 
 function fano_factor(spike_train::SpikeTrain, τ::Number)
-    fano_factor(spiketimes(spike_train), τ)
+    return fano_factor(spiketimes(spike_train), τ)
 end
 
-function fano_factor(spike_train::SpikeTrain,
-                     τs::AbstractVector = defaultfanobins(spiketimes(spike_train)))
-    fano_factor(spiketimes(spike_train), τs)
+function fano_factor(
+        spike_train::SpikeTrain,
+        τs::AbstractVector = defaultfanobins(spiketimes(spike_train))
+    )
+    return fano_factor(spiketimes(spike_train), τs)
 end
 
 function defaultfanobins(ts)

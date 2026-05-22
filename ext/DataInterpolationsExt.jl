@@ -7,22 +7,30 @@ using TimeseriesTools
 using Unitful
 import TimeseriesTools: interpolate, upsample
 
-function interpolate(x::DimensionalData.AbstractDimVector,
-                     interp::Type{<:AbstractInterpolation} = AkimaInterpolation,
-                     args...; extrapolation = ExtrapolationType.Extension, kwargs...)
+function interpolate(
+        x::DimensionalData.AbstractDimVector,
+        interp::Type{<:AbstractInterpolation} = AkimaInterpolation,
+        args...; extrapolation = ExtrapolationType.Extension, kwargs...
+    )
     DimensionalData.isforward(x) ||
         throw(ArgumentError("`interpolate` only supports forward-ordered data"))
-    interp(parent(x) .|> ustrip, x |> lookup |> only .|> ustrip, args...; extrapolation,
-           kwargs...)
+    return interp(
+        parent(x) .|> ustrip, x |> lookup |> only .|> ustrip, args...; extrapolation,
+        kwargs...
+    )
 end
 function (itp::AbstractInterpolation)(x::DimensionalData.Dimension; kwargs...)
-    DimensionalData.dimconstructor((x,))((x |> lookup .|> ustrip |> itp),
-                                         (x,);
-                                         kwargs...)
+    return DimensionalData.dimconstructor((x,))(
+        (x |> lookup .|> ustrip |> itp),
+        (x,);
+        kwargs...
+    )
 end
 
-function upsample(x::DimensionalData.AbstractDimArray, factor::Number, args...;
-                  dims = 1, kwargs...)
+function upsample(
+        x::DimensionalData.AbstractDimArray, factor::Number, args...;
+        dims = 1, kwargs...
+    )
     u = unit(eltype(x))
     y = x
     for dim in dims

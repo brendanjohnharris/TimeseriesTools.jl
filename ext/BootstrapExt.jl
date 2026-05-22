@@ -3,8 +3,10 @@ using Bootstrap
 using Statistics
 import TimeseriesTools: bootstrapaverage, bootstrapmedian, bootstrapmean, nansafe
 
-function bootstrapaverage(average, x::AbstractVector; confint = 0.95,
-                          N = 10000)#::Tuple{T, Tuple{T, T}} where {T}
+function bootstrapaverage(
+        average, x::AbstractVector; confint = 0.95,
+        N = 10000
+    ) #::Tuple{T, Tuple{T, T}} where {T}
     sum(!isnan, x) < 5 && return (NaN, (NaN, NaN))
 
     # * Estimate a sampling distribution of the average

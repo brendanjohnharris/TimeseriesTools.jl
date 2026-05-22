@@ -29,8 +29,10 @@ function Base.show(io::IO, m::MAPPLE)
     println(io, round(m.params.transition_width, digits = 4))
 
     # Components (Red)
-    printstyled(io, "\nComponents ($(length(m.params.components))):\n", color = :red,
-                bold = true)
+    printstyled(
+        io, "\nComponents ($(length(m.params.components))):\n", color = :red,
+        bold = true
+    )
     for (i, comp) in enumerate(m.params.components)
         printstyled(io, "  Component $i:\n")
         printstyled(io, "    log_f_stop: ")
@@ -50,15 +52,16 @@ function Base.show(io::IO, m::MAPPLE)
         printstyled(io, "    log_A:  ")
         println(io, round(peak.log_A, digits = 4))
     end
+    return
 end
 
 function MAPPLE(; peaks, components, log_A, transition_width)
-    ComponentArray(; log_A, peaks, components, transition_width) |> MAPPLE
+    return ComponentArray(; log_A, peaks, components, transition_width) |> MAPPLE
 end
 
 function mapple_sort!(params)
     sort!(params.peaks; by = p -> p.log_f)
-    sort!(params.components; by = c -> c.log_f_stop)
+    return sort!(params.components; by = c -> c.log_f_stop)
 end
 mapple_sort(params) = (params = deepcopy(params); mapple_sort!(params); params)
 
@@ -81,7 +84,7 @@ function frequency_check(f, log_f)
         @warn "Frequencies should be positive"
     end
     df = diff(log_f)
-    if maximum(df) > minimum(df) * 10
+    return if maximum(df) > minimum(df) * 10
         @warn "Frequencies should be evenly spaced in log-space"
     end
 end
@@ -106,7 +109,7 @@ function StatsAPI.fit(::Type{MAPPLE}, spectrum::AbstractDimVector; kwargs...)
 end
 function StatsAPI.fit(::Type{MAPPLE}, f::AbstractVector, s::AbstractVector; kwargs...)
     spectrum = ToolsArray(s, f)
-    StatsAPI.fit(MAPPLE, spectrum; kwargs...)
+    return StatsAPI.fit(MAPPLE, spectrum; kwargs...)
 end
 
 StatsAPI.params(m::MAPPLE) = m.params
@@ -122,24 +125,30 @@ function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
     mapple!(s, f, components, peaks)
     return s
 end
-function mapple(f, component_params::ComponentArray{T},
-                peaks::ComponentArray{F}) where {T, F <: AbstractFloat}
+function mapple(
+        f, component_params::ComponentArray{T},
+        peaks::ComponentArray{F}
+    ) where {T, F <: AbstractFloat}
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
     mapple!(s, f, component_params, peaks)
     return s
 end
-function mapple(f, component_params::ComponentArray{F},
-                peaks::ComponentArray{T}) where {T, F <: AbstractFloat}
+function mapple(
+        f, component_params::ComponentArray{F},
+        peaks::ComponentArray{T}
+    ) where {T, F <: AbstractFloat}
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
     mapple!(s, f, component_params, peaks)
     return s
 end
-function mapple(f, component_params::ComponentArray{F1},
-                peaks::ComponentArray{F2}) where {F1 <: AbstractFloat, F2 <: AbstractFloat}
+function mapple(
+        f, component_params::ComponentArray{F1},
+        peaks::ComponentArray{F2}
+    ) where {F1 <: AbstractFloat, F2 <: AbstractFloat}
     ElType = promote_type(eltype(f), F1, F2)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
@@ -179,7 +188,7 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
         β_curr = components[idx_curr].β
 
         component_amplitudes[idx_curr] = component_amplitudes[idx_prev] *
-                                         f_transition^(β_prev - β_curr)
+            f_transition^(β_prev - β_curr)
     end
 
     # * Evaluate the model
@@ -202,7 +211,7 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
             end
 
             log_f_stop = if j == n_components
-                seg.log_f_stop# Inf # No transition width for final component
+                seg.log_f_stop # Inf # No transition width for final component
             else
                 seg.log_f_stop
             end
@@ -232,14 +241,17 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
             s[i] += A_peak * exp(-Δf^2 / (2 * σ_peak^2))
         end
     end
+    return
 end
 
-function fit_mapple(log_f, log_s;
-                    w = max(1, length(log_f) ÷ 100),
-                    peaks,
-                    components,
-                    minprom = (maximum(log_s) - minimum(log_s)) / 50,
-                    kwargs...)
+function fit_mapple(
+        log_f, log_s;
+        w = max(1, length(log_f) ÷ 100),
+        peaks,
+        components,
+        minprom = (maximum(log_s) - minimum(log_s)) / 50,
+        kwargs...
+    )
     logspectrum = ToolsArray(log_s, Log10𝑓(log_f))
     log_A = first(log_s) # Estimate of amplitude
 
@@ -258,9 +270,13 @@ function fit_mapple(log_f, log_s;
     if !isnothing(peaks) && !isempty(proms)
         if peaks > length(proms)
             proms = vcat(proms, [mean(log_s) for _ in 1:(peaks - length(proms))])
-            bounds = vcat(bounds,
-                          [deepcopy(first(bounds))
-                           for _ in 1:(peaks - length(bounds))])
+            bounds = vcat(
+                bounds,
+                [
+                    deepcopy(first(bounds))
+                        for _ in 1:(peaks - length(bounds))
+                ]
+            )
         end
 
         ps = sortperm(proms; rev = true)[1:peaks]

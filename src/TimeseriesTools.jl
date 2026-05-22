@@ -25,7 +25,7 @@ highpass(x::AbstractTimeseries) = x
 lowpass(x::AbstractTimeseries) = x
 
 function timescale(x::UnivariateTimeseries; method = :ac_crossing)
-    timescale(x::UnivariateTimeseries, Val{method}())
+    return timescale(x::UnivariateTimeseries, Val{method}())
 end
 
 # ? Placeholder functions for extensions
@@ -36,7 +36,7 @@ function analyticphase end
 function instantaneousfreq end
 instantfreq = instantaneousfreq
 export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude,
-       instantaneousfreq, instantfreq, highpass, lowpass
+    instantaneousfreq, instantfreq, highpass, lowpass
 
 function _waveletfreqs end
 function _waveletspectrogram end

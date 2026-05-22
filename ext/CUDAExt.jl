@@ -3,15 +3,17 @@ using CUDA
 using TimeseriesTools
 using ContinuousWavelets
 import ContinuousWavelets: cwt, ensureComplex, getNWavelets, prepSignalAndPlans,
-                           boundaryType, reflect, analyticTransformReal!,
-                           analyticTransformComplex!,
-                           otherwiseTransform!
+    boundaryType, reflect, analyticTransformReal!,
+    analyticTransformComplex!,
+    otherwiseTransform!
 
 CUDA.CuArray(x::AbstractTimeseries) = set(x, CuArray(x.data))
 
-function Base.show(io::IO, mime,
-                   X::ToolsArray{T, N, Tp, F, C} where {T, N, Tp, F, C <: CuArray})
-    Base.show(X.data)
+function Base.show(
+        io::IO, mime,
+        X::ToolsArray{T, N, Tp, F, C} where {T, N, Tp, F, C <: CuArray}
+    )
+    return Base.show(X.data)
 end
 
 function cwt(Y::CuArray{T, N}, cWav::CWT, daughters, fftPlans = 1) where {N, T}

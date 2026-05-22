@@ -8,7 +8,7 @@ using TestItemRunner
     Aqua.test_all(TimeseriesTools)
 end
 
-@testitem "Dates" tags=[:fast] begin
+@testitem "Dates" tags = [:fast] begin
     using Dates, Unitful
     x = 1:100
     t = DateTime(1901):Year(1):DateTime(2000)
@@ -37,14 +37,14 @@ end
     @test unit(eltype(lookup(Pxu, 1))) == u"s^-1"
     @test all(ustripall(Pxu) .≈ Pxx)
 
-    @test_throws "DomainError" powerspectrum(x, 1e-6)
+    @test_throws "DomainError" powerspectrum(x, 1.0e-6)
 
     # Plotting
     p = @test_nowarn lines(Pxx)
 
     freqs = dims(Pxx, 𝑓)
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-    @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+    @test collect(freqs[peaks]) ≈ [50.0, 100.0] rtol = 1.0e-2
 
     xx = hcat(ts, ts)
     mts = ToolsArray(xx, (𝑡(t), Var(:)))
@@ -56,7 +56,7 @@ end
         local Pxx = Pxx_mts[:, i]
         local freqs = dims(Pxx, 𝑓)
         local peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)
-        @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+        @test collect(freqs[peaks]) ≈ [50.0, 100.0] rtol = 1.0e-2
     end
 
     #  !!!Test padding
@@ -71,17 +71,17 @@ end
 
     freqs = dims(Pb, 𝑓)
     peaks = findall(x -> x > maximum(Pb) / 2, Pb)
-    @test collect(freqs[peaks])≈[50.0, 100.0] rtol=1e-2
+    @test collect(freqs[peaks]) ≈ [50.0, 100.0] rtol = 1.0e-2
 
     # @test 2 * sum(energyspectrum(x) .^ 2) .= sum(x .^ 2)
-    @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pa) .* step(TimeseriesTools.freqs(Pa)) * 2 rtol=1e-3
-    @test sum(x .^ 2) .* samplingperiod(x)≈sum(Pb) .* step(TimeseriesTools.freqs(Pb)) * 2 rtol=1e-5
+    @test sum(x .^ 2) .* samplingperiod(x) ≈ sum(Pa) .* step(TimeseriesTools.freqs(Pa)) * 2 rtol = 1.0e-3
+    @test sum(x .^ 2) .* samplingperiod(x) ≈ sum(Pb) .* step(TimeseriesTools.freqs(Pb)) * 2 rtol = 1.0e-5
     # # Plotting
     # f = Figure() ax = Axis(f[1, 1]) @test_nowarn lines!(ax, TimeseriesTools.freqs(Pa), Pa)
     # @test_nowarn lines!(ax, TimeseriesTools.freqs(Pb), Pb) save("tmp.pdf", f)
 end
 
-@testitem "Operators" tags=[:fast] begin
+@testitem "Operators" tags = [:fast] begin
     import TimeseriesTools.TimeseriesBase.Operators: ℬ!, ℒ!, ℬ, ℒ, 𝒯
     x = colorednoise(1:1000)
     _x = deepcopy(x)

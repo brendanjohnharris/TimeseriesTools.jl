@@ -10,7 +10,7 @@ import TimeseriesTools.TimeseriesBase.Spectra: RegularSpectrogram
 function _waveletfreqs(t; moth = Morlet(2π), β = 1, Q = 32)
     n = length(t)
     fs = 1.0 ./ step(t) # Assume rectified time dim
-    W = ContinuousWavelets.computeWavelets(n, wavelet(moth; β, Q);)[1]
+    W = ContinuousWavelets.computeWavelets(n, wavelet(moth; β, Q))[1]
     freqs = getMeanFreq(W, fs)
     freqs[1] = 0
     return freqs
@@ -23,7 +23,7 @@ end
 
 function _waveletspectrogram(x::AbstractVector; moth, β, Q) # β = 1 means linear in log space
     c = wavelet(moth; β, Q)
-    res = ContinuousWavelets.cwt(x, c)
+    return res = ContinuousWavelets.cwt(x, c)
 end
 
 function _waveletspectrogram(t, x::AbstractVector; pass = nothing, moth, β, Q)
@@ -37,17 +37,21 @@ function _waveletspectrogram(t, x::AbstractVector; pass = nothing, moth, β, Q)
     freqs = getMeanFreq(W, 1.0 ./ step(t))
     pass = ClosedInterval(0, maximum(pass))
     W = W[:, freqs .∈ [pass]]
-    res = ContinuousWavelets.cwt(x, c, W)[:, freqs .∈ [pass]]
+    return res = ContinuousWavelets.cwt(x, c, W)[:, freqs .∈ [pass]]
 end
 
-function _waveletspectrogram(x::RegularTimeseries; moth = Morlet(2π), β = 1,
-                             Q = 32,
-                             pass = nothing)::RegularSpectrogram
+function _waveletspectrogram(
+        x::RegularTimeseries; moth = Morlet(2π), β = 1,
+        Q = 32,
+        pass = nothing
+    )::RegularSpectrogram
     t = times(x)
     res = _waveletspectrogram(t, x.data; moth, β, Q, pass)
     freqs = waveletfreqs(t; moth, β, Q, pass)
-    res = Timeseries(res, t, 𝑓(freqs); metadata = DimensionalData.metadata(x),
-                     refdims = refdims(x))
+    return res = Timeseries(
+        res, t, 𝑓(freqs); metadata = DimensionalData.metadata(x),
+        refdims = refdims(x)
+    )
 end
 
 # function _waveletspectrogram(x::RegularTimeseries, ::Val{:mmap}; window = 50000,
@@ -87,11 +91,11 @@ end
 _waveletspectrogram(x, s::Symbol; kwargs...) = _waveletspectrogram(x, Val(s); kwargs...)
 
 function waveletspectrogram(x::RegularTimeseries, args...; kwargs...)::RegularSpectrogram
-    _waveletspectrogram(x, args...; kwargs...)
+    return _waveletspectrogram(x, args...; kwargs...)
 end
 function waveletspectrogram(x::MultivariateTimeseries, args...; kwargs...)
     f = x -> waveletspectrogram(x)
-    ToolsArray(map(f, eachslice(x; dims = 2)), dims(x, 2)) |> stack
+    return ToolsArray(map(f, eachslice(x; dims = 2)), dims(x, 2)) |> stack
 end
 
 # ! Add normalized energy spectra and power spectra for wavelet transform

@@ -6,7 +6,7 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-                        frequency_check, mapple_sort
+    frequency_check, mapple_sort
 
 function mapple_bounds(log_f, log_s, initial_params)
     lower = deepcopy(initial_params)
@@ -133,19 +133,21 @@ mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
 function component_loss(components; f, log_s, peaks)
     pred = mapple(f, components, peaks)
     pred_log = map(log10, pred)
-    loss = sum((log_s .- pred_log) .^ 2)
+    return loss = sum((log_s .- pred_log) .^ 2)
 end
 component_loss(; kwargs...) = params -> component_loss(params; kwargs...)
 function peak_loss(peaks; f, log_s, components)
     pred = mapple(f, components, peaks)
     pred_log = map(log10, pred)
-    loss = sum((log_s .- pred_log) .^ 2)
+    return loss = sum((log_s .- pred_log) .^ 2)
 end
 peak_loss(; kwargs...) = params -> peak_loss(params; kwargs...)
 
-function fit_mapple(log_f, log_s, initial_params;
-                    algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
-                    altol = 1e-6, kwargs...) # If you have ForwardDiff loaded, you can pass autodiff=:forward
+function fit_mapple(
+        log_f, log_s, initial_params;
+        algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
+        altol = 1.0e-6, kwargs...
+    ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
 
     lower, upper = mapple_bounds(log_f, log_s, initial_params)
@@ -166,17 +168,21 @@ function fit_mapple(log_f, log_s, initial_params;
             peaks = params[pidxs]
 
             obj = component_loss(; f, log_s, peaks)
-            result = optimize(obj, lower[cidxs], upper[cidxs], params[cidxs],
-                              Fminbox(algorithm),
-                              Optim.Options(; kwargs...); autodiff)
+            result = optimize(
+                obj, lower[cidxs], upper[cidxs], params[cidxs],
+                Fminbox(algorithm),
+                Optim.Options(; kwargs...); autodiff
+            )
             components .= Optim.minimizer(result) # Update component params
             params[cidxs] .= components
 
             # * Then peak optimization
             obj = peak_loss(; f, log_s, components)
-            result = optimize(obj, lower[pidxs], upper[pidxs], params[pidxs],
-                              Fminbox(algorithm),
-                              Optim.Options(; kwargs...); autodiff)
+            result = optimize(
+                obj, lower[pidxs], upper[pidxs], params[pidxs],
+                Fminbox(algorithm),
+                Optim.Options(; kwargs...); autodiff
+            )
             peaks .= Optim.minimizer(result) # Update peak params
             params[pidxs] .= peaks
 
@@ -186,8 +192,10 @@ function fit_mapple(log_f, log_s, initial_params;
     end
 
     # * Final joint optimization
-    result = optimize(objective, lower, upper, params, Fminbox(algorithm),
-                      Optim.Options(; kwargs...); autodiff)
+    result = optimize(
+        objective, lower, upper, params, Fminbox(algorithm),
+        Optim.Options(; kwargs...); autodiff
+    )
     loss = objective(Optim.minimizer(result))
     return Optim.minimizer(result)
 end
@@ -196,18 +204,20 @@ end
     fit!(m::MAPPLE, logspectrum; kwargs...)
 Refine the parameters of a MAPPLE model `m` to fit the provided `spectrum`.
 """
-function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector{T, D};
-                       kwargs...) where {T, d, D <: Tuple{<:d}}
+function StatsAPI.fit!(
+        m::MAPPLE, spectrum::AbstractDimVector{T, D};
+        kwargs...
+    ) where {T, d, D <: Tuple{<:d}}
     log_f = map(log10, lookup(spectrum, 1))
     log_s = map(log10, parent(spectrum))
     frequency_check(lookup(spectrum, 1), log_f)
     params = fit_mapple(log_f, log_s, m.params; kwargs...)
     m.params .= params
-    sort!(m)
+    return sort!(m)
 end
 function StatsAPI.fit!(m::Type{MAPPLE}, f::AbstractVector, s::AbstractVector; kwargs...)
     spectrum = ToolsArray(s, f)
-    StatsAPI.fit!(m, spectrum; kwargs...)
+    return StatsAPI.fit!(m, spectrum; kwargs...)
 end
 
 end

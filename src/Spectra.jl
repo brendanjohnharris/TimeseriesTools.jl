@@ -8,11 +8,13 @@ using ComponentArrays
 import TimeseriesBase.Operators.𝒯
 
 export spectrum, energyspectrum, powerspectrum, _energyspectrum, _powerspectrum,
-       colorednoise, logsample, logbin
+    colorednoise, logsample, logbin
 
-function _periodogram(x::AbstractVector, fs::Number,
-                      f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
-                      kwargs...)
+function _periodogram(
+        x::AbstractVector, fs::Number,
+        f_min::Number = fs / min(length(x) ÷ 4, 1000); padding = 0,
+        kwargs...
+    )
     n = length(x)
     validfreqs = rfftfreq(n, fs)
     if f_min == 0
@@ -44,10 +46,14 @@ function _periodogram(x::AbstractVector, fs::Number,
         segment = x[start_idx:end_idx] .* hann_window
         if padding > 0
             dt = samplingperiod(segment)
-            padts = range(start = minimum(times(segment)) + dt, step = dt,
-                          length = padding + length(segment))
-            segment = Timeseries([segment.data; zeros(padding) * unit(eltype(segment))],
-                                 padts)
+            padts = range(
+                start = minimum(times(segment)) + dt, step = dt,
+                length = padding + length(segment)
+            )
+            segment = Timeseries(
+                [segment.data; zeros(padding) * unit(eltype(segment))],
+                padts
+            )
         end
 
         y = rfft(segment) / (nfft + padding)
@@ -63,7 +69,7 @@ function _periodogram(x::AbstractVector, fs::Number,
     meanS̄ = mean(S̄, dims = 2)
     S̄ = S̄ ./ ustripall((sum(meanS̄) - 0.5 .* meanS̄[1]) .* df) # Subtract the zero frequency component twice, so that it doesn't bias when we divide by a half
     S̄ = 0.5 * S̄ * ustripall(sum(x .^ 2) ./ fs) # Normalized to have total energy equal to energy of signal. Ala parseval. 0.5 because we only return the positive half of the spectrum.
-    Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
+    return Spectrum(freqs, Dim{:window}(1:n_segments), S̄; kwargs...)
 end
 
 """
@@ -71,9 +77,11 @@ end
 
 Computes the energy spectrum of a regularly sampled time series `x` with an optional minimum frequency `f_min`.
 """
-function _energyspectrum(x::typeintersect(RegularTimeseries, UnivariateTimeseries),
-                         f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
-                         kwargs...)
+function _energyspectrum(
+        x::typeintersect(RegularTimeseries, UnivariateTimeseries),
+        f_min::Number = samplingrate(x) / min(length(x) ÷ 4, 1000);
+        kwargs...
+    )
     return _periodogram(x, samplingrate(x), f_min; kwargs...)
 end
 
@@ -99,8 +107,10 @@ julia> S isa MultivariateSpectrum
 ```
 """
 function _energyspectrum(x::MultivariateTimeseries, args...; kwargs...)
-    X = [_energyspectrum(_x, args...; kwargs...)
-         for _x in eachslice(x, dims = 2)]
+    X = [
+        _energyspectrum(_x, args...; kwargs...)
+            for _x in eachslice(x, dims = 2)
+    ]
     return ToolsArray(X, dims(x, 2)) |> stack
 end
 
@@ -112,8 +122,10 @@ Computes the average energy spectrum of a regularly sampled time series `x`.
 See [`_energyspectrum`](@ref).
 """
 function energyspectrum(x, args...; kwargs...)
-    dropdims(mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
-             dims = Dim{:window})
+    return dropdims(
+        mean(_energyspectrum(x, args...; kwargs...), dims = Dim{:window});
+        dims = Dim{:window}
+    )
 end
 
 """
@@ -134,8 +146,10 @@ end
 Computes the average power spectrum of a time series `x` using the Welch periodogram method.
 """
 function powerspectrum(x::AbstractTimeseries, args...; kwargs...)
-    dropdims(mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
-             dims = Dim{:window})
+    return dropdims(
+        mean(_powerspectrum(x, args...; kwargs...), dims = Dim{:window});
+        dims = Dim{:window}
+    )
 end
 
 spectrum = powerspectrum
@@ -160,8 +174,10 @@ pink_noise = colorednoise(1:0.01:10; α=1.0)
 pink_noise isa RegularTimeseries
 ```
 """
-function colorednoise(ts::AbstractRange{T}, args...; α = 2.0,
-                      kwargs...) where {T}
+function colorednoise(
+        ts::AbstractRange{T}, args...; α = 2.0,
+        kwargs...
+    ) where {T}
     u = unit(T)
     ts = T <: Quantity ? ustrip(ts) : ts
     dt = step(ts)
@@ -172,7 +188,7 @@ function colorednoise(ts::AbstractRange{T}, args...; α = 2.0,
     dt = length(ts) * step(f)
     t = range(0, (length(x) - 1) * dt, length = length(x))
     @assert all(t .+ first(ts) .≈ ts)
-    Timeseries(x, ts * u, args...; kwargs...)
+    return Timeseries(x, ts * u, args...; kwargs...)
 end
 
 function spikefft(t::AbstractVector, ::Val{:schild})
@@ -181,7 +197,7 @@ function spikefft(t::AbstractVector, ::Val{:schild})
     @debug "Calculating spike FFT using :schild method"
     t .-= minimum(t)
     T = maximum(t)
-    W(f) = (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
+    return W(f) = (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
 end
 
 spikefft(fs, t::AbstractVector, method) = spikefft(t, method).(fs)
@@ -192,8 +208,10 @@ function spikefft(fs, t::SpikeTrain, method = :schild)
     return Spectrum(fs, F.(fs))
 end
 
-function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
-                         method = stoic(; σ = 0.005), kwargs...)
+function _energyspectrum(
+        x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
+        method = stoic(; σ = 0.005), kwargs...
+    )
     t = times(x[x])
     n = length(t)
     df = step(frange)
@@ -217,11 +235,11 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::AbstractRange;
     S̄ = S̄ ./ ustripall((2 * sum(S̄) - S̄[1]) .* df) # Subtract the zero frequency component a bit, so it doesn't bias when we divide by half
     # display(2 * sum(S̄[2:end]) + S̄[1])
     S̄ = S̄ * ustripall(length(t)) # Normalized to have total energy equal to energy of signal. Ala parseval.
-    Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
+    return Spectrum(frange, Dim{:window}([1]), Matrix(S̄')'; kwargs...)
 end
 
 function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...)
-    _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
+    return _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
 end
 
 function logbin(_s::AbstractDimVector{T, D}) where {T, d, D <: Tuple{<:d}}

@@ -24,22 +24,24 @@
     x = randn(10, 10, 10)
     ϕ = angle.(fft(x))
     phaserand!(ϕ)
-    @test sum(fftshift((ϕ))[2:end, 2:end, 2:end] .+
-              reverse(fftshift((ϕ))[2:end, 2:end, 2:end]) .== 0) ==
-          length(ϕ[2:end, 2:end, 2:end]) - 1
+    @test sum(
+        fftshift((ϕ))[2:end, 2:end, 2:end] .+
+            reverse(fftshift((ϕ))[2:end, 2:end, 2:end]) .== 0
+    ) ==
+        length(ϕ[2:end, 2:end, 2:end]) - 1
 
     # * Mixed
     x = f.(Iterators.product(range(0, 1, length = 6), range(0, 1, length = 5)))
     ϕ = angle.(fft(x))
     phaserand!(ϕ)
     @test sum(fftshift((ϕ))[2:end, :] .+ reverse(fftshift((ϕ))[2:end, :]) .== 0) ==
-          length(ϕ[2:end, :]) - 1
+        length(ϕ[2:end, :]) - 1
 
     x = randn(11, 10, 11)
     ϕ = angle.(fft(x))
     phaserand!(ϕ)
     @test sum(fftshift((ϕ))[:, 2:end, :] .+ reverse(fftshift((ϕ))[:, 2:end, :]) .== 0) ==
-          length(ϕ[:, 2:end, :]) - 1
+        length(ϕ[:, 2:end, :]) - 1
 end
 
 @testitem "1D ND surrogates" begin
@@ -56,27 +58,27 @@ end
     Ŝ = abs.(fft(x̂)) .^ 2
     ŝ = spectrum(rectify(x̂, dims = 𝑡))
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 1.0e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s) ≈ 0 atol = 1.0e-1
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     ŝ = spectrum(rectify(x̂, dims = 𝑡))
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=1e-9
-    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=1e-1
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 1.0e-9
+    @test sum(abs.(s .- ŝ)) ./ sum(s) ≈ 0 atol = 1.0e-1
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDAAFT())
     ŝ = spectrum(rectify(x̂, dims = 𝑡))
-    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.15
+    @test sum(abs.(s .- ŝ)) ./ sum(s) ≈ 0 atol = 0.15
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDIAAFT())
 
     ŝ = spectrum(rectify(x̂, dims = 𝑡))
-    @test sum(abs.(s .- ŝ)) ./ sum(s)≈0 atol=0.1
+    @test sum(abs.(s .- ŝ)) ./ sum(s) ≈ 0 atol = 0.1
 end
 
 @testitem "2D ND surrogates" begin
@@ -98,25 +100,25 @@ end
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 2.0e-9
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDAAFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-3
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 2.0e-3
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDIAAFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-3
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 2.0e-3
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), MVFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-10
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 2.0e-10
 
     # * Even
     x = f.(Iterators.product(range(0, 1, length = 4), range(0, 1, length = 4)))
@@ -126,21 +128,23 @@ end
     ϕ = angle.(fft(x))
     phaserand!(ϕ)
     @test sum(fftshift((ϕ))[2:end, 2:end] .+ reverse(fftshift((ϕ))[2:end, 2:end]) .== 0) ==
-          length(ϕ[2:end, 2:end]) - 1 # The zero frequency phase should be non-zero, although this doesn't matter
+        length(ϕ[2:end, 2:end]) - 1 # The zero frequency phase should be non-zero, although this doesn't matter
 
     x̂ = deepcopy(x)
     x̂ .= surrogate(collect(x), NDFT())
     Ŝ = abs.(fft(x̂)) .^ 2
     @test length(Ŝ) == length(S)
-    @test sum(abs.(S .- Ŝ)) ./ sum(S)≈0 atol=2e-9
+    @test sum(abs.(S .- Ŝ)) ./ sum(S) ≈ 0 atol = 2.0e-9
 end
 
 @testitem "ND Fourier transform surrogates" begin
     using DSP, TimeseriesSurrogates, FFTW, LinearAlgebra, StatsBase
     import TimeseriesTools: NDAAFT, NDIAAFT, MVFT
     xs = -0.6:0.01:0.6
-    x = [ToolsArray([colorednoise(0:0.01:1) for _ in xs], DimensionalData.X(xs)) |> stack
-         for _ in xs]
+    x = [
+        ToolsArray([colorednoise(0:0.01:1) for _ in xs], DimensionalData.X(xs)) |> stack
+            for _ in xs
+    ]
     x = ToolsArray(x, Y(xs)) |> stack
 
     S = abs.(rfft(x)) .^ 2
@@ -150,7 +154,7 @@ end
 
     Ŝ = abs.(rfft(x̂)) .^ 2
 
-    @test S≈Ŝ rtol=1e-10
+    @test S ≈ Ŝ rtol = 1.0e-10
 
     # * Larger array, smoothed
     xs = -0.6:0.01:0.6
@@ -223,7 +227,7 @@ end
     # plot!(Ss.freq, Ss.power)
     # current_figure()
 
-    @test S≈Ŝ rtol=1e-10
+    @test S ≈ Ŝ rtol = 1.0e-10
 
     x = bandpass(x̂, 0.1 .. 0.5)
     y = angle.(hilbert(x))

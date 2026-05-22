@@ -16,5 +16,5 @@ function FFTW.rfft(x::UnitfulTimeseries{<:Quantity{T}}) where {T} # 🐕
     a = x |> eltype |> unit
     x_re = reinterpret(T, parent(x))
     ℱ = rfft(x_re)
-    ℱ = (ℱ) * (a * t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
+    return ℱ = (ℱ) * (a * t) # CTFT has units of amplitude*time. Normalise the DFT to have bins the width of the sampling period.
 end
