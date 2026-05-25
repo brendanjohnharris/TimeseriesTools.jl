@@ -14,6 +14,7 @@ export fit, fit!, predict
 import Normalization: params!
 
 include("Utils.jl")
+include("Interpolate.jl")
 include("SpikeTrains.jl")
 include("Spectra.jl")
 include("Mapple.jl")
@@ -41,9 +42,10 @@ export phasestitch, bandpass, isoamplitude, analyticphase, analyticamplitude,
 function _waveletfreqs end
 function _waveletspectrogram end
 function waveletspectrogram end
-function interpolate end
 function msdist end
-export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist
+function resample end
+function impute end
+export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist, resample, impute
 
 # * BootstrapExt
 function bootstrapaverage end

@@ -3,7 +3,7 @@ import Normalization: NormUnion, AbstractNormalization, nansafe
 using Peaks
 using LinearAlgebra
 
-export findpeaks, maskpeaks!, maskpeaks, upsample, madev
+export findpeaks, maskpeaks!, maskpeaks, madev
 
 function findpeaks(
         x::DimensionalData.AbstractDimVector, w = 1;
@@ -81,18 +81,6 @@ function maskpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwarg
     return y
 end
 
-function upsample(d::DimensionalData.Dimension{<:RegularIndex}, factor::Number)
-    return rebuild(d, range(start = minimum(d), stop = maximum(d), step = step(d) / factor))
-end
-function upsample(d::DimensionalData.Dimension, factor)
-    return rebuild(
-        d,
-        range(
-            start = minimum(d), stop = maximum(d),
-            step = mean(diff(lookup(d))) / factor
-        )
-    )
-end
 
 _default_lags(x::AbstractVector) = range(1, length(x) - Int(length(x) ÷ 2), step = 1)
 _default_lags(x::AbstractMatrix) = range(1, size(x, 1) - Int(size(x, 1) ÷ 2), step = 1)

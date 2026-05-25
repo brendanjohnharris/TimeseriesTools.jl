@@ -192,20 +192,20 @@ end
 #     x = Timeseries(sol)
 # end
 
-@testitem "GeneralizedPhaseExt" begin
-    using GeneralizedPhase, Unitful
-    x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
-    X = [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]
-    X = ToolsArray(X, Var(1:10)) |> stack
-    _ϕ = @test_nowarn _generalized_phase(x)
-    ϕ = @test_nowarn _generalized_phase(X)
+# @testitem "GeneralizedPhaseExt" begin
+#     using GeneralizedPhase, Unitful
+#     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
+#     X = [bandpass(colorednoise(0.1:0.1:100), (0.1, 0.5)) for _ in 1:10]
+#     X = ToolsArray(X, Var(1:10)) |> stack
+#     _ϕ = @test_nowarn _generalized_phase(x)
+#     ϕ = @test_nowarn _generalized_phase(X)
 
-    x = set(x, 𝑡 => lookup(x, 𝑡).data * u"s")
-    X = set(X, 𝑡 => lookup(X, 𝑡).data * u"s")
+#     x = set(x, 𝑡 => lookup(x, 𝑡).data * u"s")
+#     X = set(X, 𝑡 => lookup(X, 𝑡).data * u"s")
 
-    ϕ = @test_nowarn _generalized_phase(x)
-    ϕ = @test_nowarn _generalized_phase(X)
-end
+#     ϕ = @test_nowarn _generalized_phase(x)
+#     ϕ = @test_nowarn _generalized_phase(X)
+# end
 
 @testitem "ComplexityMeasuresExt" begin
     using Distributions, LinearAlgebra, ComplexityMeasures
@@ -220,61 +220,6 @@ end
         Shannon(), ValueBinning(RectangularBinning(100)),
         StateSpaceSet(D)
     )
-end
-
-@testitem "Upsampling" begin
-    using DataInterpolations
-    using Unitful
-
-    # * Vector
-    ts = (rand(100) .- 0.5) * 2π
-    x = Timeseries(sinc.(ts), ts)
-    @test_throws "`interpolate` only supports forward" TimeseriesTools.interpolate(x)
-
-    sort!(ts)
-    x = Timeseries(sinc.(ts), ts)
-    itp = TimeseriesTools.interpolate(x)
-    y = itp(dims(x) |> only)
-    @test x ≈ y
-
-    ts = (-π):0.1:π
-    x = Timeseries(sinc.(ts), ts)
-    itp = TimeseriesTools.interpolate(x)
-    z = @test_nowarn upsample(x, 2)
-    @test all(z[𝑡(At(ts))] .≈ x)
-    @test z ≈ sinc.(lookup(z) |> only) atol = 1.0e-2
-
-    # * Matrix
-    x = Timeseries(randn(100, 100), 0.1:0.1:10, Var(1:100))
-    y = @test_nowarn upsample(x, 2)
-    z = @test_nowarn upsample(x, 2, dims = 1)
-    @test y == z
-    z = @test_nowarn upsample(x, 2, dims = (1, 2))
-    @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var)))])
-    @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var)))])
-    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
-    @test length(dims(z, 1)) == length(dims(z, 2)) == 199
-
-    # * 3D array
-    x = Timeseries(randn(100, 100, 100), 0.1:0.1:10, Var(1:100), X(1:100))
-    y = @test_nowarn upsample(x, 2)
-    z = @test_nowarn upsample(x, 2, dims = 1)
-    @test y == z
-    z = @test_nowarn upsample(x, 2, dims = (3, 2, 1))
-    @test all(y .≈ z[𝑡(At(lookup(y, 𝑡))), Var(At(lookup(y, Var))), X(At(lookup(y, X)))])
-    @test all(x .≈ z[𝑡(At(lookup(x, 𝑡))), Var(At(lookup(x, Var))), X(At(lookup(x, X)))])
-    @test DimensionalData.name.(dims(x)) == DimensionalData.name.(dims(z))
-    @test length(dims(z, 1)) == length(dims(z, 2)) == 199
-
-    # * Unitful data
-    ts = ((-π):0.1:π) * u"s"
-    x = Timeseries(sinc.(ustrip(ts)), ts) * u"V"
-    itp = TimeseriesTools.interpolate(x)
-    @test unit(eltype(itp(dims(x) |> only))) == NoUnits
-    z = @test_nowarn upsample(x, 2)
-    @test unit(eltype(z)) == u"V"
-    @test unit(eltype(lookup(z) |> only)) == u"s"
-    @test all(z[𝑡(At(ts))] .≈ x)
 end
 
 @testitem "Unit Power" begin

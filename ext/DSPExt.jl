@@ -5,7 +5,7 @@ using DimensionalData
 using Unitful
 using IntervalSets
 import TimeseriesTools: bandpass, highpass, lowpass, isoamplitude, phasestitch,
-    instantaneousfreq, analyticphase, analyticamplitude
+    instantaneousfreq, analyticphase, analyticamplitude, downsample
 import TimeseriesTools.TimeseriesBase.Utils: stitch
 import DSP
 import DSP: hilbert, Bandpass, digitalfilter, filtfilt, unwrap!
@@ -280,6 +280,47 @@ function phasestitch(
     a = bandpass.(X, [pass])
     P = [hilbert(x) .|> angle for x in a] # Bandpass for phases only
     return phasestitch(X, P; kwargs...)
+end
+
+"""
+    downsample(x::RegularTimeseries, factor::Integer; antialias = true)
+
+Reduce the sampling rate of `x` by an integer `factor`, returning a series regularly
+sampled at `samplingrate(x) / factor`. Operates along the time (first) dimension; other
+dimensions are carried through unchanged.
+
+`antialias` selects between two distinct intents:
+
+- `antialias = true` (default): apply an anti-aliasing FIR filter (`DSP.resample`) *before*
+  decimating, so content above the new Nyquist (`samplingrate(x) / 2factor`) is suppressed
+  rather than folded back into the retained band. Use this when you want a faithful
+  lower-rate **representation** of the low-frequency band — the honest way to lower a rate.
+- `antialias = false`: plain decimation (`x[1:factor:end]`), no filtering. Use this when you
+  want to **simulate having physically sampled the process at the lower rate**, aliasing and
+  all — the fold-back is the real acquisition behaviour you're reproducing.
+
+Prefer this over `resample` onto a coarser grid, which subsamples a fitted interpolant
+without anti-aliasing. For *increasing* the rate see [`upsample`](@ref).
+"""
+function downsample(x::RegularTimeseries, factor::Integer; antialias = true)
+    factor ≥ 1 || throw(ArgumentError("downsample factor must be a positive integer"))
+    factor == 1 && return x
+    u = unit(eltype(x))
+    raw = ustripall(parent(x))
+    mat = reshape(raw, size(raw, 1), :)
+    cols = if antialias
+        # `DSP.resample` applies a polyphase anti-aliasing FIR filter, then decimates.
+        [DSP.resample(c, 1 // factor) for c in eachcol(mat)]
+    else
+        [c[1:factor:end] for c in eachcol(mat)]
+    end
+    n = length(first(cols))
+    data = reshape(reduce(hcat, cols), n, size(raw)[2:end]...)
+    data = ndims(x) == 1 ? vec(data) : data
+    t = DimensionalData.dims(x, 1)
+    newt = rebuild(t, range(start = first(t), step = step(t) * factor, length = n))
+    otherdims = ntuple(i -> DimensionalData.dims(x, i + 1), ndims(x) - 1)
+    return ToolsArray(data * u, (newt, otherdims...))
 end
 
 end # module
