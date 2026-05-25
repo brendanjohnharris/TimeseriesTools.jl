@@ -20,16 +20,17 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 ![Example Shadow Plot](test/shadows.png#gh-light-mode-only)
 
 > [!Warning]
-> The latest release (v0.8) comes with major breaking changes. Please be aware that `TimeSeries(t, x)` should now be written as `Timeseries(x, t)`.
+> The latest releases (v0.8, v0.9) come with major breaking changes. Please be aware that `TimeSeries(t, x)` should now be written as `Timeseries(x, t)`.
 > Most package methods have been distributed across multiple sub-packages, listed below.
 > 1. Core package functionality moved to a minimal-dependency package [TimeseriesBase.jl](https://www.github.com/brendanjohnharris/TimeseriesBase.jl)
 > 2. Plotting utilities have been moved to [TimeseriesMakie.jl](https://www.github.com/brendanjohnharris/TimeseriesMakie.jl), with recipes updated for the latest breaking Makie version
 > 3. `progressmap` functionality has been moved to [MoreMaps.jl](https://www.github.com/brendanjohnharris/MoreMaps.jl)
 > 4. Documentation has been moved to [TimeseriesDocs.jl](https://www.github.com/brendanjohnharris/TimeseriesDocs.jl)
+> 5. Surrogate methods have been moved to [TimeseriesToolsSurrogates.jl](https://www.github.com/brendanjohnharris/TimeseriesToolsSurrogates.jl)
 
 ### Feature spotlight:
 - **One type for everything**: values, time points, units, and metadata live in a single `DimensionalData`-backed array.
-- **Types that dispatch**: regular, irregular, and multivariate series and spectra select the right algorithm automatically.
+- **Type dispatch**: regular, irregular, and multivariate series and spectra select the right algorithm automatically.
 - **Units end to end**: frequencies, power, and amplitudes stay dimensionally consistent via [Unitful](https://github.com/PainterQubits/Unitful.jl).
 - **Spectra**: power and energy spectra, plus wavelet spectrograms.
 - **Data wrangling**: `interpolate`, `upsample`, `resample`, `downsample` (anti-aliased), and `impute`.

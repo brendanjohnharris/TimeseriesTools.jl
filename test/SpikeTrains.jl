@@ -132,7 +132,7 @@ end
 end
 
 @testitem "Stoic spike-train length" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie, Distributions
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     Ns = range(start = 100, step = 100, length = 100)
@@ -147,7 +147,7 @@ end
     Colorbar(f[1, 2], p, label = "stoic")
 end
 @testitem "Stoic spike-train fano" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie, Distributions
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     θs = range(start = 0.1, step = 0.01, length = 150)

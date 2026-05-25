@@ -4,8 +4,6 @@ import Unitful.unit
 
 using Reexport
 using DimensionalData
-using IntervalSets
-@reexport using IntervalSets
 @reexport using DimensionalData
 @reexport using TimeseriesBase
 @reexport using Normalization
@@ -19,7 +17,6 @@ include("SpikeTrains.jl")
 include("Spectra.jl")
 include("Mapple.jl")
 include("Unitful.jl")
-include("TimeseriesSurrogates.jl")
 
 bandpass(x::AbstractTimeseries) = x
 highpass(x::AbstractTimeseries) = x

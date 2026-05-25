@@ -1,6 +1,5 @@
 using SparseArrays
 using Random
-using Distributions
 export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammarenewal!,
     gammarenewal, fano_factor
 
@@ -265,31 +264,27 @@ function stoic(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...
 end
 
 """
-    pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
+    pointprocess!(spikes, D; rng = Random.default_rng(), t0 = 0.0)
 
-Simulate a point process by sampling inter-spike intervals from a given distribution.
+Simulate a point process by sampling inter-spike intervals from a given distribution `D`
+(a `Distributions.Distribution`) into `spikes`, starting from `t0`.
+
+Requires `Distributions` to be loaded (provided by `DistributionsExt`).
 
 ## Arguments
 - `spikes`: An array to store the generated spike times.
-- `D::Distribution`: The distribution from which to sample inter-spike intervals.
+- `D`: The distribution from which to sample inter-spike intervals.
 - `rng`: (optional) The random number generator to use. Defaults to `Random.default_rng()`.
 - `t0`: (optional) The initial time. Defaults to `0.0`.
 """
-function pointprocess!(spikes, D::Distribution; rng = Random.default_rng(), t0 = 0.0)
-    N = length(spikes)
-    t = deepcopy(t0)
-    isis = rand(rng, D, N)
-    for i in 1:N
-        t += isis[i]
-        spikes[i] = t
-    end
-    return
-end
+function pointprocess! end
 
 """
     gammarenewal!(spikes, α, θ; t0 = randn() * α / θ, kwargs...)
 
-Generate a sequence of gamma-distributed renewal spikes.
+Generate a sequence of gamma-distributed renewal spikes in place.
+
+Requires `Distributions` to be loaded (provided by `DistributionsExt`).
 
 Arguments:
 - `spikes::AbstractVector`: The vector to store the generated spikes.
@@ -299,19 +294,14 @@ Arguments:
   distribution with mean of 0 and standard deviation equal to the mean firing rate.
 - `kwargs...`: Additional keyword arguments to be passed to [`pointprocess!`](@ref).
 """
-function gammarenewal!(
-        spikes::AbstractVector, α, θ;
-        t0 = randn(Random.default_rng()) * α * θ, kwargs...
-    )
-    N = length(spikes)
-    D = Distributions.Gamma(α, θ)
-    return pointprocess!(spikes, D; t0, kwargs...)
-end
+function gammarenewal! end
 
 """
     gammarenewal(N, α, θ; t0)
 
 Generate a spike train with inter-spike intervals drawn from a Gamma process.
+
+Requires `Distributions` to be loaded (provided by `DistributionsExt`).
 
 # Arguments
 - `N`: Number of spikes to generate.
@@ -327,16 +317,7 @@ Generate a spike train with inter-spike intervals drawn from a Gamma process.
 
 See also [`gammarenewal!`](@ref).
 """
-function gammarenewal(N, args...; kwargs...)
-    spikes = zeros(Float64, N)
-    gammarenewal!(spikes, args...; kwargs...)
-    return spiketrain(spikes)
-end
-function gammarenewal(spikes::SpikeTrain, args...; kwargs...)
-    t = collect(times(spikes))
-    gammarenewal!(t, args...; kwargs...)
-    return SpikeTrain(t)
-end
+function gammarenewal end
 
 """
     _count(spike_times, τ; bins = minimum(spike_times):τ:maximum(spike_times))

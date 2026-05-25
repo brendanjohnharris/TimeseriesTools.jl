@@ -151,41 +151,6 @@ end
     end
 end
 
-@testitem "TimeseriesSurrogatesExt" begin
-    using StatsBase, TimeseriesSurrogates
-    θ = 3 # A Fano-factor of 3
-    μ = 1
-    α = μ / θ # A mean of 1
-    N = 500000
-    x = gammarenewal(N, α, θ)
-    dt = diff(times(x))
-    F = var(dt) / mean(dt)
-    @test x isa SpikeTrain
-    @test F ≈ θ rtol = 5.0e-2
-    @test mean(dt) ≈ α * F rtol = 5.0e-2
-
-    # Jitter surrogate
-    y = set(x, 𝑡 => surrogate(times(x), RandomJitter(0.1, 0.1)))
-    @test y isa SpikeTrain
-    @test issorted(times(y))
-    @test minimum(times(y)) ≈ minimum(times(x)) atol = 0.5
-    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.5
-    @test x != y
-    sur = @test_nowarn surrogenerator(times(x), RandomJitter(0.1, 0.1))
-    @test all(copy(sur()) .!= sur())
-
-    # Gamma renewal surrogate
-    y = set(x, 𝑡 => surrogate(times(x), GammaRenewal()))
-    dt̂ = diff(times(y))
-    F̂ = var(dt̂) / mean(dt̂)
-    @test y isa SpikeTrain
-    @test issorted(times(y))
-    @test F̂ ≈ θ rtol = 5.0e-2
-    @test mean(dt̂) ≈ α * F̂ rtol = 5.0e-2
-    @test minimum(times(y)) ≈ minimum(times(x)) atol = 10 * μ
-    @test maximum(times(y)) ≈ maximum(times(x)) atol = 0.01 * N
-end
-
 # @testitem "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
 #     2 tspan = (0.0, 1.0) prob = ODEProblem(f, u0, tspan, saveat=0.1) sol = solve(prob)
 
