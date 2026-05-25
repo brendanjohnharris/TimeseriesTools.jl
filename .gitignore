@@ -22,3 +22,4 @@ docs/site/
 !test/test_timeseries.tsv
 
 node_modules/
+.claude/
