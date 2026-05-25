@@ -26,10 +26,16 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 > 2. Plotting utilities have been moved to [TimeseriesMakie.jl](https://www.github.com/brendanjohnharris/TimeseriesMakie.jl), with recipes updated for the latest breaking Makie version
 > 3. `progressmap` functionality has been moved to [MoreMaps.jl](https://www.github.com/brendanjohnharris/MoreMaps.jl)
 > 4. Documentation has been moved to [TimeseriesDocs.jl](https://www.github.com/brendanjohnharris/TimeseriesDocs.jl)
-> Please import these packages separately as needed.
 
-### Detailed feaure list:
-- .......................
+### Feature spotlight:
+- **One type for everything**: values, time points, units, and metadata live in a single `DimensionalData`-backed array.
+- **Types that dispatch**: regular, irregular, and multivariate series and spectra select the right algorithm automatically.
+- **Units end to end**: frequencies, power, and amplitudes stay dimensionally consistent via [Unitful](https://github.com/PainterQubits/Unitful.jl).
+- **Spectra**: power and energy spectra, plus wavelet spectrograms.
+- **Data wrangling**: `interpolate`, `upsample`, `resample`, `downsample` (anti-aliased), and `impute`.
+- **Signal processing**: bandpass/highpass/lowpass filters, Hilbert transform, instantaneous phase/frequency/amplitude.
+- **Spike trains**: point-process types, spike spectra, and the spike-time tiling coefficient.
+- **Light by default**: heavy analysis loads on demand through package extensions.
 
 
 

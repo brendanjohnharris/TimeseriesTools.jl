@@ -3,8 +3,58 @@ export interpolate, upsample, downsample, resample
 # * `interpolate`, `resample` and `downsample` are expanded in `ext/DataInterpolationsExt.jl`
 # * and `ext/DSPExt.jl`.
 
+"""
+    interpolate(x, args...; kwargs...)
+
+Fit an interpolant to a time series. Method-only function: the implementation is
+provided by extensions, and the available signatures depend on which interpolation
+backend is loaded.
+
+- `using DataInterpolations` enables a per-axis 1-D method on `AbstractDimVector`,
+  parameterised by a `DataInterpolations.AbstractInterpolation` type.
+- `using DataInterpolationsND` enables a joint N-D method on `AbstractDimArray`,
+  parameterised by `DataInterpolationsND.AbstractInterpolationDimension` types (or
+  instances), one per axis.
+
+Without either loaded, calling this function throws `MethodError`. See
+[`resample`](@ref), [`upsample`](@ref), [`downsample`](@ref), and [`impute`](@ref) for
+the higher-level operations built on top.
+"""
 function interpolate end
+
+"""
+    resample(x, target, args...; dims = 1, kwargs...)
+
+Evaluate an interpolant of `x` on `target`, returning a new series with the same
+non-interpolated dimensions. Method-only function: provided by extensions.
+
+- `using DataInterpolations`: per-axis resampling along `dims = 1`. `target` may be an
+  `AbstractVector` of new sample points, a `DimensionalData.Dimension`, or a `Number`
+  (interpreted as a sampling period). Pass an
+  `AbstractInterpolation` subtype as `args[1]` to select the interpolation method
+  (default `AkimaInterpolation`).
+- `using DataInterpolationsND`: joint multi-axis resampling. `target` is a tuple of new
+  lookups (one per dimension of `x`) or a `Number` (common period along every axis), and
+  `args[1]` is a `DataInterpolationsND.AbstractInterpolationDimension` type or tuple.
+
+For *reducing* a regular sampling rate prefer [`downsample`](@ref) (filter-then-decimate);
+plain `resample` onto a coarser grid does not anti-alias.
+"""
 function resample end
+
+"""
+    downsample(x::RegularTimeseries, factor::Integer; antialias = true)
+
+Reduce the sampling rate of `x` by an integer `factor`. Method-only function: provided
+by `DSPExt` (loaded with `using DSP`).
+
+- `antialias = true` (default): apply an anti-aliasing FIR filter before decimating, so
+  content above the new Nyquist is removed rather than aliased back into the kept band.
+- `antialias = false`: plain `x[1:factor:end]`, no filter. Use to simulate having
+  physically sampled the process at the lower rate.
+
+See also [`upsample`](@ref), [`resample`](@ref).
+"""
 function downsample end
 
 

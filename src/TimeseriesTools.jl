@@ -44,6 +44,17 @@ function _waveletspectrogram end
 function waveletspectrogram end
 function msdist end
 function resample end
+"""
+    impute(x, interp = AkimaInterpolation, args...; dims = 1, replace = [NaN, Nothing, Missing], kwargs...)
+
+Fill flagged entries of `x` by interpolation. Method-only function: provided by
+`DataInterpolationsExt` (loaded with `using DataInterpolations`).
+
+Entries matching any element of `replace` (sentinel values by `isequal`/`isnan`, types
+by `isa`) are set to `missing`, an interpolant is fit to the survivors, and the result
+is evaluated at every original time point. For arrays of more than one dimension, each
+slice along `dims = 1` is imputed independently.
+"""
 function impute end
 export _waveletfreqs, _waveletspectrogram, waveletspectrogram, msdist, resample, impute
 
