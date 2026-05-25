@@ -27,7 +27,10 @@ function bandpass(
         pass::AbstractVector{B};
         designmethod = DSP.Butterworth(4)
     ) where {A <: Real, B <: Real}
-    f = x -> DSP.filtfilt(digitalfilter(DSP.Bandpass(pass...; fs), designmethod), x)
+    # Normalize to Nyquist upfront so we don't depend on DSP's `Bandpass(...; fs)`
+    # kwarg, which was removed in DSP 0.8.
+    Wn = 2 .* pass ./ fs
+    f = x -> DSP.filtfilt(digitalfilter(DSP.Bandpass(Wn...), designmethod), x)
     return mapslices(f, x; dims = 1)
 end
 function bandpass(
@@ -35,14 +38,10 @@ function bandpass(
         pass::AbstractVector{B};
         designmethod = DSP.Butterworth(4)
     ) where {A <: Quantity, B <: Quantity}
+    Wn = 2 .* ustripall.(pass) ./ ustripall(fs)
     f = x -> DSP.filtfilt(
-        digitalfilter(
-            DSP.Bandpass(
-                ustripall.(pass)...;
-                fs = ustripall(fs)
-            ),
-            designmethod
-        ), ustripall.(x)
+        digitalfilter(DSP.Bandpass(Wn...), designmethod),
+        ustripall.(x)
     ) * unit(eltype(x))
     return mapslices(f, x; dims = 1)
 end
@@ -72,35 +71,36 @@ bandpass(x, fs, pass::AbstractInterval) = bandpass(x, fs, extrema(pass))
 
 ## Other filters
 function highpass(
-        x::AbstractArray, fs::Real,
-        pass::Real;
+        x::AbstractArray, fs::A,
+        pass::B;
         designmethod = DSP.Butterworth(4)
-    )
-    return DSP.filtfilt(digitalfilter(DSP.Highpass(pass; fs), designmethod), x)
+    ) where {A <: Real, B <: Real}
+    # Normalize to Nyquist upfront; DSP 0.8 removed the `; fs` kwarg on Highpass.
+    Wn = 2 * pass / fs
+    return DSP.filtfilt(digitalfilter(DSP.Highpass(Wn), designmethod), x)
 end
 function highpass(
-        x::AbstractArray, fs::Real,
-        pass::Quantity;
+        x::AbstractArray, fs::A,
+        pass::B;
         designmethod = DSP.Butterworth(4)
-    )
+    ) where {A <: Quantity, B <: Quantity}
+    Wn = 2 * ustripall(pass) / ustripall(fs)
     return DSP.filtfilt(
-        digitalfilter(
-            DSP.Highpass(ustripall(pass); fs = ustripall(fs)),
-            designmethod
-        ), ustripall(x)
+        digitalfilter(DSP.Highpass(Wn), designmethod),
+        ustripall(x)
     ) * unit(eltype(x))
 end
 function highpass(
-        x::AbstractDimArray, fs::Quantity,
-        pass::Quantity;
+        x::AbstractDimArray, fs::A,
+        pass::B;
         kwargs...
-    )
+    ) where {A <: Quantity, B <: Quantity}
     return set(x, highpass(x.data, fs, pass; kwargs...))
 end
 function highpass(
-        x::AbstractDimArray, fs::Real,
-        pass::Real; kwargs...
-    )
+        x::AbstractDimArray, fs::A,
+        pass::B; kwargs...
+    ) where {A <: Real, B <: Real}
     return set(x, highpass(x.data, fs, pass; kwargs...))
 end
 function highpass(x::RegularTimeseries, pass::Number; kwargs...)
@@ -108,35 +108,36 @@ function highpass(x::RegularTimeseries, pass::Number; kwargs...)
 end
 
 function lowpass(
-        x::AbstractArray, fs::Real,
-        pass::Real;
+        x::AbstractArray, fs::A,
+        pass::B;
         designmethod = DSP.Butterworth(4)
-    )
-    return DSP.filtfilt(digitalfilter(DSP.Lowpass(pass; fs), designmethod), x)
+    ) where {A <: Real, B <: Real}
+    # Normalize to Nyquist upfront; DSP 0.8 removed the `; fs` kwarg on Lowpass.
+    Wn = 2 * pass / fs
+    return DSP.filtfilt(digitalfilter(DSP.Lowpass(Wn), designmethod), x)
 end
 function lowpass(
-        x::AbstractArray, fs::Real,
-        pass::Quantity;
+        x::AbstractArray, fs::A,
+        pass::B;
         designmethod = DSP.Butterworth(4)
-    )
+    ) where {A <: Quantity, B <: Quantity}
+    Wn = 2 * ustripall(pass) / ustripall(fs)
     return DSP.filtfilt(
-        digitalfilter(
-            DSP.Lowpass(ustripall(pass); fs = ustripall(fs)),
-            designmethod
-        ), ustripall(x)
+        digitalfilter(DSP.Lowpass(Wn), designmethod),
+        ustripall(x)
     ) * unit(eltype(x))
 end
 function lowpass(
-        x::AbstractTimeseries, fs::Quantity,
-        pass::Quantity;
+        x::AbstractDimArray, fs::A,
+        pass::B;
         kwargs...
-    )
+    ) where {A <: Quantity, B <: Quantity}
     return set(x, lowpass(x.data, fs, pass; kwargs...))
 end
 function lowpass(
-        x::AbstractTimeseries, fs::Real,
-        pass::Real; kwargs...
-    )
+        x::AbstractDimArray, fs::A,
+        pass::B; kwargs...
+    ) where {A <: Real, B <: Real}
     return set(x, lowpass(x.data, fs, pass; kwargs...))
 end
 function lowpass(x::RegularTimeseries, pass::Number; kwargs...)
