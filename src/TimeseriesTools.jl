@@ -11,6 +11,7 @@ import StatsAPI: fit, fit!, predict
 export fit, fit!, predict
 import Normalization: params!
 
+
 include("Utils.jl")
 include("Interpolate.jl")
 include("SpikeTrains.jl")
@@ -60,5 +61,28 @@ function bootstrapaverage end
 function bootstrapmedian end
 function bootstrapmean end
 export bootstrapaverage, bootstrapmedian, bootstrapmean
+
+function hint_ext(io, f, pkg)
+    ext = pkg * "Ext"
+    print(io, "\n")
+    printstyled(io, "Hint:"; color = :cyan, bold = true)
+    return print(io, " calling `$(f)` requires the $(ext) extension. Run `using $(pkg)` to enable it.\n")
+end
+
+function __init__()
+    Base.Experimental.register_error_hint(MethodError) do io, exc, argtypes, kwargs
+        if exc.f === phasestitch || exc.f === isoamplitude || exc.f === analyticamplitude || exc.f === analyticphase || exc.f === instantaneousfreq
+            hint_ext(io, exc.f, "DSP")
+        elseif exc.f === _waveletfreqs || exc.f === _waveletspectrogram || exc.f === waveletspectrogram
+            hint_ext(io, exc.f, "ContinuousWavelets")
+        elseif exc.f === msdist
+            hint_ext(io, exc.f, "Autocorrelations")
+        elseif exc.f === resample || exc.f === impute
+            hint_ext(io, exc.f, "DataInterpolations")
+        elseif exc.f === bootstrapaverage || exc.f === bootstrapmedian || exc.f === bootstrapmean
+            hint_ext(io, exc.f, "Bootstrap")
+        end
+    end
+end
 
 end
