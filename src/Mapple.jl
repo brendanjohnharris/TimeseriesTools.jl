@@ -55,13 +55,38 @@ function Base.show(io::IO, m::MAPPLE)
     return
 end
 
+# An empty block with a *concrete* ComponentArray eltype (e.g. `Vector{PeakT}()`) makes
+# ComponentArrays' `make_idx` divide element-size by a zero count, throwing DivideError.
+# An `Any`-eltype empty avoids that path; coerce empty blocks to one.
+_emptylike(x) = isempty(x) ? collect(Any, x) : x
+
 function MAPPLE(; peaks, components, log_A, transition_width)
+    peaks = _emptylike(peaks)
+    components = _emptylike(components)
     return ComponentArray(; log_A, peaks, components, transition_width) |> MAPPLE
 end
 
 function mapple_sort!(params)
-    sort!(params.peaks; by = p -> p.log_f)
-    return sort!(params.components; by = c -> c.log_f_stop)
+    _sortblock!(params, :peaks, :log_f)
+    _sortblock!(params, :components, :log_f_stop)
+    return params
+end
+
+# Reorder the nested `block` of `params` in place, sorting its sub-components by field
+# `key`. Each sub-component is snapshotted to a plain vector before any write, so the
+# writes never alias the shared flat storage; an in-place `sort!` on the nested block
+# does alias it and silently duplicates one sub-component over the others.
+function _sortblock!(params, block::Symbol, key::Symbol)
+    b = getproperty(params, block)
+    n = length(b)
+    n ≤ 1 && return params
+    perm = sortperm([getproperty(b[i], key) for i in 1:n])
+    issorted(perm) && return params
+    snapshot = [collect(b[i]) for i in 1:n]
+    for (newpos, oldpos) in enumerate(perm)
+        b[newpos] .= snapshot[oldpos]
+    end
+    return params
 end
 mapple_sort(params) = (params = deepcopy(params); mapple_sort!(params); params)
 
@@ -108,7 +133,7 @@ function StatsAPI.fit(::Type{MAPPLE}, spectrum::AbstractDimVector; kwargs...)
     return sort(MAPPLE(params))
 end
 function StatsAPI.fit(::Type{MAPPLE}, f::AbstractVector, s::AbstractVector; kwargs...)
-    spectrum = ToolsArray(s, f)
+    spectrum = ToolsArray(s, 𝑓(f))
     return StatsAPI.fit(MAPPLE, spectrum; kwargs...)
 end
 
@@ -116,47 +141,90 @@ StatsAPI.params(m::MAPPLE) = m.params
 peaks(m::MAPPLE) = m.params.peaks
 components(m::MAPPLE) = m.params.components
 
-function mapple(f::AbstractVector, model::ComponentArray{T}) where {T}
+export betas, breakpoints, peakfreqs, peaksigmas, peakamplitudes
+
+# Extract a field across the sub-components of a nested block as a `Vector{Float64}`.
+# Broadcasting `getproperty` over a nested block otherwise yields a `Vector{Any}`; an
+# empty block has no field vector, so return an empty `Float64[]`.
+_field(block, key) = isempty(block) ? Float64[] : collect(Float64, getproperty(block, key))
+
+betas(m::MAPPLE) = _field(m.params.components, :β)
+breakpoints(m::MAPPLE) = _field(m.params.components, :log_f_stop)
+peakfreqs(m::MAPPLE) = _field(m.params.peaks, :log_f)
+peaksigmas(m::MAPPLE) = _field(m.params.peaks, :log_σ)
+peakamplitudes(m::MAPPLE) = _field(m.params.peaks, :log_A)
+
+export mapple_residuals, mapple_loss, rsquared
+
+"""
+    mapple_residuals(m::MAPPLE, spectrum)
+Log-10 residuals between model `m` and a measured `spectrum` (linear frequency lookup,
+linear spectral density), matching the space in which the fit is performed.
+"""
+function mapple_residuals(m::MAPPLE, spectrum::AbstractDimVector)
+    f = lookup(spectrum, 1)
+    log_s = log10.(parent(spectrum))
+    return log_s .- log10.(mapple(f, m.params))
+end
+
+"""
+    mapple_loss(m::MAPPLE, spectrum)
+Sum of squared log-10 residuals; the objective `fit!` minimises.
+"""
+mapple_loss(m::MAPPLE, spectrum::AbstractDimVector) = sum(abs2, mapple_residuals(m, spectrum))
+
+"""
+    rsquared(m::MAPPLE, spectrum)
+Coefficient of determination of the fit, computed in log-10 space.
+"""
+function rsquared(m::MAPPLE, spectrum::AbstractDimVector)
+    log_s = log10.(parent(spectrum))
+    ss_res = sum(abs2, mapple_residuals(m, spectrum))
+    ss_tot = sum(abs2, log_s .- (sum(log_s) / length(log_s)))
+    return 1 - ss_res / ss_tot
+end
+
+function mapple(f::AbstractVector, model::ComponentArray{T}; log_f = log10.(f)) where {T}
     components = model[[:log_A, :transition_width, :components]]
     peaks = model[[:peaks]]
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
-    mapple!(s, f, components, peaks)
+    mapple!(s, f, components, peaks; log_f)
     return s
 end
 function mapple(
         f, component_params::ComponentArray{T},
-        peaks::ComponentArray{F}
+        peaks::ComponentArray{F}; log_f = log10.(f)
     ) where {T, F <: AbstractFloat}
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
-    mapple!(s, f, component_params, peaks)
+    mapple!(s, f, component_params, peaks; log_f)
     return s
 end
 function mapple(
         f, component_params::ComponentArray{F},
-        peaks::ComponentArray{T}
+        peaks::ComponentArray{T}; log_f = log10.(f)
     ) where {T, F <: AbstractFloat}
     ElType = promote_type(eltype(f), T)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
-    mapple!(s, f, component_params, peaks)
+    mapple!(s, f, component_params, peaks; log_f)
     return s
 end
 function mapple(
         f, component_params::ComponentArray{F1},
-        peaks::ComponentArray{F2}
+        peaks::ComponentArray{F2}; log_f = log10.(f)
     ) where {F1 <: AbstractFloat, F2 <: AbstractFloat}
     ElType = promote_type(eltype(f), F1, F2)
     s = similar(f, ElType)
     fill!(s, zero(ElType))
-    mapple!(s, f, component_params, peaks)
+    mapple!(s, f, component_params, peaks; log_f)
     return s
 end
 
-function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
+function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log10.(f)) where {El}
     fill!(s, zero(El))
 
     components = component_params.components
@@ -192,9 +260,7 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
     end
 
     # * Evaluate the model
-    log_f = log10.(f)
-    log_f_min = log10(minimum(f)) - 5.0
-    # f_max = 2 * maximum(f) - minimum(f)
+    log_f_min = minimum(log_f) - 5.0
 
     @inbounds @fastmath for i in eachindex(f, s)
         # * Add contribution from each component
@@ -244,6 +310,21 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks) where {El}
     return
 end
 
+# Estimate the log-space background trend for peak detection. Default: a continuous
+# piecewise-linear (hard-break) power law fitted by least squares over the component
+# breakpoints — the actual background shape, so peaks on a steep, curved background stand out
+# on the residual. When Optim is loaded, OptimExt provides `optim_background_trend`, a full
+# smooth zero-peak fit, which is used instead.
+function _background_trend(log_f, log_s, components, transition_width)
+    ext = Base.get_extension(@__MODULE__, :OptimExt)
+    if ext !== nothing
+        return Base.invokelatest(ext.optim_background_trend, log_f, log_s, components, transition_width)
+    end
+    breaks = [c.log_f_stop for c in components][1:(end - 1)]
+    basis = hcat(ones(length(log_f)), log_f, (max.(log_f .- b, 0.0) for b in breaks)...)
+    return basis * (basis \ log_s)
+end
+
 function fit_mapple(
         log_f, log_s;
         w = max(1, length(log_f) ÷ 100),
@@ -264,8 +345,13 @@ function fit_mapple(
         ComponentArray(; log_f_stop = log_f_stop[i], β = β)
     end
 
-    # * Find peaks by looking for local maxima
-    _, proms, bounds = findpeaks(logspectrum, w; minprom, kwargs...)
+    # * Find peaks on the residual after removing the zero-peak background. `_background_trend`
+    #   returns a least-squares piecewise-linear power law by default, or a full Optim
+    #   zero-peak fit when Optim is loaded. Peaks that ride a steep, curved background — and so
+    #   are not local maxima of the raw spectrum — stand out cleanly on the residual.
+    trend = _background_trend(log_f, log_s, components, transition_width)
+    residual = ToolsArray(log_s .- trend, Log10𝑓(log_f))
+    _, proms, bounds = findpeaks(residual, w; minprom, kwargs...)
 
     if !isnothing(peaks) && !isempty(proms)
         if peaks > length(proms)

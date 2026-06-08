@@ -23,3 +23,5 @@ docs/site/
 
 node_modules/
 .claude/
+docs/
+benchmark/

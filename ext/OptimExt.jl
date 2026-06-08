@@ -41,183 +41,83 @@ function mapple_bounds(log_f, log_s, initial_params)
     return lower, upper
 end
 
-function mapple_loss(params; f, log_s)
-    # components = params.components
-    # peaks = params.peaks
-
-    # * Sort components and peaks by frequency
-    # cidxs = sortperm(components, by = c -> c.log_f_stop)
-    # pidxs = sortperm(peaks, by = p -> p.log_f)
-
-    # Main prediction error
-    pred = mapple(f, params)
-    pred_log = map(log10, pred)
-    loss = sum((log_s .- pred_log) .^ 2)
-
-    # # Penalty for f_stops being too close together
-    # separation_penalty = zero(eltype(params))
-    # for i in eachindex(cidxs)[2:end]
-    #     gap = components[cidxs[i]].log_f_stop - components[cidxs[i - 1]].log_f_stop
-    #     if gap < min_log_f_separation
-    #         # Quadratic penalty that increases as gap decreases
-    #         separation_penalty += (min_log_f_separation - gap)^2
-    #     end
-    # end
-
-    # # * Penalty for overlapping Gaussian peaks
-    # overlap_penalty = zero(eltype(params))
-    # n_peaks = length(pidxs)
-
-    # # Pre-compute all peak parameters once
-    # f_peaks = [exp10(params.peaks[pidxs[i]].log_f) for i in 1:n_peaks]
-    # σ_peaks = [f_peaks[i] * tanh(params.peaks[pidxs[i]].log_σ) for i in 1:n_peaks]
-    # A_peaks = [exp10(params.peaks[pidxs[i]].log_A) for i in 1:n_peaks]
-
-    # # Pre-compute norms (sqrt(2π) cancels in normalized overlap)
-    # norms = A_peaks .* σ_peaks
-
-    # @inbounds @fastmath for i in 2:n_peaks
-    #     # Use pre-computed values
-    #     Δf = f_peaks[i] - f_peaks[i - 1]
-    #     σ_i, σ_j = σ_peaks[i - 1], σ_peaks[i]
-
-    #     # Early exit if peaks are far apart (>5σ separation = negligible overlap)
-    #     if abs(Δf) > 5 * (σ_i + σ_j)
-    #         continue
-    #     end
-
-    #     σ_combined_sq = σ_i^2 + σ_j^2
-    #     σ_combined = sqrt(σ_combined_sq)
-
-    #     # Simplified formula (constants cancel)
-    #     overlap_integral = (norms[i - 1] * norms[i] / σ_combined) *
-    #                        exp(-Δf^2 / (2 * σ_combined_sq))
-
-    #     normalized_overlap = 2 * overlap_integral / (norms[i - 1] + norms[i])
-
-    #     # Apply penalty
-    #     if normalized_overlap > overlap_threshold
-    #         overlap_penalty += (normalized_overlap - overlap_threshold)^2
-    #     end
-    # end
-
-    # amplitude_penalty = zero(eltype(params))
-    # for peak in peaks
-    #     if peak.log_A < min_peak_log_A
-    #         # Quadratic penalty that increases as amplitude decreases
-    #         amplitude_penalty += (min_peak_log_A - peak.log_A)^2
-    #     end
-    # end
-
-    # # * Penalty for similar slopes (β values)
-    # slope_penalty = zero(eltype(params))
-    # if length(cidxs) > 1
-    #     βs = [params.components.β[i] for i in cidxs]
-    #     β_scale = mean(abs.(βs))
-
-    #     # Only check adjacent pairs
-    #     for i in 2:length(cidxs)
-    #         β_diff = abs(βs[i] - βs[i - 1])
-    #         relative_diff = β_diff / (β_scale + 1e-6)
-    #         if relative_diff < min_β_separation
-    #             slope_penalty += (min_β_separation - relative_diff)^2
-    #         end
-    #     end
-    # end
-
-    return loss
+function mapple_loss(params; f, log_s, log_f = log10.(f))
+    pred_log = map(log10, mapple(f, params; log_f))
+    return sum(abs2, log_s .- pred_log)
 end
-
 mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
 
-function component_loss(components; f, log_s, peaks)
-    pred = mapple(f, components, peaks)
-    pred_log = map(log10, pred)
-    return loss = sum((log_s .- pred_log) .^ 2)
-end
-component_loss(; kwargs...) = params -> component_loss(params; kwargs...)
-function peak_loss(peaks; f, log_s, components)
-    pred = mapple(f, components, peaks)
-    pred_log = map(log10, pred)
-    return loss = sum((log_s .- pred_log) .^ 2)
-end
-peak_loss(; kwargs...) = params -> peak_loss(params; kwargs...)
+"""
+    fit_mapple(log_f, log_s, initial_params; multistart = 0, algorithm = LBFGS(), kwargs...)
 
+Refine MAPPLE `initial_params` against log-10 frequencies `log_f` and log-10 spectral density
+`log_s` with Optim. With `multistart > 0`, additionally fit from that many randomly perturbed
+restarts and keep the lowest-loss result — an escape hatch for hard/degenerate spectra that is
+usually unnecessary once peaks are well initialised. Extra `kwargs` go to `Optim.Options`.
+"""
 function fit_mapple(
         log_f, log_s, initial_params;
         algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
-        altol = 1.0e-6, kwargs...
+        multistart = 0, kwargs...
     ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
-
     lower, upper = mapple_bounds(log_f, log_s, initial_params)
+    objective = mapple_loss(; f, log_s, log_f)
 
-    objective = mapple_loss(; f, log_s)
-    loss = objective(initial_params)
+    refine(x0) = Optim.minimizer(
+        optimize(
+            objective, lower, upper, deepcopy(x0), Fminbox(algorithm),
+            Optim.Options(; kwargs...); autodiff
+        )
+    )
 
-    # * Do alternating minimization between component parameters and peak parameters
-    params = deepcopy(initial_params)
-    pidxs = [:peaks]
-    cidxs = [:log_A, :components, :transition_width]
-
-    prev_loss = Inf
-    if !isempty(params[pidxs]) && !isempty(params[cidxs])
-        while abs(loss / prev_loss) < altol
-            # * First, component optimization
-            components = params[cidxs]
-            peaks = params[pidxs]
-
-            obj = component_loss(; f, log_s, peaks)
-            result = optimize(
-                obj, lower[cidxs], upper[cidxs], params[cidxs],
-                Fminbox(algorithm),
-                Optim.Options(; kwargs...); autodiff
-            )
-            components .= Optim.minimizer(result) # Update component params
-            params[cidxs] .= components
-
-            # * Then peak optimization
-            obj = peak_loss(; f, log_s, components)
-            result = optimize(
-                obj, lower[pidxs], upper[pidxs], params[pidxs],
-                Fminbox(algorithm),
-                Optim.Options(; kwargs...); autodiff
-            )
-            peaks .= Optim.minimizer(result) # Update peak params
-            params[pidxs] .= peaks
-
-            prev_loss = loss
-            loss = objective(params)
+    # Refine from the supplied initialisation, then from `multistart` perturbed restarts,
+    # keeping the lowest-loss result, so restarts never worsen a good fit. (The detrended
+    # peak init already keeps single-descent fits out of the degenerate β / log_A basin on
+    # the benchmark, so multistart defaults off.)
+    best = refine(initial_params)
+    best_loss = objective(best)
+    for _ in 1:multistart
+        cand = refine(_perturb(initial_params, lower, upper))
+        cand_loss = objective(cand)
+        if cand_loss < best_loss
+            best, best_loss = cand, cand_loss
         end
     end
+    return best
+end
 
-    # * Final joint optimization
-    result = optimize(
-        objective, lower, upper, params, Fminbox(algorithm),
-        Optim.Options(; kwargs...); autodiff
-    )
-    loss = objective(Optim.minimizer(result))
-    return Optim.minimizer(result)
+# A randomly perturbed copy of `params`, clamped to `[lower, upper]`, for multistart.
+function _perturb(params, lower, upper)
+    x = deepcopy(params)
+    for i in eachindex(x)
+        x[i] = clamp(x[i] + 0.5 * randn(), lower[i], upper[i])
+    end
+    return x
+end
+
+# Full zero-peak background fit used by `TimeseriesTools._background_trend` to detrend the
+# spectrum before peak detection (chosen automatically when Optim is loaded): fit the smooth
+# broken power law with no peaks, then return its log-space prediction as the trend.
+function optim_background_trend(log_f, log_s, components, transition_width)
+    nopeaks = map(_ -> ComponentArray(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    background = ComponentArray(; log_A = first(log_s), peaks = nopeaks,
+        components = components, transition_width = transition_width)
+    fitted = fit_mapple(log_f, log_s, background)
+    return map(log10, mapple(map(exp10, log_f), fitted))
 end
 
 """
     fit!(m::MAPPLE, logspectrum; kwargs...)
 Refine the parameters of a MAPPLE model `m` to fit the provided `spectrum`.
 """
-function StatsAPI.fit!(
-        m::MAPPLE, spectrum::AbstractDimVector{T, D};
-        kwargs...
-    ) where {T, d, D <: Tuple{<:d}}
+function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     log_f = map(log10, lookup(spectrum, 1))
     log_s = map(log10, parent(spectrum))
     frequency_check(lookup(spectrum, 1), log_f)
     params = fit_mapple(log_f, log_s, m.params; kwargs...)
     m.params .= params
     return sort!(m)
-end
-function StatsAPI.fit!(m::Type{MAPPLE}, f::AbstractVector, s::AbstractVector; kwargs...)
-    spectrum = ToolsArray(s, f)
-    return StatsAPI.fit!(m, spectrum; kwargs...)
 end
 
 end
