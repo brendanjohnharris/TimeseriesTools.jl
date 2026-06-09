@@ -171,8 +171,9 @@ function _perturb(params, lower, upper)
 end
 
 """
-    fit!(m::MAPPLE, logspectrum; kwargs...)
-Refine the parameters of a MAPPLE model `m` to fit the provided `spectrum`.
+    fit!(m::MAPPLE, spectrum; kwargs...)
+Refine the parameters of a MAPPLE model `m` in place to fit the provided `spectrum` (linear
+frequency lookup, linear spectral density). `kwargs` are forwarded to [`fit_mapple`](@ref).
 """
 function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     log_f = map(log10, lookup(spectrum, 1))

@@ -626,6 +626,11 @@ end
     # Fewer than two frequencies (or a zero-span grid) cannot be fit.
     @test_throws ArgumentError fit_mapple([1.0], [0.5]; components = 1)
     @test_throws ArgumentError fit(MAPPLE, [10.0], [3.0])
+    # `peak_width_limits` must be ordered (wmin ≤ wmax). A swapped tuple is caught up front rather
+    # than silently rejecting every detection.
+    @test_throws ArgumentError fit_mapple(
+        log10.(f), log10.(s); components = 1, peak_width_limits = (2.0, 0.5)
+    )
     # The MAPPLE constructor requires at least one component.
     @test_throws ArgumentError MAPPLE(;
         log_A = 1.0, peaks = nopeaks(),
@@ -1063,4 +1068,37 @@ end
     @test tail_res[end] > tail_res[1]
 
     @info "frequency-increasing-noise sweep" tail_residual = round.(tail_res, digits = 4)
+end
+
+@testitem "mapple: degenerate peak parameters stay finite" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+
+    f = exp10.(range(0, 3, length = 200))
+
+    # A hand-built model can carry a degenerate peak width log_σ ≤ 0 (the fit bounds keep log_σ > 0,
+    # but nothing stops a user constructing one). Evaluation floors σ at a tiny positive fraction of
+    # the centre, so the Gaussian never divides by zero / produces NaN at the peak centre.
+    for bad_log_σ in (0.0, -0.5)
+        p = ComponentArray(;
+            log_A = 0.5, peaks = [mkpeak(; log_f = 1.0, log_σ = bad_log_σ, log_A = 1.0)],
+            components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+        )
+        s = mapple(f, p)
+        @test all(isfinite, s)
+        @test all(>(0), s)
+    end
+
+    # A low-prominence peak seeds its amplitude through the conservative init
+    # `log_A = bg + log10(max(10^prom - 1, eps()))`; the `eps()` floor keeps log_A finite as the
+    # prominence → 0, so the rough fit never returns NaN/Inf parameters on a faint bump.
+    log_f = log10.(f)
+    truth = ComponentArray(;
+        log_A = 0.5, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.08, log_A = -1.7)],
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
+    log_s = log10.(mapple(f, truth))
+    init = fit_mapple(log_f, log_s; components = 1, w = 50, peak_threshold = 1.0)
+    @test all(isfinite, init)
 end

@@ -53,7 +53,7 @@ To install TimeseriesTools.jl, simply run the following command in your Julia RE
 Here's a quick example to get you started:
 
 ```julia
-using TimeseriesTools, CairoMakie, TimeseriesTools.FFTW, Unitful
+using TimeseriesTools, CairoMakie, Unitful
 
 # Generate some quick brown noise
 t = 0.005:0.005:1e5

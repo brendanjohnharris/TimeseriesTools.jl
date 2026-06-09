@@ -127,16 +127,9 @@ end
     S = @test_nowarn waveletspectrogram(x)
     @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
 
-    # GPU test
-    if false
-        using CUDA
-        using BenchmarkTools
-        BenchmarkTools.DEFAULT_PARAMETERS.seconds = 60
-        @benchmark waveletspectrogram(x)
-        x = CuArray(x)
-        @benchmark CUDA.@sync waveletspectrogram(x)
-    end
-
+    # GPU correctness path. Disabled by default: it requires a functional CUDA device (the CUDAExt
+    # is loaded by `using CUDA, ContinuousWavelets`), so it is skipped on CPU-only CI. To run it on
+    # a GPU host, add CUDA to the test environment and change `if false` to `if CUDA.functional()`.
     if false
         using CUDA
         x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
@@ -152,12 +145,8 @@ end
     end
 end
 
-# @testitem "DiffEqBaseExt" begin using DifferentialEquations f(u, p, t) = 1.01 * u u0 = 1 /
-#     2 tspan = (0.0, 1.0) prob = ODEProblem(f, u0, tspan, saveat=0.1) sol = solve(prob)
-
-#     x = Timeseries(sol)
-# end
-
+# GeneralizedPhaseExt smoke test. Kept commented because GeneralizedPhase is not in the test
+# environment (test/Project.toml); add it as a test dependency to enable this item.
 # @testitem "GeneralizedPhaseExt" begin
 #     using GeneralizedPhase, Unitful
 #     x = bandpass(colorednoise(0.01:0.01:10), (10, 15))
@@ -212,11 +201,6 @@ end
     @test ustripall(mean(x .^ 2)) ≈ 1
     @test !isnothing(T.p)
     @test denormalize(x, T) == y
-end
-
-@testitem "OptimExt" begin
-    # For fitting power spectra
-    include("./optim.jl")
 end
 
 @testitem "MAPPLE" begin

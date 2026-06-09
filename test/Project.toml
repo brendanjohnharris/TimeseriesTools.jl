@@ -37,3 +37,6 @@ TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 TimeseriesMakie = "5e3e9a77-7bbf-480c-931c-0802e2453f5a"
 TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[sources]
+Fathom = {url="https://www.github.com/brendanjohnharris/Fathom.jl", rev="main"}

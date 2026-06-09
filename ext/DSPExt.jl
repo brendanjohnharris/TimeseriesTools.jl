@@ -152,23 +152,16 @@ end
 
 phasewrap(ϕ::Number) = mod(ϕ + π, 2π) - π
 
-function _phasestitch(a::Tuple, b::Tuple; tol = 0.05) # a = (LFP1, PHI1)
+function _phasestitch(a::Tuple, b::Tuple; tol = 0.05, trim = 0.1) # a = (LFP1, PHI1)
     x, xp = a
     y, yp = b
 
-    # ! Remove the half a period at the interface to account for hilbert edge effects
-    # c = findlast(xp .< phasewrap(xp[end] - π))
-    # x = x[1:c]
-    # xp = xp[1:c]
-    # c = findfirst(yp .> phasewrap(yp[end] - π))
-    # y = y[c:end]
-    # yp = yp[c:end]
-
-    # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
-    c = floor(Int, length(xp) / 10)
+    # Drop a fraction `trim` of the samples at each interface to suppress Hilbert edge effects.
+    # This is a coarse heuristic; tune `trim` (or pre-window the inputs) for edge-sensitive uses.
+    c = floor(Int, length(xp) * trim)
     x = x[1:(end - c)]
     xp = xp[1:(end - c)]
-    c = floor(Int, length(yp) / 10)
+    c = floor(Int, length(yp) * trim)
     y = y[c:end]
     yp = yp[c:end]
 
@@ -219,14 +212,15 @@ function phasestitch(a::UnivariateTimeseries, b::UnivariateTimeseries, pass; kwa
 end
 
 """
-    phasestitch(X::Union{Tuple, AbstractVector}, [P]; tol = 0.05)
+    phasestitch(X::Union{Tuple, AbstractVector}, [P]; tol = 0.05, trim = 0.1)
 
-The `phasestitch` function stitches together multiple univariate time series by matching their phases, discarding 1/th of initial and final samples to account for edge effecs.
+The `phasestitch` function stitches together multiple univariate time series by matching their phases, discarding a fraction `trim` of the initial and final samples to account for edge effects.
 
 ## Arguments
 - `X`: A tuple or vector of univariate time series.
 - `P`: Optional. The phase information of the time series. If not provided, it will be calculated using the Hilbert transform.
 - `tol`: Optional. The tolerance for matching phases. Default is 0.05.
+- `trim`: Optional. The fraction of samples discarded at each interface to suppress Hilbert edge effects. Default is 0.1.
 
 ## Returns
 - A single univariate time series obtained by stitching together the input time series.
@@ -236,7 +230,7 @@ function TimeseriesTools.phasestitch(
             Tuple{<:UnivariateTimeseries},
             AbstractVector{<:UnivariateTimeseries},
         },
-        P = [hilbert(x) .|> angle for x in X]; tol = 0.05
+        P = [hilbert(x) .|> angle for x in X]; tol = 0.05, trim = 0.1
     )
     _a = deepcopy(X)
     _ap = deepcopy(P)
@@ -244,9 +238,9 @@ function TimeseriesTools.phasestitch(
     ap = []
     aa = []
 
-    # ! Remove one tenth of the samples at the interface to account for hilbert edge effects. Rough, not great
+    # Drop a fraction `trim` of the samples at each interface to suppress Hilbert edge effects.
     for i in eachindex(_a)
-        c = floor(Int, length(_a[i]) / 10)
+        c = floor(Int, length(_a[i]) * trim)
         push!(a, _a[i][c:(end - c)])
         push!(ap, _ap[i][c:(end - c)])
     end

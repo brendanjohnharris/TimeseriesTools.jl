@@ -6,6 +6,16 @@ export spikefft, sttc, convolve, closeneighbours, stoic, pointprocess!, gammaren
 normal(σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* x .^ 2 ./ σ^2)
 normal(μ, σ) = x -> (1 / (σ * sqrt(2π))) .* exp.(-0.5 .* (x .- μ) .^ 2 ./ (σ^2))
 npi(σ) = normal(sqrt(2) * σ) # The integral of the product of two gaussians with separation `x` and equal variance σ²
+"""
+    convolve(t::SpikeTrain; kernel::Function, range = 0.0)
+    convolve(t::SpikeTrain, p; kernel = normal, kwargs...)
+
+Convolve a spike train with `kernel`, returning a function `f(x)` that evaluates the smoothed
+spike density at time `x` (the sum of `kernel` centred on each spike). The second form builds the
+kernel from a single parameter `p` (e.g. `convolve(t, σ)` for a Gaussian of width `σ`). A positive
+`range` restricts each evaluation to spikes within `range` of `x`, which is faster when the kernel
+decays quickly.
+"""
 function convolve(t::SpikeTrain; kernel::Function, range = 0.0)
     @assert all(t .== true)
     fs = [(x -> kernel(x .- _t)) for _t in times(t)]
@@ -46,9 +56,8 @@ The spike-time tiling coefficient, a measure of correlation between spike trains
     [1] [Cutts & Eglen 2014](https://doi.org/10.1523%2FJNEUROSCI.2767-14.2014)
 """
 function sttc(a, b; Δt = 0.025)
-    if !issorted(a) || !issorted(b)
-        error("Spike trains must be sorted")
-    end
+    issorted(a) || throw(ArgumentError("first spike train `a` must be sorted"))
+    issorted(b) || throw(ArgumentError("second spike train `b` must be sorted"))
 
     if isempty(a) || isempty(b)
         return 0.0
@@ -135,9 +144,8 @@ function sttc(a::DimensionalData.AbstractDimVector{<:AbstractVector}; kwargs...)
 end
 
 function mapneighbours!(x, y, f!; Δt)
-    if !issorted(x) || !issorted(y)
-        error("Spike trains must be sorted")
-    end
+    issorted(x) || throw(ArgumentError("first spike train `x` must be sorted"))
+    issorted(y) || throw(ArgumentError("second spike train `y` must be sorted"))
 
     # Iterate through the train with the smallest number of spikes, looking for neighbours
     c = length(y) > length(x)

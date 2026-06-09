@@ -103,9 +103,3 @@ end
     @test times(T(x)) == -1:step(x):0
 end
 
-include("Unitful.jl")
-include("SpikeTrains.jl")
-include("Operators.jl")
-include("TimeseriesMakie.jl")
-include("Extensions.jl")
-include("Interpolate.jl")

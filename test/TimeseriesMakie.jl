@@ -150,29 +150,3 @@ end
     @test ax isa Axis
     @test ax.finallimits.val.widths[1] ≈ 100 atol = 1.0e-2 # Uses freq values
 end
-
-# @testitem "Spike trains" begin
-#     using JLD2
-#     using CairoMakie
-#     using Unitful
-#     using TimeseriesTools
-#     spikes = load("./test_spike_train.jld2", "spikes")
-#     E = spikes[population = At(:E)]
-#     @test E isa MultivariateSpikeTrain
-
-#     @test spiketimes(E) isa DimVector
-#     @test spiketimes(E)[1] == spiketimes(E[:, 1])
-
-#     @test_nowarn spikeraster(1:2, [[1, 2, 3], [2, 3, 4]])
-
-#     x = spiketimes(E)[[100, 201, 10, 22]]
-#     @test_nowarn spikeraster(eachindex(x), x)
-
-#     @test_nowarn spikeraster(length.(x), x) # Sort by firing rate
-
-#     # * Need to fix the automatic passing of 1:size(E, 2)
-#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
-#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E))
-#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = 1:size(E, 2))
-#     @test_nowarn spikeraster(1:size(E, 2), spiketimes(E); sortby = :rate, rev = true)
-# end

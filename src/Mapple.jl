@@ -172,9 +172,11 @@ linear regression.
 
 With `components = :auto` (default) the number of broken-power-law segments is chosen by
 minimum BIC over `1:max_components`; when Optim is loaded each candidate is refined (so the
-selection compares fully-fitted models and the returned model is already refined). Pass an
-`Integer` `components` to fix the count and get the rough fit only, then call [`fit!`](@ref) to
-refine. `kwargs` (e.g. `peaks`, `w`, `peak_threshold`) are forwarded to the peak-finding init;
+selection compares fully-fitted models and the returned model is already refined). Without Optim
+loaded the candidates cannot be refined and the `:auto` sweep collapses to a single component (the
+rough fits give every component the same slope and so are indistinguishable); load `Optim` for
+meaningful component selection. Pass an `Integer` `components` to fix the count and get the rough
+fit only, then call [`fit!`](@ref) to refine. `kwargs` (e.g. `peaks`, `w`, `peak_threshold`) are forwarded to the peak-finding init;
 `refine` is a NamedTuple of Optim options (e.g. `refine = (; multistart = 4, iterations = 200)`)
 forwarded to the refinement of each `:auto` candidate, kept separate so refine-only options do
 not leak into the peak finder.
@@ -219,10 +221,19 @@ export betas, breakpoints, peakfreqs, peaksigmas, peakamplitudes
 # empty block has no field vector, so return an empty `Float64[]`.
 _field(block, key) = isempty(block) ? Float64[] : collect(Float64, getproperty(block, key))
 
+"Power-law exponents `β` of the broken-power-law components, in fitting order."
 betas(m::MAPPLE) = _field(m.params.components, :β)
+
+"Component breakpoints as log-10 frequencies (`log_f_stop`). See [`breakfrequencies`](@ref) for Hz."
 breakpoints(m::MAPPLE) = _field(m.params.components, :log_f_stop)
+
+"Peak centres in log-10 frequency space (`log_f`). See [`peakcentres`](@ref) for Hz."
 peakfreqs(m::MAPPLE) = _field(m.params.peaks, :log_f)
+
+"Peak widths in log-10 frequency space (`log_σ`). See [`peakbandwidths`](@ref) for the FWHM in Hz."
 peaksigmas(m::MAPPLE) = _field(m.params.peaks, :log_σ)
+
+"Peak amplitudes in log-10 space (`log_A`). See [`peakheights`](@ref) for the linear height."
 peakamplitudes(m::MAPPLE) = _field(m.params.peaks, :log_A)
 
 export peakcentres, peakbandwidths, peakheights, breakfrequencies
@@ -287,6 +298,17 @@ function rsquared(m::MAPPLE, spectrum::AbstractDimVector)
     return 1 - ss_res / ss_tot
 end
 
+"""
+    mapple(f, model::ComponentArray; log_f = log10.(f))
+    mapple(f, component_params::ComponentArray, peaks::ComponentArray; log_f = log10.(f))
+
+Evaluate the MAPPLE model on linear frequencies `f`, returning the linear spectral density
+(the broken-power-law background plus Gaussian peaks). The first form takes a whole-model
+`ComponentArray` as held by [`MAPPLE`](@ref); the second keeps the background
+(`component_params`) and `peaks` blocks separate, which the optimiser uses to bound the two
+blocks independently. Pass a precomputed `log_f = log10.(f)` to avoid recomputing it when the
+model is evaluated many times (e.g. inside an objective).
+"""
 # Whole-model evaluation. mapple! reads `.components`/`.transition_width`/`.log_A` from the first
 # argument and `.peaks` from the second, so passing the full model as both avoids splitting it into
 # `model[[:log_A,…]]` / `model[[:peaks]]` sub-ComponentArrays (which allocate on every objective eval).
@@ -476,6 +498,8 @@ function fit_mapple(
         throw(ArgumentError("frequencies must span a nonzero log range"))
     isnothing(peak_width_limits) &&
         (peak_width_limits = (minimum(diff(log_f)), (maximum(log_f) - minimum(log_f)) / 2))
+    first(peak_width_limits) ≤ last(peak_width_limits) ||
+        throw(ArgumentError("peak_width_limits must be (wmin, wmax) with wmin ≤ wmax (got $peak_width_limits)"))
 
     log_A = first(log_s) # Estimate of amplitude
 
