@@ -6,7 +6,7 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort
+    frequency_check, mapple_sort, _lower_envelope_mask
 
 function mapple_bounds(log_f, log_s, initial_params)
     lower = deepcopy(initial_params)
@@ -99,12 +99,26 @@ end
 # Full zero-peak background fit used by `TimeseriesTools._background_trend` to detrend the
 # spectrum before peak detection (chosen automatically when Optim is loaded): fit the smooth
 # broken power law with no peaks, then return its log-space prediction as the trend.
-function optim_background_trend(log_f, log_s, components, transition_width)
+function optim_background_trend(log_f, log_s, components, transition_width; iters = 2)
     nopeaks = map(_ -> ComponentArray(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
-    background = ComponentArray(; log_A = first(log_s), peaks = nopeaks,
-        components = components, transition_width = transition_width)
-    fitted = fit_mapple(log_f, log_s, background)
-    return map(log10, mapple(map(exp10, log_f), fitted))
+    background = ComponentArray(;
+        log_A = first(log_s), peaks = nopeaks,
+        components = components, transition_width = transition_width
+    )
+    f = map(exp10, log_f)
+
+    # Robust fit: peaks only push power up, so refit the zero-peak background through the
+    # lower envelope (excluding positive excursions) so oscillations don't lift the trend.
+    fitted = background
+    mask = trues(length(log_f))
+    for _ in 1:iters
+        fitted = fit_mapple(log_f[mask], log_s[mask], background)
+        resid = log_s .- map(log10, mapple(f, fitted))
+        newmask = _lower_envelope_mask(resid)
+        (count(newmask) ≤ length(fitted) || newmask == mask) && break
+        mask = newmask
+    end
+    return map(log10, mapple(f, fitted))
 end
 
 """

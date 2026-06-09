@@ -4,10 +4,11 @@
 #                                         `fit`, `predict`)
 #   Optim refinement:  ext/OptimExt.jl  (`fit_mapple` 3-arg, `fit!`)
 #
-# Characterization tests pin down the current, correct behaviour of the model. The
-# `@test_broken` markers flag defects confirmed during a review pass (see the review
-# notes accompanying this change); each will flip to a failure once fixed, prompting
-# removal of the marker. These tests are deliberately plot-free and deterministic.
+# Characterization tests pin down the current, correct behaviour of the model. The later
+# items also cover the robustness/reporting overhaul: the conservative peak-amplitude init
+# and the `log_A` do-block-leak fix, the Hz reporting accessors, the `rsquared` flat-spectrum
+# guard, the peak-width guard, data-driven (`:auto`) peak counting, and BIC component
+# selection. These tests are deliberately plot-free and deterministic.
 #
 # Construction helpers are repeated inside each `@testitem` because every item runs in
 # its own isolated module.
@@ -320,4 +321,99 @@ end
     @test loss(refined) < 1.5 * loss(truth)          # no degenerate collapse
     @test cor(mapple(f, refined), s_clean) > 0.99
     @test sort(collect(Float64, refined.components.β)) ≈ [2.0, 4.0] atol = 0.5
+end
+
+@testitem "mapple: rough-fit base amplitude is not clobbered by the peak loop" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    # The peak-construction `do` block must use fresh names: assigning `log_A` inside it would
+    # leak to the enclosing `log_A = first(log_s)` and corrupt the base amplitude to the last
+    # peak's value (a catastrophic init that biases the subsequent refine).
+    truth = ComponentArray(;
+        components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
+        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5), mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
+        transition_width = 0.15, log_A = 1.0)
+    log_f = range(0, 3, length = 500); f = exp10.(log_f)
+    Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    @test init.log_A ≈ first(log_s)              # base amplitude is the DC estimate, not a peak's
+    @test all(isfinite, mapple(f, init))         # init is sane, not a 10^(peak log_A) blow-up
+end
+
+@testitem "MAPPLE: Hz reporting accessors" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    m = MAPPLE(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 2.5, β = -3.0)],
+        transition_width = 0.1)
+    # Physical-unit accessors convert OUT of log-10 space at the reporting boundary.
+    @test peakcentres(m) ≈ exp10.(peakfreqs(m)) ≈ [10.0]
+    @test breakfrequencies(m) ≈ exp10.(breakpoints(m)) ≈ [10.0^1.5, 10.0^2.5]
+    @test peakheights(m) ≈ exp10.(peakamplitudes(m)) ≈ [10.0^0.5]
+    # FWHM in Hz: σ = f·tanh(log_σ), FWHM = 2√(2ln2)·σ.
+    @test peakbandwidths(m) ≈ [2 * sqrt(2 * log(2)) * 10.0 * tanh(0.2)]
+    @test all(>(0), peakbandwidths(m))
+    # Empty peaks stay typed and empty.
+    PeakT = typeof(mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0))
+    m0 = MAPPLE(; log_A = 1.0, peaks = Vector{PeakT}(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    @test peakcentres(m0) == Float64[] && peakbandwidths(m0) == Float64[] && peakheights(m0) == Float64[]
+end
+
+@testitem "MAPPLE: rsquared guards a flat spectrum" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    m = MAPPLE(; log_A = 1.0, peaks = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0),
+        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1)
+    f = exp10.(range(0, 3, length = 100))
+    flat = ToolsArray(fill(10.0, 100), 𝑓(f))   # constant spectrum => ss_tot = 0
+    @test isnan(rsquared(m, flat))             # undefined, not ±Inf or a DivideError
+end
+
+@testitem "mapple: peak-width guard rejects out-of-range detections" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    # Falling 1-component background with one clear, narrow peak.
+    truth = ComponentArray(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.1, log_A = 1.0)],
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    log_f = range(0, 3, length = 400); f = exp10.(log_f)
+    Random.seed!(7); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+    # Default limits: the narrow peak is found.
+    @test length(fit_mapple(log_f, log_s; components = 1, w = 50).peaks) ≥ 1
+    # Demanding very wide peaks rejects every detection before counting.
+    @test length(fit_mapple(log_f, log_s; components = 1, w = 50, peak_width_limits = (2.0, 3.0)).peaks) == 0
+end
+
+@testitem "mapple: :auto detects a prominent peak and rejects noise" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    truth = ComponentArray(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.12, log_A = 1.2)],
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    log_f = range(0, 3, length = 400); f = exp10.(log_f)
+    Random.seed!(11); log_s = log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f))
+    p = fit_mapple(log_f, log_s; components = 1, w = 50)   # peaks = :auto
+    @test length(p.peaks) == 1                               # the one real peak, not noise bumps
+    @test only(collect(Float64, p.peaks.log_f)) ≈ 1.5 atol = 0.2
+end
+
+@testitem "mapple: BIC selects the simplest adequate component count" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random, Optim, ForwardDiff
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    # A genuine single power law: the free-knot BIC penalty must not over-select components.
+    truth = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    f = exp10.(range(0, 3, length = 150))
+    Random.seed!(5); s = exp10.(log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f)))
+    spec = ToolsArray(s, 𝑓(f))
+    m = fit(MAPPLE, spec)                       # :auto BIC selection (refined when Optim loaded)
+    @test length(m.params.components) == 1
+    @test rsquared(m, spec) > 0.99
 end

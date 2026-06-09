@@ -36,7 +36,7 @@ function Base.show(io::IO, m::MAPPLE)
     for (i, comp) in enumerate(m.params.components)
         printstyled(io, "  Component $i:\n")
         printstyled(io, "    log_f_stop: ")
-        println(io, round(comp.log_f_stop, digits = 4))
+        println(io, "$(round(comp.log_f_stop, digits = 4))  (≈ $(round(exp10(comp.log_f_stop), sigdigits = 4)) Hz)")
         printstyled(io, "    β:          ")
         println(io, round(comp.β, digits = 4))
     end
@@ -44,13 +44,15 @@ function Base.show(io::IO, m::MAPPLE)
     # Peaks (Green)
     printstyled(io, "\nPeaks ($(length(m.params.peaks))):\n", color = :green, bold = true)
     for (i, peak) in enumerate(m.params.peaks)
+        fc = exp10(peak.log_f)
+        fwhm = 2 * sqrt(2 * log(2)) * fc * tanh(peak.log_σ)
         printstyled(io, "  Peak $i:\n")
         printstyled(io, "    log_f:  ")
-        println(io, round(peak.log_f, digits = 4))
+        println(io, "$(round(peak.log_f, digits = 4))  (centre ≈ $(round(fc, sigdigits = 4)) Hz)")
         printstyled(io, "    log_σ:  ")
-        println(io, round(peak.log_σ, digits = 4))
+        println(io, "$(round(peak.log_σ, digits = 4))  (FWHM ≈ $(round(fwhm, sigdigits = 4)) Hz)")
         printstyled(io, "    log_A:  ")
-        println(io, round(peak.log_A, digits = 4))
+        println(io, "$(round(peak.log_A, digits = 4))  (height ≈ $(round(exp10(peak.log_A), sigdigits = 4)))")
     end
     return
 end
@@ -114,22 +116,70 @@ function frequency_check(f, log_f)
     end
 end
 
-"""
-    fit(::Type{MAPPLE}, spectrum::UnivariateSpectrum; kwargs...)
+# Bayesian information criterion for a fitted model, treating the log-spectral residuals as
+# Gaussian: BIC = n·log(RSS/n) + k·log(n). Lower is better; used to pick the component count.
+# `k` counts effective free parameters. A component's breakpoint `log_f_stop` is a *free knot*:
+# a nonlinear parameter that hunts for structure (including noise), so its effective complexity
+# is ~2 dof, not 1 — standard BIC would otherwise under-penalise and over-select components. We
+# therefore charge 3 dof per component (β + a 2-dof knot); peaks keep their 3 literal params.
+function _bic(params, log_f, log_s)
+    n = length(log_f)
+    rss = sum(abs2, log_s .- map(log10, mapple(map(exp10, log_f), params)))
+    k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
+    return n * log(rss / n) + k * log(n)
+end
 
-Roughly fit an MAPPLE model to linear frequencies and linear spectral density using
-peak-finding and linear regression.
-This should be done prior to using [`fit!`](@ref) to refine the parameters with Optim.jl
-Please consider using 'logsample'd spectra for a fit that is less sensitive to
-high-frequency noise
+# Refine `params` with Optim when OptimExt is loaded, else return unchanged. Component-count
+# selection relies on this: the rough fit gives every component the same slope, so only after
+# refinement do different counts produce different fits (without Optim the sweep collapses to a
+# single component).
+function _refine_if_possible(log_f, log_s, params)
+    Base.get_extension(@__MODULE__, :OptimExt) === nothing && return params
+    return Base.invokelatest(fit_mapple, log_f, log_s, params)
+end
+
+# Pick the component count over `candidates` by minimum BIC, refining each candidate so the
+# slopes (and fit quality) actually differ.
+function _select_mapple(log_f, log_s, candidates; kwargs...)
+    best, best_bic = nothing, Inf
+    for nc in candidates
+        params = _refine_if_possible(log_f, log_s, fit_mapple(log_f, log_s; components = nc, kwargs...))
+        bic = _bic(params, log_f, log_s)
+        if bic < best_bic
+            best, best_bic = params, bic
+        end
+    end
+    return best
+end
+
 """
-function StatsAPI.fit(::Type{MAPPLE}, spectrum::AbstractDimVector; kwargs...)
+    fit(::Type{MAPPLE}, spectrum::UnivariateSpectrum; components = :auto, max_components = 3, kwargs...)
+
+Fit an MAPPLE model to linear frequencies and linear spectral density using peak-finding and
+linear regression.
+
+With `components = :auto` (default) the number of broken-power-law segments is chosen by
+minimum BIC over `1:max_components`; when Optim is loaded each candidate is refined (so the
+selection compares fully-fitted models and the returned model is already refined). Pass an
+`Integer` `components` to fix the count and get the rough fit only, then call [`fit!`](@ref) to
+refine. `kwargs` (e.g. `peaks`, `w`, `peak_threshold`) are forwarded to the peak-finding init.
+Please consider using 'logsample'd spectra for a fit that is less sensitive to high-frequency
+noise.
+"""
+function StatsAPI.fit(
+        ::Type{MAPPLE}, spectrum::AbstractDimVector;
+        components = :auto, max_components = 3, kwargs...
+    )
     log_f = map(log10, lookup(spectrum, 1))
     log_s = map(log10, parent(spectrum))
 
     frequency_check(lookup(spectrum, 1), log_f)
 
-    params = fit_mapple(log_f, log_s; kwargs...)
+    params = if components isa Integer
+        fit_mapple(log_f, log_s; components, kwargs...)
+    else
+        _select_mapple(log_f, log_s, 1:max_components; kwargs...)
+    end
     return sort(MAPPLE(params))
 end
 function StatsAPI.fit(::Type{MAPPLE}, f::AbstractVector, s::AbstractVector; kwargs...)
@@ -153,6 +203,29 @@ breakpoints(m::MAPPLE) = _field(m.params.components, :log_f_stop)
 peakfreqs(m::MAPPLE) = _field(m.params.peaks, :log_f)
 peaksigmas(m::MAPPLE) = _field(m.params.peaks, :log_σ)
 peakamplitudes(m::MAPPLE) = _field(m.params.peaks, :log_A)
+
+export peakcentres, peakbandwidths, peakheights, breakfrequencies
+
+# Physical-unit reporting layer. Internally MAPPLE is parameterised in log-10 space (where the
+# fit is well-conditioned); these accessors convert to intuitive units at the reporting
+# boundary. "Hz" is in whatever frequency unit the fitted spectrum carried, since a centre is
+# just `10^log_f`. The log-space accessors above remain for direct parameter access.
+
+"Peak centre frequencies in Hz (`10^log_f`)."
+peakcentres(m::MAPPLE) = exp10.(peakfreqs(m))
+
+"Component breakpoint frequencies in Hz (`10^log_f_stop`)."
+breakfrequencies(m::MAPPLE) = exp10.(breakpoints(m))
+
+"""
+    peakbandwidths(m)
+Peak full-width-at-half-maximum in Hz. The Gaussian width in linear frequency is
+`σ = f·tanh(log_σ)`, so `FWHM = 2√(2 ln 2)·σ`.
+"""
+peakbandwidths(m::MAPPLE) = (2 * sqrt(2 * log(2))) .* (peakcentres(m) .* tanh.(peaksigmas(m)))
+
+"Peak heights as linear power added on top of the background (`10^log_A`)."
+peakheights(m::MAPPLE) = exp10.(peakamplitudes(m))
 
 export mapple_residuals, mapple_loss, rsquared
 
@@ -181,6 +254,7 @@ function rsquared(m::MAPPLE, spectrum::AbstractDimVector)
     log_s = log10.(parent(spectrum))
     ss_res = sum(abs2, mapple_residuals(m, spectrum))
     ss_tot = sum(abs2, log_s .- (sum(log_s) / length(log_s)))
+    iszero(ss_tot) && return NaN   # flat spectrum: R² is undefined rather than ±Inf
     return 1 - ss_res / ss_tot
 end
 
@@ -310,11 +384,23 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
     return
 end
 
+# Classic median absolute deviation and its normal-consistent scale estimate. Used as a
+# robust spread for the peak-detection threshold and the lower-envelope background trim;
+# unlike `std`, neither is inflated by the peaks we are trying to detect.
+_mad(x) = median(abs.(x .- median(x)))
+_rstd(x) = 1.4826 * _mad(x)
+
+# Keep points that lie on the lower envelope of `resid`, i.e. drop the positive excursions
+# that are peaks. Returns a boolean mask; used to fit the background through the troughs
+# rather than the (peak-biased) full spectrum.
+_lower_envelope_mask(resid; k = 2) = resid .≤ (median(resid) + k * _rstd(resid))
+
 # Estimate the log-space background trend for peak detection. Default: a continuous
 # piecewise-linear (hard-break) power law fitted by least squares over the component
 # breakpoints — the actual background shape, so peaks on a steep, curved background stand out
-# on the residual. When Optim is loaded, OptimExt provides `optim_background_trend`, a full
-# smooth zero-peak fit, which is used instead.
+# on the residual. Fitted robustly: peaks only push power up, so the background is traced by
+# iteratively refitting through the lower envelope (excluding positive excursions). When Optim
+# is loaded, OptimExt provides `optim_background_trend`, a full smooth zero-peak fit, used instead.
 function _background_trend(log_f, log_s, components, transition_width)
     ext = Base.get_extension(@__MODULE__, :OptimExt)
     if ext !== nothing
@@ -322,69 +408,99 @@ function _background_trend(log_f, log_s, components, transition_width)
     end
     breaks = [c.log_f_stop for c in components][1:(end - 1)]
     basis = hcat(ones(length(log_f)), log_f, (max.(log_f .- b, 0.0) for b in breaks)...)
-    return basis * (basis \ log_s)
+    coef = basis \ log_s
+    for _ in 1:3   # iteratively refit through the lower envelope so peaks don't lift the trend
+        resid = log_s .- basis * coef
+        mask = _lower_envelope_mask(resid)
+        count(mask) < size(basis, 2) && break   # need enough points to determine the fit
+        coef = basis[mask, :] \ log_s[mask]
+    end
+    return basis * coef
 end
 
+"""
+    fit_mapple(log_f, log_s; components, peaks = :auto, peak_threshold = 5.0, max_n_peaks = 8, peak_width_limits, w, kwargs...)
+
+Rough MAPPLE initialisation from log-10 frequencies/spectral density: fit `components`
+broken-power-law segments by regression, then detect peaks on the detrended residual.
+
+Peak count:
+- `peaks = :auto` (default) keeps every detection whose prominence clears `peak_threshold`
+  robust standard deviations of the residual, up to `max_n_peaks` strongest. The default
+  threshold is deliberately conservative — noise produces local-maxima prominences several
+  times the point-noise scale, so a low threshold over-detects. Detection is best-effort;
+  pass an explicit `peaks::Integer` when the count is known.
+- `peaks::Integer` takes the strongest that many detections (no threshold, no padding);
+  fewer are returned, with a warning, if detection finds fewer.
+
+`peak_width_limits = (wmin, wmax)` (log-frequency units) rejects implausibly narrow
+(sub-resolution) or wide detections before counting. `w` is the peak-finder smoothing
+window; pass an explicit `minprom` to override the `:auto` threshold.
+"""
 function fit_mapple(
         log_f, log_s;
         w = max(1, length(log_f) ÷ 100),
-        peaks,
+        peaks = :auto,
         components,
-        minprom = (maximum(log_s) - minimum(log_s)) / 50,
+        peak_threshold = 5.0,
+        max_n_peaks = 8,
+        peak_width_limits = (minimum(diff(log_f)), (maximum(log_f) - minimum(log_f)) / 2),
+        minprom = nothing,
         kwargs...
     )
-    logspectrum = ToolsArray(log_s, Log10𝑓(log_f))
     log_A = first(log_s) # Estimate of amplitude
 
     β = last([ones(length(log_f)) log_f] \ log_s) # Simple linear regression. Start by guessing all components have the same exponent, and evenly distribute the breaks
     log_f_stop = range(extrema(log_f)..., length = components + 1)[2:end]
     transition_width = (maximum(log_f) - minimum(log_f)) / (20)
-    # transition_width = max(transition_width, minimum(diff(log_f)))
 
     components = map(1:components) do i
         ComponentArray(; log_f_stop = log_f_stop[i], β = β)
     end
 
     # * Find peaks on the residual after removing the zero-peak background. `_background_trend`
-    #   returns a least-squares piecewise-linear power law by default, or a full Optim
+    #   returns a robust least-squares piecewise-linear power law by default, or a full Optim
     #   zero-peak fit when Optim is loaded. Peaks that ride a steep, curved background — and so
     #   are not local maxima of the raw spectrum — stand out cleanly on the residual.
     trend = _background_trend(log_f, log_s, components, transition_width)
     residual = ToolsArray(log_s .- trend, Log10𝑓(log_f))
+
+    # For a fixed count, take the strongest peaks with no threshold (the count is the
+    # selection). For `:auto`, gate on a data-driven prominence threshold.
+    auto = !(peaks isa Integer)
+    auto && isnothing(minprom) && (minprom = peak_threshold * _rstd(parent(residual)))
     _, proms, bounds = findpeaks(residual, w; minprom, kwargs...)
 
-    if !isnothing(peaks) && !isempty(proms)
-        if peaks > length(proms)
-            proms = vcat(proms, [mean(log_s) for _ in 1:(peaks - length(proms))])
-            bounds = vcat(
-                bounds,
-                [
-                    deepcopy(first(bounds))
-                        for _ in 1:(peaks - length(bounds))
-                ]
-            )
-        end
+    # Reject implausibly narrow (sub-resolution spike) or wide detections before counting.
+    wmin, wmax = peak_width_limits
+    keep = [wmin ≤ (maximum(b) - minimum(b)) ≤ wmax for b in bounds]
+    proms, bounds = proms[keep], bounds[keep]
 
-        ps = sortperm(proms; rev = true)[1:peaks]
-        proms = proms[ps]
-        bounds = bounds[ps]
-    elseif peaks > 0
-        @warn "Number of guessed peaks ($(length(proms))) does not match expected peaks ($peaks)"
-        proms = zeros(peaks)
-        df = maximum(log_f) - minimum(log_f)
-        bounds = [(minimum(log_f) + df / 3) .. (maximum(log_f) - df / 3) for _ in 1:peaks]
+    # Select the count: a fixed `peaks` takes the top-N; `:auto` keeps survivors up to
+    # `max_n_peaks`. Either way, never fabricate peaks to hit a target.
+    ncap = auto ? min(max_n_peaks, length(proms)) : peaks
+    if ncap < length(proms)
+        ps = sortperm(proms; rev = true)[1:ncap]
+        proms, bounds = proms[ps], bounds[ps]
+    elseif !auto && ncap > length(proms)
+        @warn "Requested up to $peaks peaks but only $(length(proms)) were detected"
     end
 
-    peaks = map(proms, bounds) do prom, bound
-        log_f = mean(bound)
-        log_σ = (maximum(bound) - minimum(bound)) / 2
-        s_f = logspectrum[Near(maximum(bound) + log_σ)]
-        log_A = prom + s_f
-        if log_σ ≤ 0
-            log_σ = transition_width # A guess
-        end
-        return ComponentArray(; log_f, log_σ, log_A)
+    # Initialise peak amplitudes conservatively, anchored to the spectral floor rather than the
+    # local background: a prominence-scaled bump above `minimum(log_s)`. On a steep background
+    # the local-background lift would make a peak start comparable to the (huge) background and
+    # hijack the joint refine — capturing slope curvature and biasing β; a small start lets the
+    # background fit first and the refine then grows genuine peaks into the residual.
+    # NB: use fresh names inside this closure — assigning `log_A`/`log_σ` here would leak to the
+    # enclosing `log_A = first(log_s)` (a `do` block shares enclosing locals).
+    floorlevel = minimum(log_s)
+    peakparams = map(proms, bounds) do prom, bound
+        pf = mean(bound)
+        pσ = (maximum(bound) - minimum(bound)) / 2
+        pσ ≤ 0 && (pσ = transition_width) # A guess
+        pA = floorlevel + log10(max(expm1(prom * log(10)), eps()))
+        return ComponentArray(; log_f = pf, log_σ = pσ, log_A = pA)
     end
 
-    return ComponentArray(; log_A, peaks, components, transition_width)
+    return ComponentArray(; log_A, peaks = _emptylike(peakparams), components, transition_width)
 end
