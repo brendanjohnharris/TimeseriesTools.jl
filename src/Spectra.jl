@@ -242,6 +242,15 @@ function _energyspectrum(x::SpikeTrain{T, 1} where {T}, frange::Tuple; kwargs...
     return _energyspectrum(x, 0:first(frange):last(frange); kwargs...)
 end
 
+"""
+    logbin(s::AbstractDimVector)
+
+Group a spectrum `s` (positive, ascending frequency lookup) into bins of equal width in log-10
+frequency. Returns the grouped spectrum, with each bin's lookup value set to its geometric
+(log-space) centre. The bin width is the spacing of the original frequencies in log space, so
+low-frequency decades (sparsely sampled on a linear grid) keep their points while dense
+high-frequency decades are collapsed into bins. See [`logsample`](@ref) to reduce each bin.
+"""
 function logbin(_s::AbstractDimVector{T, D}) where {T, d, D <: Tuple{<:d}}
     __f = lookup(_s, 1)
     if first(__f) <= 0
@@ -261,6 +270,19 @@ function logbin(_s::AbstractDimVector{T, D}) where {T, d, D <: Tuple{<:d}}
     return rebuild(s; dims = ds)
 end
 
+"""
+    logsample(s::AbstractDimArray, average = geomean)
+
+Resample a spectrum `s` onto a logarithmically-spaced frequency grid: bin into equal-width
+log-10 frequency bins (see [`logbin`](@ref)) and reduce each bin with `average` (the geometric
+mean by default, i.e. the arithmetic mean in log space).
+
+This equalises the sample density across decades and averages down high-frequency noise. It is
+the recommended preprocessing before fitting a [`MAPPLE`](@ref) model to a measured spectrum: the
+MAPPLE loss is an unweighted sum of squared log-residuals, so without log-sampling the densely-
+and noisily-sampled high-frequency decades dominate the fit. Use `average = mean` for the
+arithmetic (rather than geometric) mean within each bin.
+"""
 function logsample(s::A, average = geomean) where {A <: AbstractDimArray}
     return map(logbin(s)) do _s
         average(_s)

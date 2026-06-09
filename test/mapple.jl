@@ -8,10 +8,58 @@
 # items also cover the robustness/reporting overhaul: the conservative peak-amplitude init
 # and the `log_A` do-block-leak fix, the Hz reporting accessors, the `rsquared` flat-spectrum
 # guard, the peak-width guard, data-driven (`:auto`) peak counting, and BIC component
-# selection. These tests are deliberately plot-free and deterministic.
+# selection. These tests are deterministic; every item that fits a model also saves a log–log
+# figure of the fit to `test/mapple_figs/` via the shared `MapplePlots` setup module.
 #
 # Construction helpers are repeated inside each `@testitem` because every item runs in
 # its own isolated module.
+
+# Shared plotting helper. Defined once as a `@testmodule` so CairoMakie loads a single
+# time and is reused by every item that requests `setup = [MapplePlots]`. Only the
+# `ComponentArray` *type* is imported (not all of ComponentArrays) so its `Axis` export does not
+# shadow Makie's `Axis`.
+@testmodule MapplePlots begin
+    using CairoMakie
+    import Fathom: fathom, OnePanel
+    import TimeseriesTools: MAPPLE, mapple
+    import ComponentArrays: ComponentArray
+    set_theme!(fathom())
+
+    const FIGDIR = joinpath(@__DIR__, "mapple_figs")
+
+    _curve(f, m::MAPPLE) = mapple(f, m.params)
+    _curve(f, p::ComponentArray) = mapple(f, p)
+
+    """
+        save_fit(name, f, data, fit; init = nothing)
+
+    Save a log-log figure of a MAPPLE fit to `test/mapple_figs/<name>.png`: the measured `data`
+    (linear spectral density at linear frequencies `f`) as points, the rough `init` (initial
+    estimate) curve in grey when supplied, and the refined `fit` (full fit) curve in red on top.
+    `fit`/`init` may each be a `MAPPLE` or a raw parameter `ComponentArray`.
+    """
+    function save_fit(name, f, data, fit; init = nothing, subdir = "")
+        outdir = joinpath(FIGDIR, subdir)
+        isdir(outdir) || mkpath(outdir)
+        fv = collect(Float64, f)
+        fig = OnePanel()
+        ax = Axis(
+            fig[1, 1]; xscale = log10, yscale = log10,
+            xlabel = "frequency", ylabel = "power spectral density"
+        )
+        scatter!(ax, fv, collect(Float64, data); label = "data", markersize = 4, color = (:black, 0.4))
+        init === nothing ||
+            lines!(ax, fv, _curve(fv, init); label = "initial estimate", color = :gray, linewidth = 2, linestyle = :dash)
+        lines!(ax, fv, _curve(fv, fit); label = "full fit", color = :crimson, linewidth = 2, linestyle = :dash)
+        # Horizontal legend in a row above the axis: spans the width, never overlaps the data.
+        Legend(
+            fig[0, 1], ax; orientation = :horizontal, framevisible = false,
+            tellheight = true, tellwidth = false
+        )
+        save(joinpath(outdir, "$(name).png"), fig)
+        return nothing
+    end
+end
 
 @testitem "mapple model: power law, peaks, positivity" tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays
@@ -23,8 +71,10 @@
     f = exp10.(range(0, 3, length = 200))
 
     # A single component with no peaks is exactly the power law A·f^β.
-    p1 = ComponentArray(; log_A = 0.5, peaks = nopeaks(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    p1 = ComponentArray(;
+        log_A = 0.5, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     s1 = mapple(f, p1)
     @test s1 ≈ exp10(0.5) .* f .^ (-2.0)
     @test all(>(0), s1)                # strictly positive => log10 in the loss is safe
@@ -34,21 +84,27 @@
     @test mapple(f, p1) ≈ mapple(f, p1[[:log_A, :transition_width, :components]], p1[[:peaks]])
 
     # A Gaussian peak adds power near its centre frequency (10^log_f).
-    p2 = ComponentArray(; log_A = 0.5,
+    p2 = ComponentArray(;
+        log_A = 0.5,
         peaks = [mkpeak(; log_f = 1.0, log_σ = 0.3, log_A = 1.0)],
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     s2 = mapple(f, p2)
     icentre = argmin(abs.(f .- 10.0))
     @test s2[icentre] > s1[icentre]
     @test all(>(0), s2)
 
     # Output is invariant to the order components are supplied (sorted internally).
-    pfwd = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
+    pfwd = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
         components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 5.0, β = -3.0)],
-        transition_width = 0.05)
-    prev = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
+        transition_width = 0.05
+    )
+    prev = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
         components = [mkcomp(; log_f_stop = 5.0, β = -3.0), mkcomp(; log_f_stop = 1.5, β = -1.0)],
-        transition_width = 0.05)
+        transition_width = 0.05
+    )
     @test mapple(f, pfwd) ≈ mapple(f, prev)
 
     # The hot path is type stable.
@@ -63,20 +119,24 @@ end
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
 
     f = exp10.(range(-1, 4, length = 400))
-    p = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
+    p = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
         components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 5.0, β = -3.0)],
-        transition_width = 0.05)
+        transition_width = 0.05
+    )
     s = mapple(f, p)
     @test all(isfinite, s)
     @test all(>(0), s)
     @test @inferred(mapple(f, p)) isa Vector{Float64}
 
     # A peak added on top only increases power.
-    pp = ComponentArray(; log_A = 1.0,
+    pp = ComponentArray(;
+        log_A = 1.0,
         peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 2.0)],
         components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 5.0, β = -3.0)],
-        transition_width = 0.05)
-    @test all(mapple(f, pp) .≥ s .- 1e-8)
+        transition_width = 0.05
+    )
+    @test all(mapple(f, pp) .≥ s .- 1.0e-8)
 end
 
 @testitem "MAPPLE: construction & predict" tags = [:mapple] begin
@@ -86,10 +146,12 @@ end
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
 
     # The keyword constructor mirrors the documented field layout.
-    m = MAPPLE(; log_A = 1.0,
+    m = MAPPLE(;
+        log_A = 1.0,
         peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5)],
         components = [mkcomp(; log_f_stop = 1.5, β = 2.0)],
-        transition_width = 0.2)
+        transition_width = 0.2
+    )
     @test m isa MAPPLE
     @test length(m.params.peaks) == 1
     @test length(m.params.components) == 1
@@ -106,12 +168,18 @@ end
 
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    mkparams() = ComponentArray(; log_A = 1.0,
-        peaks = [mkpeak(; log_f = 2.5, log_σ = 0.11, log_A = 0.51),
-            mkpeak(; log_f = 0.7, log_σ = 0.12, log_A = 1.52)],
-        components = [mkcomp(; log_f_stop = 5.0, β = 4.0),
-            mkcomp(; log_f_stop = 1.5, β = 2.0)],
-        transition_width = 0.2)
+    mkparams() = ComponentArray(;
+        log_A = 1.0,
+        peaks = [
+            mkpeak(; log_f = 2.5, log_σ = 0.11, log_A = 0.51),
+            mkpeak(; log_f = 0.7, log_σ = 0.12, log_A = 1.52),
+        ],
+        components = [
+            mkcomp(; log_f_stop = 5.0, β = 4.0),
+            mkcomp(; log_f_stop = 1.5, β = 2.0),
+        ],
+        transition_width = 0.2
+    )
 
     m = MAPPLE(mkparams())
     @test !issorted(m.params.peaks.log_f)
@@ -136,18 +204,26 @@ end
     @test collect(Float64, m2.params.peaks.log_A)[i07] ≈ 1.52
 
     # When the model is already sorted, sorting is a no-op and is safe.
-    msorted = MAPPLE(ComponentArray(; log_A = 1.0,
-        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.12, log_A = 1.52),
-            mkpeak(; log_f = 2.5, log_σ = 0.11, log_A = 0.51)],
-        components = [mkcomp(; log_f_stop = 1.5, β = 2.0),
-            mkcomp(; log_f_stop = 5.0, β = 4.0)],
-        transition_width = 0.2))
+    msorted = MAPPLE(
+        ComponentArray(;
+            log_A = 1.0,
+            peaks = [
+                mkpeak(; log_f = 0.7, log_σ = 0.12, log_A = 1.52),
+                mkpeak(; log_f = 2.5, log_σ = 0.11, log_A = 0.51),
+            ],
+            components = [
+                mkcomp(; log_f_stop = 1.5, β = 2.0),
+                mkcomp(; log_f_stop = 5.0, β = 4.0),
+            ],
+            transition_width = 0.2
+        )
+    )
     ssorted = mapple(f, msorted.params)
     sort!(msorted)
     @test mapple(f, msorted.params) ≈ ssorted
 end
 
-@testitem "mapple: fit recovers a known spectrum (peaks=0)" tags = [:mapple] begin
+@testitem "mapple: fit recovers a known spectrum (peaks=0)" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
 
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
@@ -155,9 +231,12 @@ end
 
     truth = ComponentArray(;
         components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
-        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
-            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
-        transition_width = 0.15, log_A = 1.0)
+        peaks = [
+            mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
+            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
+        ],
+        transition_width = 0.15, log_A = 1.0
+    )
 
     log_f = range(0, 3, length = 500)
     f = exp10.(log_f)
@@ -175,9 +254,11 @@ end
     @test cor(mapple(f, refined), s_clean) > 0.99
     @test sort(collect(Float64, refined.components.β)) ≈ [2.0, 4.0] atol = 0.2
     @test refined.log_A ≈ 1.0 atol = 0.1
+
+    MapplePlots.save_fit("fit_recovers_peaks0", f, exp10.(log_s), refined; init = init, subdir = "diagnostics")
 end
 
-@testitem "mapple: type-form entry points & empty-block construction" tags = [:mapple] begin
+@testitem "mapple: type-form entry points & empty-block construction" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim
 
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
@@ -185,13 +266,18 @@ end
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
 
     f = exp10.(range(0, 3, length = 200))
-    p = ComponentArray(; log_A = 0.5, peaks = nopeaks(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    p = ComponentArray(;
+        log_A = 0.5, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     s = mapple(f, p)
 
     # `fit(MAPPLE, freqs, spectrum)` wraps the frequency vector in a frequency dimension
     # and fits.
-    @test fit(MAPPLE, f, s; peaks = 0, components = 1) isa MAPPLE
+    m = fit(MAPPLE, f, s; peaks = 0, components = 1)
+    @test m isa MAPPLE
+    full = fit!(deepcopy(m), ToolsArray(s, 𝑓(f)))   # refine the rough fit for the figure
+    MapplePlots.save_fit("type_form_fit", f, s, full; init = m, subdir = "diagnostics")
 
     # `fit!(::Type{MAPPLE}, ...)` was a never-working misnomer for `fit`; it is removed,
     # so calling it raises a MethodError.
@@ -200,8 +286,10 @@ end
     # A zero-peak model builds via the `MAPPLE` constructor even from a plain empty
     # `Vector{<:ComponentArray}` (the constructor normalises empty blocks).
     PeakT = typeof(mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0))
-    m0 = MAPPLE(; log_A = 0.5, peaks = Vector{PeakT}(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    m0 = MAPPLE(;
+        log_A = 0.5, peaks = Vector{PeakT}(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     @test m0 isa MAPPLE
     @test length(m0.params.peaks) == 0
     @test all(>(0), mapple(f, m0.params))
@@ -216,11 +304,15 @@ end
 
     log_f = range(0, 3, length = 500)
     f = exp10.(log_f)
-    truth = ComponentArray(; log_A = 1.0,
-        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
-            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
+    truth = ComponentArray(;
+        log_A = 1.0,
+        peaks = [
+            mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
+            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
+        ],
         components = [mkcomp(; log_f_stop = 1.5, β = 2.0), mkcomp(; log_f_stop = 5.0, β = 4.0)],
-        transition_width = 0.15)
+        transition_width = 0.15
+    )
     log_s = log10.(mapple(f, truth))
 
     logspec = ToolsArray(log_s, Log10𝑓(collect(log_f)))
@@ -236,10 +328,12 @@ end
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    m = MAPPLE(; log_A = 1.0,
+    m = MAPPLE(;
+        log_A = 1.0,
         peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5)],
         components = [mkcomp(; log_f_stop = 1.5, β = 2.0), mkcomp(; log_f_stop = 5.0, β = 4.0)],
-        transition_width = 0.2)
+        transition_width = 0.2
+    )
     @test betas(m) isa Vector{Float64}
     @test betas(m) == [2.0, 4.0]
     @test breakpoints(m) == [1.5, 5.0]
@@ -248,8 +342,10 @@ end
     @test peakamplitudes(m) == [1.5]
     # empty peaks must not error and stay typed
     PeakT = typeof(mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0))
-    m0 = MAPPLE(; log_A = 1.0, peaks = Vector{PeakT}(),
-        components = [mkcomp(; log_f_stop = 5.0, β = 2.0)], transition_width = 0.2)
+    m0 = MAPPLE(;
+        log_A = 1.0, peaks = Vector{PeakT}(),
+        components = [mkcomp(; log_f_stop = 5.0, β = 2.0)], transition_width = 0.2
+    )
     @test peakfreqs(m0) == Float64[]
     @test peakfreqs(m0) isa Vector{Float64}
 end
@@ -258,9 +354,11 @@ end
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    truth = MAPPLE(; log_A = 1.0,
+    truth = MAPPLE(;
+        log_A = 1.0,
         peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 1.0)],
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     f = exp10.(range(0, 3, length = 300))
     spectrum = ToolsArray(mapple(f, truth.params), 𝑓(f))
     # the exact model on its own spectrum: zero residual, perfect fit
@@ -268,9 +366,11 @@ end
     @test mapple_loss(truth, spectrum) < 1.0e-12
     @test rsquared(truth, spectrum) ≈ 1.0 atol = 1.0e-8
     # a worse model has higher loss and lower R²
-    wrong = MAPPLE(; log_A = 1.0,
+    wrong = MAPPLE(;
+        log_A = 1.0,
         peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 1.0)],
-        components = [mkcomp(; log_f_stop = 5.0, β = -1.0)], transition_width = 0.1)
+        components = [mkcomp(; log_f_stop = 5.0, β = -1.0)], transition_width = 0.1
+    )
     @test mapple_loss(wrong, spectrum) > mapple_loss(truth, spectrum)
     @test rsquared(wrong, spectrum) < rsquared(truth, spectrum)
 end
@@ -279,9 +379,11 @@ end
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    p = ComponentArray(; log_A = 0.5, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 1.0)],
+    p = ComponentArray(;
+        log_A = 0.5, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 1.0)],
         components = [mkcomp(; log_f_stop = 2.0, β = -1.0), mkcomp(; log_f_stop = 5.0, β = -3.0)],
-        transition_width = 0.1)
+        transition_width = 0.1
+    )
     f = exp10.(range(0, 3, length = 400))
     log_f = log10.(f)
     cps = p[[:log_A, :transition_width, :components]]
@@ -298,7 +400,7 @@ end
     @test a < b
 end
 
-@testitem "mapple: robust fit on a steep rising spectrum (regression)" tags = [:mapple] begin
+@testitem "mapple: robust fit on a steep rising spectrum (regression)" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -306,9 +408,12 @@ end
     # degenerate β / log_A optimum. The zero-peak detrend + single joint refine fits it cleanly.
     truth = ComponentArray(;
         components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
-        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
-            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
-        transition_width = 0.15, log_A = 1.0)
+        peaks = [
+            mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5),
+            mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5),
+        ],
+        transition_width = 0.15, log_A = 1.0
+    )
     log_f = range(0, 3, length = 500)
     f = exp10.(log_f)
     Random.seed!(0)
@@ -321,10 +426,12 @@ end
     @test loss(refined) < 1.5 * loss(truth)          # no degenerate collapse
     @test cor(mapple(f, refined), s_clean) > 0.99
     @test sort(collect(Float64, refined.components.β)) ≈ [2.0, 4.0] atol = 0.5
+
+    MapplePlots.save_fit("robust_steep_rising", f, exp10.(log_s), refined; init = init, subdir = "diagnostics")
 end
 
-@testitem "mapple: rough-fit base amplitude is not clobbered by the peak loop" tags = [:mapple] begin
-    using TimeseriesTools, ComponentArrays, Random
+@testitem "mapple: rough-fit base amplitude is not clobbered by the peak loop" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random, Optim, ForwardDiff
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     # The peak-construction `do` block must use fresh names: assigning `log_A` inside it would
@@ -333,21 +440,27 @@ end
     truth = ComponentArray(;
         components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
         peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5), mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
-        transition_width = 0.15, log_A = 1.0)
+        transition_width = 0.15, log_A = 1.0
+    )
     log_f = range(0, 3, length = 500); f = exp10.(log_f)
     Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
     init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
     @test init.log_A ≈ first(log_s)              # base amplitude is the DC estimate, not a peak's
     @test all(isfinite, mapple(f, init))         # init is sane, not a 10^(peak log_A) blow-up
+
+    refined = fit_mapple(log_f, log_s, init)     # full fit, for the figure
+    MapplePlots.save_fit("rough_init_base_amplitude", f, exp10.(log_s), refined; init = init, subdir = "diagnostics")
 end
 
 @testitem "MAPPLE: Hz reporting accessors" tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    m = MAPPLE(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
+    m = MAPPLE(;
+        log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
         components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 2.5, β = -3.0)],
-        transition_width = 0.1)
+        transition_width = 0.1
+    )
     # Physical-unit accessors convert OUT of log-10 space at the reporting boundary.
     @test peakcentres(m) ≈ exp10.(peakfreqs(m)) ≈ [10.0]
     @test breakfrequencies(m) ≈ exp10.(breakpoints(m)) ≈ [10.0^1.5, 10.0^2.5]
@@ -357,8 +470,10 @@ end
     @test all(>(0), peakbandwidths(m))
     # Empty peaks stay typed and empty.
     PeakT = typeof(mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0))
-    m0 = MAPPLE(; log_A = 1.0, peaks = Vector{PeakT}(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    m0 = MAPPLE(;
+        log_A = 1.0, peaks = Vector{PeakT}(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     @test peakcentres(m0) == Float64[] && peakbandwidths(m0) == Float64[] && peakheights(m0) == Float64[]
 end
 
@@ -366,59 +481,93 @@ end
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    m = MAPPLE(; log_A = 1.0, peaks = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0),
-        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1)
+    m = MAPPLE(;
+        log_A = 1.0, peaks = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0),
+        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1
+    )
     f = exp10.(range(0, 3, length = 100))
     flat = ToolsArray(fill(10.0, 100), 𝑓(f))   # constant spectrum => ss_tot = 0
     @test isnan(rsquared(m, flat))             # undefined, not ±Inf or a DivideError
 end
 
-@testitem "mapple: peak-width guard rejects out-of-range detections" tags = [:mapple] begin
-    using TimeseriesTools, ComponentArrays, Random
+@testitem "mapple: peak-width guard rejects out-of-range detections" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random, Optim, ForwardDiff
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
     # Falling 1-component background with one clear, narrow peak.
-    truth = ComponentArray(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.1, log_A = 1.0)],
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    truth = ComponentArray(;
+        log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.1, log_A = 1.0)],
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     log_f = range(0, 3, length = 400); f = exp10.(log_f)
     Random.seed!(7); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
     # Default limits: the narrow peak is found.
-    @test length(fit_mapple(log_f, log_s; components = 1, w = 50).peaks) ≥ 1
+    init = fit_mapple(log_f, log_s; components = 1, w = 50)
+    @test length(init.peaks) ≥ 1
     # Demanding very wide peaks rejects every detection before counting.
     @test length(fit_mapple(log_f, log_s; components = 1, w = 50, peak_width_limits = (2.0, 3.0)).peaks) == 0
+
+    # Refine for a clean full fit: the recovered peak lands at the true centre and height.
+    refined = fit_mapple(log_f, log_s, init)
+    m = MAPPLE(refined)
+    @test only(peakcentres(m)) ≈ 10.0^1.5 rtol = 0.05
+    @test only(peakamplitudes(m)) ≈ 1.0 atol = 0.15
+
+    MapplePlots.save_fit("peak_width_guard", f, exp10.(log_s), refined; init = init, subdir = "low")
 end
 
-@testitem "mapple: :auto detects a prominent peak and rejects noise" tags = [:mapple] begin
-    using TimeseriesTools, ComponentArrays, Random
+@testitem "mapple: :auto detects a prominent peak and rejects noise" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Random, Optim, ForwardDiff
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    truth = ComponentArray(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.12, log_A = 1.2)],
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    truth = ComponentArray(;
+        log_A = 1.0, peaks = [mkpeak(; log_f = 1.5, log_σ = 0.12, log_A = 1.2)],
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     log_f = range(0, 3, length = 400); f = exp10.(log_f)
     Random.seed!(11); log_s = log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f))
-    p = fit_mapple(log_f, log_s; components = 1, w = 50)   # peaks = :auto
-    @test length(p.peaks) == 1                               # the one real peak, not noise bumps
-    @test only(collect(Float64, p.peaks.log_f)) ≈ 1.5 atol = 0.2
+    # Rough init: `:auto` finds the one real peak and seeds its amplitude from the LOCAL background
+    # under it, so the start is already near the true height (anchoring to the global spectral floor
+    # instead would start it orders of magnitude too low for the refine to grow — see the peak-init
+    # note in `fit_mapple`).
+    init = fit_mapple(log_f, log_s; components = 1, w = 50)   # peaks = :auto
+    @test length(init.peaks) == 1                              # the one real peak, not noise bumps
+    @test only(collect(Float64, init.peaks.log_f)) ≈ 1.5 atol = 0.2
+    @test only(collect(Float64, init.peaks.log_A)) ≈ 1.2 atol = 0.6   # seeded near the true height
+
+    # The Optim refinement then polishes the centre and height to the data.
+    refined = fit_mapple(log_f, log_s, init)
+    m = MAPPLE(refined)
+    @test only(peakcentres(m)) ≈ 10.0^1.5 rtol = 0.05
+    @test only(peakamplitudes(m)) ≈ 1.2 atol = 0.15
+    @test only(peakheights(m)) ≈ 10.0^1.2 rtol = 0.25
+
+    MapplePlots.save_fit("auto_detect_peak", f, exp10.(log_s), refined; init = init, subdir = "low")
 end
 
-@testitem "mapple: BIC selects the simplest adequate component count" tags = [:mapple] begin
+@testitem "mapple: BIC selects the simplest adequate component count" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Random, Optim, ForwardDiff
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
     # A genuine single power law: the free-knot BIC penalty must not over-select components.
-    truth = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    truth = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     f = exp10.(range(0, 3, length = 150))
     Random.seed!(5); s = exp10.(log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f)))
     spec = ToolsArray(s, 𝑓(f))
     m = fit(MAPPLE, spec)                       # :auto BIC selection (refined when Optim loaded)
     @test length(m.params.components) == 1
     @test rsquared(m, spec) > 0.99
+
+    init = fit_mapple(log10.(f), log10.(s); components = length(m.params.components))
+    MapplePlots.save_fit("bic_component_selection", f, s, m; init = init, subdir = "diagnostics")
 end
 
-@testitem "mapple: fit on a flat / low-dynamic-range spectrum does not crash (regression)" tags = [:mapple] begin
+@testitem "mapple: fit on a flat / low-dynamic-range spectrum does not crash (regression)" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -431,26 +580,37 @@ end
     m = fit(MAPPLE, flat)
     @test m isa MAPPLE
     @test all(>(0), predict(m, f))
-    m2 = MAPPLE(; log_A = 2.0, peaks = nopeaks(),
-        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1)
+    m2 = MAPPLE(;
+        log_A = 2.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1
+    )
     @test fit!(m2, flat) isa MAPPLE
     @test m2.params.log_A ≈ 2.0 atol = 0.5      # base amplitude near the flat level (10^2)
+
+    init = fit_mapple(log10.(f), log10.(parent(flat)); components = 1)
+    MapplePlots.save_fit("flat_spectrum_fit", f, parent(flat), m; init = init, subdir = "diagnostics")
 end
 
-@testitem "mapple: refine options route through the `refine` channel" tags = [:mapple] begin
+@testitem "mapple: refine options route through the `refine` channel" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
     f = exp10.(range(0, 3, length = 200))
-    truth = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
-        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    truth = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
+    )
     Random.seed!(3); s = exp10.(log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f)))
     spec = ToolsArray(s, 𝑓(f))
     # Optim refine options (iterations, multistart) pass through `refine` without reaching the
     # peak finder. Previously these leaked into findpeaks and raised a MethodError.
     @test fit(MAPPLE, spec; refine = (; iterations = 50)) isa MAPPLE
-    @test fit(MAPPLE, spec; refine = (; multistart = 2)) isa MAPPLE
+    m = fit(MAPPLE, spec; refine = (; multistart = 2))
+    @test m isa MAPPLE
+
+    init = fit_mapple(log10.(f), log10.(s); components = 1)
+    MapplePlots.save_fit("refine_channel", f, s, m; init = init, subdir = "diagnostics")
 end
 
 @testitem "mapple: degenerate fits raise a clear ArgumentError" tags = [:mapple] begin
@@ -467,17 +627,23 @@ end
     @test_throws ArgumentError fit_mapple([1.0], [0.5]; components = 1)
     @test_throws ArgumentError fit(MAPPLE, [10.0], [3.0])
     # The MAPPLE constructor requires at least one component.
-    @test_throws ArgumentError MAPPLE(; log_A = 1.0, peaks = nopeaks(),
-        components = ComponentArray[], transition_width = 0.1)
+    @test_throws ArgumentError MAPPLE(;
+        log_A = 1.0, peaks = nopeaks(),
+        components = ComponentArray[], transition_width = 0.1
+    )
 end
 
 @testitem "MAPPLE: show reports Hz consistently with the accessors" tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    m = sort(MAPPLE(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
-        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 2.5, β = -3.0)],
-        transition_width = 0.1))
+    m = sort(
+        MAPPLE(;
+            log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
+            components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 2.5, β = -3.0)],
+            transition_width = 0.1
+        )
+    )
     str = sprint(show, m)
     @test occursin("Hz", str) && occursin("FWHM", str)
     # The figures printed by `show` are exactly the accessor values (single source of truth).
@@ -486,14 +652,15 @@ end
     @test occursin("$(round(peakbandwidths(m)[1], sigdigits = 4))", str)
 end
 
-@testitem "mapple: multistart refinement is robust and never worsens the fit" tags = [:mapple] begin
+@testitem "mapple: multistart refinement is robust and never worsens the fit" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     truth = ComponentArray(;
         components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
         peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5), mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
-        transition_width = 0.15, log_A = 1.0)
+        transition_width = 0.15, log_A = 1.0
+    )
     log_f = range(0, 3, length = 500); f = exp10.(log_f)
     Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
     loss(p) = sum(abs2, log_s .- log10.(mapple(f, p)))
@@ -507,4 +674,393 @@ end
     clean = log10.(mapple(f, truth))
     cinit = fit_mapple(log_f, clean; components = 3, peaks = 2, w = 50)
     Random.seed!(2); @test fit_mapple(log_f, clean, cinit; multistart = 3) isa ComponentArray
+
+    MapplePlots.save_fit("multistart_refine", f, exp10.(log_s), multi; init = init, subdir = "diagnostics")
+end
+
+# --- Complex-spectrum accuracy ----------------------------------------------------------------
+# These items exercise the refinement on harder spectra (multiple peaks, >2 power-law segments).
+# They judge accuracy in LOG-10 space — the space the loss is defined in — rather than by linear
+# `cor`, which is dominated by the high-power low-frequency samples and stays ≈1 even when a
+# mid-band peak is missed entirely. The conservative rough init only seeds peaks and slopes; the
+# Optim refine is what grows peaks to their true height, so every accuracy claim is on `refined`.
+
+@testitem "mapple: refined fit recovers peak heights on a multi-peak, multi-component spectrum" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+
+    # Three broken-power-law segments with two well-separated peaks (one in the first segment,
+    # one in the last). This is the case the misleading `auto_detect_peak` figure failed to show:
+    # the rough init's peaks start near the spectral floor; only after refinement do they reach
+    # the data height.
+    truth = ComponentArray(;
+        log_A = 2.0,
+        peaks = [
+            mkpeak(; log_f = 0.5, log_σ = 0.1, log_A = 1.5),
+            mkpeak(; log_f = 2.5, log_σ = 0.12, log_A = 1.0),
+        ],
+        components = [
+            mkcomp(; log_f_stop = 1.2, β = -1.0), mkcomp(; log_f_stop = 2.0, β = -2.5),
+            mkcomp(; log_f_stop = 5.0, β = -3.5),
+        ], transition_width = 0.08
+    )
+    log_f = range(0, 3, length = 600); f = exp10.(log_f)
+    Random.seed!(2); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 2, w = 40)
+    refined = fit_mapple(log_f, log_s, init)
+    m = MAPPLE(refined)
+
+    # Both peaks are kept (neither driven to log_A → −∞ and dropped).
+    @test length(refined.peaks) == 2
+    # Centres and heights recovered. Heights are the crux: the rough init starts them an order of
+    # magnitude low, so this fails unless the refine genuinely grows the peaks.
+    @test sort(peakfreqs(m)) ≈ [0.5, 2.5] atol = 0.15
+    @test sort(peakamplitudes(m)) ≈ [1.0, 1.5] atol = 0.2
+    @test sort(peakheights(m)) ≈ exp10.([1.0, 1.5]) rtol = 0.3
+
+    # The whole spectrum is reproduced in log space (not just correlated in linear space).
+    logfit = log10.(mapple(f, refined)); logtruth = log10.(mapple(f, truth))
+    logr2 = 1 - sum(abs2, logtruth .- logfit) / sum(abs2, logtruth .- mean(logtruth))
+    @test logr2 > 0.99
+    @test maximum(abs, logtruth .- logfit) < 0.15
+
+    MapplePlots.save_fit("complex_multipeak", f, exp10.(log_s), refined; init = init, subdir = "med")
+end
+
+@testitem "mapple: >2 components — three power-law segments recover their slopes" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    # A genuine three-segment background (steepening: −1, −2.5, −4). With no peaks to trade against,
+    # the slopes are identifiable, so we can pin them down directly.
+    truth = ComponentArray(;
+        log_A = 1.0, peaks = nopeaks(),
+        components = [
+            mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.0, β = -2.5),
+            mkcomp(; log_f_stop = 5.0, β = -4.0),
+        ], transition_width = 0.1
+    )
+    log_f = range(0, 3, length = 500); f = exp10.(log_f)
+    Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f))
+
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 0, w = 50)
+    refined = fit_mapple(log_f, log_s, init)
+    m = MAPPLE(refined)
+
+    @test length(refined.components) == 3
+    @test sort(betas(m)) ≈ [-4.0, -2.5, -1.0] atol = 0.2
+    # Only the two interior breakpoints lie inside the data range; the last segment's `log_f_stop`
+    # is beyond the grid and so is unidentifiable (it parks at the edge — not asserted).
+    @test sort(breakpoints(m))[1:2] ≈ [1.0, 2.0] atol = 0.2
+
+    logfit = log10.(mapple(f, refined)); logtruth = log10.(mapple(f, truth))
+    logr2 = 1 - sum(abs2, logtruth .- logfit) / sum(abs2, logtruth .- mean(logtruth))
+    @test logr2 > 0.99
+
+    MapplePlots.save_fit("three_component_slopes", f, exp10.(log_s), refined; init = init, subdir = "med")
+end
+
+@testitem "mapple: four-component spectrum is reproduced accurately" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    # Four segments over four decades. The individual (β, breakpoint) values are NOT uniquely
+    # identifiable here — several decompositions yield near-identical curves — so we assert the
+    # spectrum is reproduced, not the parameters. This is the honest claim for deep stacks of
+    # power laws: the model is expressive enough to capture the shape.
+    truth = ComponentArray(;
+        log_A = 2.0, peaks = nopeaks(),
+        components = [
+            mkcomp(; log_f_stop = 0.5, β = -0.5), mkcomp(; log_f_stop = 1.5, β = -1.5),
+            mkcomp(; log_f_stop = 2.5, β = -2.5), mkcomp(; log_f_stop = 6.0, β = -3.5),
+        ],
+        transition_width = 0.07
+    )
+    log_f = range(-0.5, 3.5, length = 700); f = exp10.(log_f)
+    Random.seed!(11); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+
+    init = fit_mapple(log_f, log_s; components = 4, peaks = 0, w = 40)
+    refined = fit_mapple(log_f, log_s, init)
+
+    @test length(refined.components) == 4
+    logfit = log10.(mapple(f, refined)); logtruth = log10.(mapple(f, truth))
+    logr2 = 1 - sum(abs2, logtruth .- logfit) / sum(abs2, logtruth .- mean(logtruth))
+    @test logr2 > 0.99
+    @test maximum(abs, logtruth .- logfit) < 0.1
+
+    MapplePlots.save_fit("four_component_spectrum", f, exp10.(log_s), refined; init = init, subdir = "high")
+end
+
+# --- Graduated complexity sweep ---------------------------------------------------------------
+# A staircase of increasingly complex spectra (more breaks, more peaks) so the figures show where
+# the fit starts to break. Figures are bucketed into `mapple_figs/{low,med,high,very_high}/` for
+# navigation; the recovery tests above also file into these tiers (auto_detect_peak/peak_width_guard
+# → low, complex_multipeak/three_component_slopes → med, four_component_spectrum → high).
+#
+# With peaks seeded from the LOCAL background (see the peak-init note in `fit_mapple`), peak recovery
+# is now robust well past a handful of peaks: the low/med/high tiers recover every peak. The frontier
+# has moved to the BACKGROUND — at ~6 components the broken-power-law has too many near-degenerate
+# (β, breakpoint) combinations, so the optimizer wanders (occasionally to a NaN gradient, which Optim
+# absorbs) and the recovered slopes/knots drift even though the peaks are still found. The `very_high`
+# tier exercises that regime; we assert only the robustness invariants there (finite, positive
+# spectrum; a loose log-R² floor) and record the worst-case residual via `@info`, with the figure
+# carrying the rest of the story. Lower tiers additionally assert that all peaks are recovered.
+
+@testitem "mapple: complexity sweep (low) — simple spectra fit cleanly" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
+    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # Two segments, one peak: firmly inside the regime the refine handles well.
+    truth = ComponentArray(;
+        log_A = 2.0, peaks = [mkpeak(; log_f = 0.6, log_σ = 0.1, log_A = 1.3)],
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 10.0, β = -2.8)],
+        transition_width = 0.06
+    )
+    Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 40)
+    refined = fit_mapple(log_f, log_s, init)
+    sfit = mapple(f, refined)
+    @test all(isfinite, sfit) && all(>(0), sfit)
+    @test logr2(refined, truth) > 0.99
+
+    MapplePlots.save_fit("two_components_one_peak", f, exp10.(log_s), refined; init = init, subdir = "low")
+end
+
+@testitem "mapple: complexity sweep (medium) — three peaks on three segments" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
+    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # Three segments, three peaks (one per segment). All three are recovered — both centres and
+    # heights — thanks to the local-background amplitude seeding.
+    truth = ComponentArray(;
+        log_A = 2.0,
+        peaks = [mkpeak(; log_f = 0.45, log_σ = 0.09, log_A = 1.2),
+            mkpeak(; log_f = 1.6, log_σ = 0.09, log_A = 1.0),
+            mkpeak(; log_f = 2.75, log_σ = 0.09, log_A = 1.0)],
+        components = [mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.2, β = -2.0),
+            mkcomp(; log_f_stop = 10.0, β = -3.2)], transition_width = 0.06
+    )
+    Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 3, w = 40)
+    refined = fit_mapple(log_f, log_s, init)
+    sfit = mapple(f, refined)
+    m = MAPPLE(refined)
+    @test all(isfinite, sfit) && all(>(0), sfit)
+    @test logr2(refined, truth) > 0.99
+
+    # All three peaks are kept (none collapsed to log_A → −∞) and land at their true centres/heights.
+    @test count(>(-3.0), collect(Float64, refined.peaks.log_A)) == 3
+    @test sort(peakfreqs(m)) ≈ [0.45, 1.6, 2.75] atol = 0.15
+    @test sort(peakamplitudes(m)) ≈ [1.0, 1.0, 1.2] atol = 0.2
+
+    @info "medium-complexity fit" peaks_recovered = "3/3" maxres = round(maximum(abs, log10.(mapple(f, truth)) .- log10.(sfit)), digits = 3)
+
+    MapplePlots.save_fit("three_components_three_peaks", f, exp10.(log_s), refined; init = init, subdir = "med")
+end
+
+@testitem "mapple: complexity sweep (high) — dense peaks on four segments" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
+    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # Four segments with three then four peaks. Even on this dense field every peak is recovered at
+    # its true centre — the boxed refine (one of the two bound sets `fit_mapple` tries) stops the
+    # peaks from sliding together or one ballooning into a background-like blob, which is what used
+    # to swallow the smaller peaks next to large ones.
+    components = [mkcomp(; log_f_stop = 0.8, β = -0.8), mkcomp(; log_f_stop = 1.7, β = -1.6),
+        mkcomp(; log_f_stop = 2.6, β = -2.6), mkcomp(; log_f_stop = 10.0, β = -3.6)]
+    configs = [
+        ("four_components_three_peaks", 3,
+            [mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
+                mkpeak(; log_f = 1.25, log_σ = 0.08, log_A = 1.1),
+                mkpeak(; log_f = 2.2, log_σ = 0.08, log_A = 1.0)]),
+        ("four_components_four_peaks", 4,
+            [mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
+                mkpeak(; log_f = 1.2, log_σ = 0.08, log_A = 1.1),
+                mkpeak(; log_f = 2.05, log_σ = 0.08, log_A = 1.0),
+                mkpeak(; log_f = 2.95, log_σ = 0.08, log_A = 1.0)]),
+    ]
+    for (name, np, pks) in configs
+        truth = ComponentArray(; log_A = 2.5, peaks = pks, components = components, transition_width = 0.05)
+        Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+        init = fit_mapple(log_f, log_s; components = 4, peaks = np, w = 40)
+        refined = fit_mapple(log_f, log_s, init)
+        sfit = mapple(f, refined)
+        m = MAPPLE(refined)
+        @test all(isfinite, sfit) && all(>(0), sfit)   # never returns a non-physical spectrum
+        @test logr2(refined, truth) > 0.99             # background and peaks both captured
+        @test count(>(-3.0), collect(Float64, refined.peaks.log_A)) == np   # every peak kept
+        @test sort(peakfreqs(m)) ≈ sort([p.log_f for p in pks]) atol = 0.15   # every peak at its centre
+
+        @info "high-complexity fit" name peaks_recovered = "$np/$np" maxres = round(maximum(abs, log10.(mapple(f, truth)) .- log10.(sfit)), digits = 3)
+
+        MapplePlots.save_fit(name, f, exp10.(log_s), refined; init = init, subdir = "high")
+    end
+end
+
+@testitem "mapple: complexity sweep (very high) — background identifiability breaks down" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    lo, hi = -0.5, 4.5
+    log_f = range(lo, hi, length = 1000); f = exp10.(log_f)
+    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # Six segments, six peaks over five decades — the regime where the broken-power-law background
+    # becomes non-identifiable: many (β, breakpoint) sets give near-identical curves, the optimizer
+    # wanders (Optim absorbs the occasional NaN gradient), and the recovered slopes/knots drift even
+    # though the peaks are still found. We assert only that the result stays physical and broadly
+    # tracks the data; the figure shows the local background mismatches that define this frontier.
+    edges = collect(range(lo, hi, length = 7)); stops = edges[2:end]; stops[end] = hi + 1.0
+    betas = collect(range(-0.8, -0.8 - 0.7 * 5, length = 6))
+    components = [mkcomp(; log_f_stop = stops[i], β = betas[i]) for i in 1:6]
+    centres = collect(range(lo + 0.6, hi - 0.6, length = 6)) .+ 0.17
+    peaks = [mkpeak(; log_f = centres[i], log_σ = 0.08, log_A = 1.1) for i in 1:6]
+    truth = ComponentArray(; log_A = 2.5, peaks = peaks, components = components, transition_width = 0.05)
+    Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+
+    init = fit_mapple(log_f, log_s; components = 6, peaks = 6, w = 40)
+    refined = fit_mapple(log_f, log_s, init)
+    sfit = mapple(f, refined)
+    @test all(isfinite, sfit) && all(>(0), sfit)   # still physical despite the degeneracy
+    @test logr2(refined, truth) > 0.9              # broadly tracks the data, but degraded vs lower tiers
+
+    alive = count(>(-3.0), collect(Float64, refined.peaks.log_A))
+    @info "very-high-complexity fit" peaks_recovered = "$alive/6" maxres = round(maximum(abs, log10.(mapple(f, truth)) .- log10.(sfit)), digits = 3)
+
+    MapplePlots.save_fit("six_components_six_peaks", f, exp10.(log_s), refined; init = init, subdir = "very_high")
+end
+
+# --- Noise-robustness sweeps ------------------------------------------------------------------
+# How well does the fit hold up as measurement noise grows? Two noise models are exercised on a
+# fixed, moderately-complex truth (two power-law segments + one peak):
+#
+#   1. UNIFORM (homoscedastic): constant-variance Gaussian noise in log-10 space, the same at
+#      every frequency. The fit minimises an *unweighted* sum of squared log-residuals
+#      (`OptimExt.mapple_loss`), so this is the noise model the loss is matched to. Because the
+#      fitted curve is smooth and least squares is unbiased, the noise averages out over the grid
+#      and recovery of the clean truth degrades only gently with σ.
+#
+#   2. FREQUENCY-INCREASING (heteroscedastic): the noise standard deviation ramps up with
+#      frequency, so the high-frequency tail is far noisier than the low-frequency body — the
+#      realistic shape for an un-averaged periodogram approaching its noise floor. The unweighted
+#      loss does NOT down-weight the noisy tail, so the test checks that the (clean) low-frequency
+#      structure is still recovered while the residual carries the injected frequency structure.
+#
+# Both items save one log–log figure per noise level, bucketed into `mapple_figs/noise/{uniform,
+# increasing}/` with σ-sorted filenames, matching the per-tier figure convention used above.
+
+@testitem "mapple: robustness to uniform spectral noise" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    logr2(fit, truth) = (lp = log10.(mapple(f, fit)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # Two falling segments with a single mid-band peak: comfortably inside the regime the refine
+    # handles, so any loss of accuracy is attributable to the added noise, not the model complexity.
+    truth = ComponentArray(;
+        log_A = 2.0, peaks = [mkpeak(; log_f = 1.2, log_σ = 0.1, log_A = 1.2)],
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 10.0, β = -2.5)],
+        transition_width = 0.08
+    )
+    log_f = range(0, 3, length = 600); f = exp10.(log_f)
+    s_clean = mapple(f, truth)
+
+    # A staircase of log-space noise amplitudes, from barely-perturbed to severe (σ = 0.4 ⇒ a
+    # typical point sits a factor ~10^0.4 ≈ 2.5× off the true spectrum).
+    sigmas = [0.02, 0.05, 0.1, 0.2, 0.4]
+    scores = Float64[]
+    for (i, σ) in enumerate(sigmas)
+        Random.seed!(100 + i)
+        log_s = log10.(s_clean) .+ σ .* randn(length(f))
+        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 50)
+        refined = fit_mapple(log_f, log_s, init)
+        sfit = mapple(f, refined)
+        @test all(isfinite, sfit) && all(>(0), sfit)        # a physical spectrum at every level
+        push!(scores, logr2(refined, truth))
+        MapplePlots.save_fit(
+            "uniform_s$(lpad(round(Int, σ * 100), 2, '0'))", f, exp10.(log_s), refined;
+            init = init, subdir = "noise/uniform"
+        )
+    end
+
+    @test scores[1] > 0.99                                   # low noise: the clean truth is recovered
+    @test all(>(0.8), scores)                               # never collapses, even at σ = 0.4
+    # Graceful degradation: the heaviest two levels fit the clean truth no better, on average, than
+    # the lightest level. (A trend, not strict per-step monotonicity, since each level is one draw.)
+    @test mean(scores[(end - 1):end]) < scores[1]
+
+    @info "uniform-noise sweep" sigmas = sigmas logr2 = round.(scores, digits = 4)
+end
+
+@testitem "mapple: robustness to frequency-increasing noise variance" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+
+    truth = ComponentArray(;
+        log_A = 2.0, peaks = [mkpeak(; log_f = 1.2, log_σ = 0.1, log_A = 1.2)],
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 10.0, β = -2.5)],
+        transition_width = 0.08
+    )
+    log_f = range(0, 3, length = 600); f = exp10.(log_f)
+    s_clean = mapple(f, truth)
+    n = length(f); half = n ÷ 2
+
+    # Coefficient of determination of the whole fit against the CLEAN truth, in log-10 space.
+    logr2(fit) = (lp = log10.(mapple(f, fit)); lt = log10.(s_clean);
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+
+    # σ ramps linearly with frequency from a small floor to a growing ceiling: the noise variance
+    # is concentrated in the high-frequency tail. Three ceilings, from mild to severe.
+    tail_res = Float64[]
+    for (σ_lo, σ_hi) in [(0.02, 0.1), (0.02, 0.2), (0.02, 0.35)]
+        Random.seed!(round(Int, σ_hi * 100))
+        ramp = collect(range(σ_lo, σ_hi, length = n))
+        log_s = log10.(s_clean) .+ ramp .* randn(n)
+        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 50)
+        refined = fit_mapple(log_f, log_s, init)
+        sfit = mapple(f, refined)
+        resid = log_s .- log10.(sfit)
+        lo, hi = mean(abs, resid[1:half]), mean(abs, resid[(half + 1):end])
+
+        @test all(isfinite, sfit) && all(>(0), sfit)            # physical despite the noisy tail
+        # The injected variance — and so the fit residual — is concentrated at high frequency: the
+        # heteroscedastic structure survives the fit rather than being smeared uniformly.
+        @test hi > lo
+        # Yet the unweighted fit still tracks the overall clean spectral shape: it is not dragged
+        # into a wild curve by the noisy tail (this is the robustness claim the figures illustrate;
+        # `logsample`ing the spectrum first sharpens it further — see the `fit(MAPPLE, …)` docstring).
+        @test logr2(refined) > 0.9
+        push!(tail_res, hi)
+
+        MapplePlots.save_fit(
+            "increasing_hi$(lpad(round(Int, σ_hi * 100), 2, '0'))", f, exp10.(log_s), refined;
+            init = init, subdir = "noise/increasing"
+        )
+    end
+    # Heavier tail noise leaves a larger high-frequency residual: degradation is graceful and
+    # localised to the tail, not a global blow-up.
+    @test tail_res[end] > tail_res[1]
+
+    @info "frequency-increasing-noise sweep" tail_residual = round.(tail_res, digits = 4)
 end

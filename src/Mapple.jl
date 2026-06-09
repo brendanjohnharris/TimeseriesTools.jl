@@ -177,8 +177,15 @@ selection compares fully-fitted models and the returned model is already refined
 refine. `kwargs` (e.g. `peaks`, `w`, `peak_threshold`) are forwarded to the peak-finding init;
 `refine` is a NamedTuple of Optim options (e.g. `refine = (; multistart = 4, iterations = 200)`)
 forwarded to the refinement of each `:auto` candidate, kept separate so refine-only options do
-not leak into the peak finder. Please consider using 'logsample'd spectra for a fit that is less
-sensitive to high-frequency noise.
+not leak into the peak finder.
+
+!!! tip "Log-sample noisy spectra first"
+    The fit minimises an *unweighted* sum of squared log-10 residuals, so every frequency sample
+    counts equally. A linear-frequency spectrum packs most of its samples into the high-frequency
+    decades, where periodogram noise is also largest; those noisy samples then dominate the loss.
+    Passing the spectrum through [`logsample`](@ref) before fitting gives roughly equal samples per
+    decade and averages down the high-frequency noise, yielding a fit that is markedly less
+    sensitive to it. This is the recommended preprocessing for any measured (non-synthetic) spectrum.
 """
 function StatsAPI.fit(
         ::Type{MAPPLE}, spectrum::AbstractDimVector;
@@ -515,19 +522,24 @@ function fit_mapple(
         @warn "Requested up to $peaks peaks but only $(length(proms)) were detected"
     end
 
-    # Initialise peak amplitudes conservatively, anchored to the spectral floor rather than the
-    # local background: a prominence-scaled bump above `minimum(log_s)`. On a steep background
-    # the local-background lift would make a peak start comparable to the (huge) background and
-    # hijack the joint refine — capturing slope curvature and biasing β; a small start lets the
-    # background fit first and the refine then grows genuine peaks into the residual.
+    # Initialise each peak's amplitude from the LOCAL background under it, not the global spectral
+    # floor. A Gaussian peak adds linear power `A_peak` on top of the background `B`, so at the
+    # centre the data is `B + A_peak`; with the (log-10) prominence measuring the rise above the
+    # local background trend `t`, `A_peak = 10^t·(10^prom − 1)`, i.e. `log_A = t + log10(10^prom−1)`.
+    # Anchoring to the global floor instead (the old behaviour) starts any peak whose local
+    # background sits well above the high-frequency floor orders of magnitude too low; at that
+    # amplitude the peak is invisible to the loss (∂loss/∂log_A ≈ 0) and the refine cannot grow it,
+    # so only the single tallest peak survives. Using the local trend gives every detected peak a
+    # start near its true height — `log_A < log_s` at the centre always holds (since
+    # `log10(10^prom−1) < prom`), so the start cannot overshoot the data and hijack β.
     # NB: use fresh names inside this closure — assigning `log_A`/`log_σ` here would leak to the
     # enclosing `log_A = first(log_s)` (a `do` block shares enclosing locals).
-    floorlevel = minimum(log_s)
     peakparams = map(proms, bounds) do prom, bound
         pf = mean(bound)
         pσ = (maximum(bound) - minimum(bound)) / 2
         pσ ≤ 0 && (pσ = transition_width) # A guess
-        pA = floorlevel + log10(max(expm1(prom * log(10)), eps()))
+        bg = trend[argmin(abs.(log_f .- pf))]   # local background (log-10) under the peak
+        pA = bg + log10(max(expm1(prom * log(10)), eps()))
         return ComponentArray(; log_f = pf, log_σ = pσ, log_A = pA)
     end
 

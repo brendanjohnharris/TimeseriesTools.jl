@@ -18,7 +18,7 @@
 end
 
 @testitem "Readme" begin
-    using TimeseriesTools, CairoMakie, Unitful, Foresight, TimeseriesMakie
+    using TimeseriesTools, CairoMakie, Unitful, Fathom, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
 
     t = 0.005:0.005:1.0e5
@@ -48,7 +48,7 @@ end
     shadows!(
         ax, collect.(eachcol(x))...; color = (:slategray, 0.5), linewidth = 0.05,
         swapshadows = (true, false, false),
-        limits = Foresight.widen.(extrema.(eachcol(x)), 0.4)
+        limits = Fathom.widen.(extrema.(eachcol(x)), 0.4)
     )
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth[] = 2.2
@@ -62,9 +62,9 @@ end
 end
 
 @testitem "Readme_dark" begin
-    using CairoMakie, TimeseriesTools, Unitful, Foresight, TimeseriesMakie
+    using CairoMakie, TimeseriesTools, Unitful, Fathom, TimeseriesMakie
     import TimeseriesTools.Timeseries # or TS
-    set_theme!(foresight(:dark, :transparent))
+    set_theme!(fathom(:dark, :transparent))
 
     t = 0.005:0.005:1.0e5
     x = colorednoise(t * u"s") * u"V"
@@ -94,7 +94,7 @@ end
     shadows!(
         ax, collect.(eachcol(x))...; color = (:white, 0.5), linewidth = 0.05,
         swapshadows = (true, false, false),
-        limits = Foresight.widen.(extrema.(eachcol(x)), 0.4)
+        limits = Fathom.widen.(extrema.(eachcol(x)), 0.4)
     )
     ax.xlabelvisible = ax.ylabelvisible = ax.zlabelvisible = ax.xticksvisible = ax.yticksvisible = ax.zticksvisible = ax.xticklabelsvisible = ax.yticklabelsvisible = ax.zticklabelsvisible = false
     ax.azimuth[] = 2.2

@@ -8,7 +8,13 @@ using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
     frequency_check, mapple_sort
 
-function mapple_bounds(log_f, log_s, initial_params)
+# `box_peaks` controls the peak position/width box. When `true`, each peak is confined near its
+# detected centre and to a sub-decade width; this stops the joint refine sliding several peaks
+# together and ballooning one into a background-like blob (the "small peaks vanish next to large
+# ones" failure on dense fields). When `false`, peaks are free over the whole band — needed when
+# the box would trap the optimizer (e.g. a steep multi-segment background whose slopes can only be
+# fixed by letting peaks roam transiently). `fit_mapple` refines under both and keeps the better.
+function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
     lower = deepcopy(initial_params)
     upper = deepcopy(initial_params)
 
@@ -28,11 +34,20 @@ function mapple_bounds(log_f, log_s, initial_params)
         lower.peaks[i].log_A = lower.log_A
         upper.peaks[i].log_A = upper.log_A
 
-        lower.peaks[i].log_f = minimum(log_f)
-        upper.peaks[i].log_f = maximum(log_f)
-
-        lower.peaks[i].log_σ = lower.transition_width / 2
-        upper.peaks[i].log_σ = upper.transition_width
+        if box_peaks
+            f0 = initial_params.peaks[i].log_f
+            σ0 = initial_params.peaks[i].log_σ
+            win = max(3 * σ0, oftype(σ0, 0.2))
+            lower.peaks[i].log_f = max(minimum(log_f), f0 - win)
+            upper.peaks[i].log_f = min(maximum(log_f), f0 + win)
+            lower.peaks[i].log_σ = lower.transition_width / 2
+            upper.peaks[i].log_σ = min(upper.transition_width, oftype(σ0, 0.5))
+        else
+            lower.peaks[i].log_f = minimum(log_f)
+            upper.peaks[i].log_f = maximum(log_f)
+            lower.peaks[i].log_σ = lower.transition_width / 2
+            upper.peaks[i].log_σ = upper.transition_width
+        end
     end
 
     for i in eachindex(lower.components)
@@ -65,9 +80,12 @@ mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
     fit_mapple(log_f, log_s, initial_params; multistart = 0, algorithm = LBFGS(), kwargs...)
 
 Refine MAPPLE `initial_params` against log-10 frequencies `log_f` and log-10 spectral density
-`log_s` with Optim. With `multistart > 0`, additionally fit from that many randomly perturbed
-restarts and keep the lowest-loss result — an escape hatch for hard/degenerate spectra that is
-usually unnecessary once peaks are well initialised. Extra `kwargs` go to `Optim.Options`.
+`log_s` with Optim. Each fit is refined twice — once with peaks boxed near their detected
+centre/width and once with peaks free over the band — and the lower-loss result is kept; the
+boxed refine prevents peaks running away on dense fields while the free refine wins where the box
+would trap the optimizer. The supplied (clamped) initialisation is also a candidate, so the result
+never worsens it. With `multistart > 0`, additionally fit from that many randomly perturbed restarts.
+Extra `kwargs` go to `Optim.Options`.
 """
 function fit_mapple(
         log_f, log_s, initial_params;
@@ -75,44 +93,55 @@ function fit_mapple(
         multistart = 0, kwargs...
     ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
-    lower, upper = mapple_bounds(log_f, log_s, initial_params)
     objective = mapple_loss(; f, log_s, log_f)
 
-    refine(x0) = Optim.minimizer(
+    boxed = mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
+    free = mapple_bounds(log_f, log_s, initial_params; box_peaks = false)
+
+    # Strictly clamp the initialisation inside a box before refining: a rough-init parameter that
+    # lands on a recomputed bound makes Fminbox's log-barrier infinite. This generalises the
+    # absolute-log_A fix to every parameter (transition_width, log_σ, log_f_stop, …).
+    function clamp_into((lower, upper))
+        x = deepcopy(initial_params)
+        for i in eachindex(x)
+            x[i] = _strictclamp(x[i], lower[i], upper[i])
+        end
+        return x
+    end
+
+    refine(x0, (lower, upper)) = Optim.minimizer(
         optimize(
             objective, lower, upper, deepcopy(x0), Fminbox(algorithm),
             Optim.Options(; kwargs...); autodiff
         )
     )
-
-    # Strictly clamp the initialisation inside the box before refining: a rough-init parameter
-    # that lands on a recomputed bound makes Fminbox's log-barrier infinite. This generalises the
-    # absolute-log_A fix to every parameter (transition_width, log_σ, log_f_stop, …).
-    x0 = deepcopy(initial_params)
-    for i in eachindex(x0)
-        x0[i] = _strictclamp(x0[i], lower[i], upper[i])
-    end
-
-    # Refine from the supplied initialisation, then from `multistart` perturbed restarts,
-    # keeping the lowest-loss result, so restarts never worsen a good fit. (The detrended
-    # peak init already keeps single-descent fits out of the degenerate β / log_A basin on
-    # the benchmark, so multistart defaults off.)
-    best = refine(x0)
-    best_loss = objective(best)
-    # Multistart is best-effort: a perturbed restart can land where Fminbox cannot build a finite
-    # barrier (e.g. a vanishing gradient on a near-perfect fit). Skip such restarts rather than
-    # failing the whole fit; the unperturbed result is always retained.
-    for _ in 1:multistart
-        cand = try
-            refine(_perturb(x0, lower, upper))
+    # Best-effort: a (boxed/perturbed) refine can land where Fminbox cannot build a finite barrier
+    # (e.g. a vanishing gradient on a near-perfect fit). Skip such attempts rather than failing the
+    # whole fit; another candidate (in the worst case the clamped init) is always retained.
+    tryrefine(x0, bnds) =
+        try
+            refine(x0, bnds)
         catch err
             err isa InterruptException && rethrow()
-            continue
+            nothing
         end
-        cand_loss = objective(cand)
-        if cand_loss < best_loss
-            best, best_loss = cand, cand_loss
-        end
+
+    # Baseline candidate: the clamped init, so the result never worsens the supplied fit.
+    best = clamp_into(free)
+    best_loss = objective(best)
+    function consider(cand)
+        cand === nothing && return
+        l = objective(cand)
+        isfinite(l) && l < best_loss && ((best, best_loss) = (cand, l))
+        return
+    end
+
+    consider(tryrefine(clamp_into(boxed), boxed))   # boxed peaks: no runaway on dense fields
+    consider(tryrefine(clamp_into(free), free))     # free peaks: escapes a box that would trap
+
+    x0free = clamp_into(free)
+    for _ in 1:multistart
+        consider(tryrefine(_perturb(x0free, free...), free))
     end
     return best
 end
