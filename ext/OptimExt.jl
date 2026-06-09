@@ -6,14 +6,20 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort, _lower_envelope_mask
+    frequency_check, mapple_sort
 
 function mapple_bounds(log_f, log_s, initial_params)
     lower = deepcopy(initial_params)
     upper = deepcopy(initial_params)
 
+    # `log_A` (and each peak `log_A`) lives on the same scale as `log_s` — a base amplitude is
+    # `10^log_A` — so the ceiling must be ABSOLUTE, not range-relative. The rough init
+    # `log_A = first(log_s)` is an absolute level; a range-relative `100*(max-min)` collapses to
+    # 0 on a flat spectrum, putting the init outside the box so Fminbox rejects the start.
+    losS, hiS = extrema(log_s)
+    ampcap = hiS + max(hiS - losS, oneunit(hiS))   # strictly above first(log_s) ≤ hiS
     lower.log_A = -Inf
-    upper.log_A = 100 * (maximum(log_s) - minimum(log_s))
+    upper.log_A = ampcap
 
     lower.transition_width = minimum(diff(log_f)) / 4
     upper.transition_width = (maximum(log_f) - minimum(log_f)) / 3
@@ -42,8 +48,16 @@ function mapple_bounds(log_f, log_s, initial_params)
 end
 
 function mapple_loss(params; f, log_s, log_f = log10.(f))
-    pred_log = map(log10, mapple(f, params; log_f))
-    return sum(abs2, log_s .- pred_log)
+    pred = mapple(f, params; log_f)
+    # Fuse log10 + residual + sum-of-squares into one pass over `pred`, avoiding the intermediate
+    # `map(log10, …)` array and the `log_s .- pred_log` broadcast temporary on every objective
+    # evaluation (each is a full-length allocation, ×hundreds of evals ×ForwardDiff Duals).
+    acc = zero(eltype(pred))
+    @inbounds for i in eachindex(pred, log_s)
+        d = log_s[i] - log10(pred[i])
+        acc += d * d
+    end
+    return acc
 end
 mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
 
@@ -71,14 +85,30 @@ function fit_mapple(
         )
     )
 
+    # Strictly clamp the initialisation inside the box before refining: a rough-init parameter
+    # that lands on a recomputed bound makes Fminbox's log-barrier infinite. This generalises the
+    # absolute-log_A fix to every parameter (transition_width, log_σ, log_f_stop, …).
+    x0 = deepcopy(initial_params)
+    for i in eachindex(x0)
+        x0[i] = _strictclamp(x0[i], lower[i], upper[i])
+    end
+
     # Refine from the supplied initialisation, then from `multistart` perturbed restarts,
     # keeping the lowest-loss result, so restarts never worsen a good fit. (The detrended
     # peak init already keeps single-descent fits out of the degenerate β / log_A basin on
     # the benchmark, so multistart defaults off.)
-    best = refine(initial_params)
+    best = refine(x0)
     best_loss = objective(best)
+    # Multistart is best-effort: a perturbed restart can land where Fminbox cannot build a finite
+    # barrier (e.g. a vanishing gradient on a near-perfect fit). Skip such restarts rather than
+    # failing the whole fit; the unperturbed result is always retained.
     for _ in 1:multistart
-        cand = refine(_perturb(initial_params, lower, upper))
+        cand = try
+            refine(_perturb(x0, lower, upper))
+        catch err
+            err isa InterruptException && rethrow()
+            continue
+        end
         cand_loss = objective(cand)
         if cand_loss < best_loss
             best, best_loss = cand, cand_loss
@@ -87,38 +117,28 @@ function fit_mapple(
     return best
 end
 
-# A randomly perturbed copy of `params`, clamped to `[lower, upper]`, for multistart.
+# Clamp `v` strictly INSIDE `(lo, hi)`, never onto a boundary where Fminbox's log-barrier is
+# `Inf`. Either bound may be infinite, in which case that side is left open.
+function _strictclamp(v, lo, hi)
+    if isfinite(lo) && isfinite(hi)
+        ϵ = 1.0e-6 * (hi - lo)
+        return clamp(v, lo + ϵ, hi - ϵ)
+    elseif isfinite(lo)
+        return max(v, lo + 1.0e-6 * max(abs(lo), one(lo)))
+    elseif isfinite(hi)
+        return min(v, hi - 1.0e-6 * max(abs(hi), one(hi)))
+    else
+        return v
+    end
+end
+
+# A randomly perturbed copy of `params`, kept strictly inside `[lower, upper]`, for multistart.
 function _perturb(params, lower, upper)
     x = deepcopy(params)
     for i in eachindex(x)
-        x[i] = clamp(x[i] + 0.5 * randn(), lower[i], upper[i])
+        x[i] = _strictclamp(x[i] + 0.5 * randn(), lower[i], upper[i])
     end
     return x
-end
-
-# Full zero-peak background fit used by `TimeseriesTools._background_trend` to detrend the
-# spectrum before peak detection (chosen automatically when Optim is loaded): fit the smooth
-# broken power law with no peaks, then return its log-space prediction as the trend.
-function optim_background_trend(log_f, log_s, components, transition_width; iters = 2)
-    nopeaks = map(_ -> ComponentArray(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
-    background = ComponentArray(;
-        log_A = first(log_s), peaks = nopeaks,
-        components = components, transition_width = transition_width
-    )
-    f = map(exp10, log_f)
-
-    # Robust fit: peaks only push power up, so refit the zero-peak background through the
-    # lower envelope (excluding positive excursions) so oscillations don't lift the trend.
-    fitted = background
-    mask = trues(length(log_f))
-    for _ in 1:iters
-        fitted = fit_mapple(log_f[mask], log_s[mask], background)
-        resid = log_s .- map(log10, mapple(f, fitted))
-        newmask = _lower_envelope_mask(resid)
-        (count(newmask) ≤ length(fitted) || newmask == mask) && break
-        mask = newmask
-    end
-    return map(log10, mapple(f, fitted))
 end
 
 """

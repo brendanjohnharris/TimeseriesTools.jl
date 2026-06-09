@@ -417,3 +417,94 @@ end
     @test length(m.params.components) == 1
     @test rsquared(m, spec) > 0.99
 end
+
+@testitem "mapple: fit on a flat / low-dynamic-range spectrum does not crash (regression)" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    f = exp10.(range(0, 3, length = 200))
+    # A perfectly flat spectrum at a high baseline. The log_A upper bound used to be
+    # range-relative (100*(max-min log_s)), collapsing to 0 while the init log_A = first(log_s) = 2
+    # sat above it, so Fminbox rejected the start. The bound is now absolute, so fit and fit! work.
+    flat = ToolsArray(fill(100.0, 200), 𝑓(f))
+    m = fit(MAPPLE, flat)
+    @test m isa MAPPLE
+    @test all(>(0), predict(m, f))
+    m2 = MAPPLE(; log_A = 2.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = 0.0)], transition_width = 0.1)
+    @test fit!(m2, flat) isa MAPPLE
+    @test m2.params.log_A ≈ 2.0 atol = 0.5      # base amplitude near the flat level (10^2)
+end
+
+@testitem "mapple: refine options route through the `refine` channel" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    f = exp10.(range(0, 3, length = 200))
+    truth = ComponentArray(; log_A = 1.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1)
+    Random.seed!(3); s = exp10.(log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f)))
+    spec = ToolsArray(s, 𝑓(f))
+    # Optim refine options (iterations, multistart) pass through `refine` without reaching the
+    # peak finder. Previously these leaked into findpeaks and raised a MethodError.
+    @test fit(MAPPLE, spec; refine = (; iterations = 50)) isa MAPPLE
+    @test fit(MAPPLE, spec; refine = (; multistart = 2)) isa MAPPLE
+end
+
+@testitem "mapple: degenerate fits raise a clear ArgumentError" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+    f = exp10.(range(0, 3, length = 100)); s = exp10.((-2.0) .* log10.(f))
+    spec = ToolsArray(s, 𝑓(f))
+    # A non-positive component count is rejected up front, not via a cryptic range error.
+    @test_throws ArgumentError fit(MAPPLE, spec; components = 0)
+    @test_throws ArgumentError fit_mapple(log10.(f), log10.(s); components = 0)
+    # Fewer than two frequencies (or a zero-span grid) cannot be fit.
+    @test_throws ArgumentError fit_mapple([1.0], [0.5]; components = 1)
+    @test_throws ArgumentError fit(MAPPLE, [10.0], [3.0])
+    # The MAPPLE constructor requires at least one component.
+    @test_throws ArgumentError MAPPLE(; log_A = 1.0, peaks = nopeaks(),
+        components = ComponentArray[], transition_width = 0.1)
+end
+
+@testitem "MAPPLE: show reports Hz consistently with the accessors" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    m = sort(MAPPLE(; log_A = 1.0, peaks = [mkpeak(; log_f = 1.0, log_σ = 0.2, log_A = 0.5)],
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 2.5, β = -3.0)],
+        transition_width = 0.1))
+    str = sprint(show, m)
+    @test occursin("Hz", str) && occursin("FWHM", str)
+    # The figures printed by `show` are exactly the accessor values (single source of truth).
+    @test occursin("$(round(peakcentres(m)[1], sigdigits = 4))", str)
+    @test occursin("$(round(breakfrequencies(m)[1], sigdigits = 4))", str)
+    @test occursin("$(round(peakbandwidths(m)[1], sigdigits = 4))", str)
+end
+
+@testitem "mapple: multistart refinement is robust and never worsens the fit" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    truth = ComponentArray(;
+        components = [mkcomp(; β = 2.0, log_f_stop = 1.5), mkcomp(; β = 4.0, log_f_stop = 5.0)],
+        peaks = [mkpeak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5), mkpeak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
+        transition_width = 0.15, log_A = 1.0)
+    log_f = range(0, 3, length = 500); f = exp10.(log_f)
+    Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
+    loss(p) = sum(abs2, log_s .- log10.(mapple(f, p)))
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    single = fit_mapple(log_f, log_s, init)
+    Random.seed!(1); multi = fit_mapple(log_f, log_s, init; multistart = 4)
+    @test multi isa ComponentArray
+    @test loss(multi) ≤ loss(single) + 1.0e-8     # restarts never worsen the unperturbed result
+    # Multistart survives a degenerate over-parameterised noiseless target without crashing
+    # (a perturbed restart where Fminbox cannot build a barrier is skipped, not fatal).
+    clean = log10.(mapple(f, truth))
+    cinit = fit_mapple(log_f, clean; components = 3, peaks = 2, w = 50)
+    Random.seed!(2); @test fit_mapple(log_f, clean, cinit; multistart = 3) isa ComponentArray
+end
