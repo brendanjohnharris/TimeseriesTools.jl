@@ -20,6 +20,7 @@
 # shadow Makie's `Axis`.
 @testmodule MapplePlots begin
     using CairoMakie
+    using ForwardDiff
     import Fathom: fathom, OnePanel
     import TimeseriesTools: MAPPLE, mapple
     import ComponentArrays: ComponentArray
@@ -822,8 +823,10 @@ end
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
-    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(refined, truth) = (
+        lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # Two segments, one peak: firmly inside the regime the refine handles well.
     truth = ComponentArray(;
@@ -846,18 +849,24 @@ end
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
-    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(refined, truth) = (
+        lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # Three segments, three peaks (one per segment). All three are recovered — both centres and
     # heights — thanks to the local-background amplitude seeding.
     truth = ComponentArray(;
         log_A = 2.0,
-        peaks = [mkpeak(; log_f = 0.45, log_σ = 0.09, log_A = 1.2),
+        peaks = [
+            mkpeak(; log_f = 0.45, log_σ = 0.09, log_A = 1.2),
             mkpeak(; log_f = 1.6, log_σ = 0.09, log_A = 1.0),
-            mkpeak(; log_f = 2.75, log_σ = 0.09, log_A = 1.0)],
-        components = [mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.2, β = -2.0),
-            mkcomp(; log_f_stop = 10.0, β = -3.2)], transition_width = 0.06
+            mkpeak(; log_f = 2.75, log_σ = 0.09, log_A = 1.0),
+        ],
+        components = [
+            mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.2, β = -2.0),
+            mkcomp(; log_f_stop = 10.0, β = -3.2),
+        ], transition_width = 0.06
     )
     Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
     init = fit_mapple(log_f, log_s; components = 3, peaks = 3, w = 40)
@@ -882,25 +891,37 @@ end
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     log_f = range(0, 3.5, length = 700); f = exp10.(log_f)
-    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(refined, truth) = (
+        lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # Four segments with three then four peaks. Even on this dense field every peak is recovered at
     # its true centre — the boxed refine (one of the two bound sets `fit_mapple` tries) stops the
     # peaks from sliding together or one ballooning into a background-like blob, which is what used
     # to swallow the smaller peaks next to large ones.
-    components = [mkcomp(; log_f_stop = 0.8, β = -0.8), mkcomp(; log_f_stop = 1.7, β = -1.6),
-        mkcomp(; log_f_stop = 2.6, β = -2.6), mkcomp(; log_f_stop = 10.0, β = -3.6)]
+    components = [
+        mkcomp(; log_f_stop = 0.8, β = -0.8), mkcomp(; log_f_stop = 1.7, β = -1.6),
+        mkcomp(; log_f_stop = 2.6, β = -2.6), mkcomp(; log_f_stop = 10.0, β = -3.6),
+    ]
     configs = [
-        ("four_components_three_peaks", 3,
-            [mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
+        (
+            "four_components_three_peaks", 3,
+            [
+                mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
                 mkpeak(; log_f = 1.25, log_σ = 0.08, log_A = 1.1),
-                mkpeak(; log_f = 2.2, log_σ = 0.08, log_A = 1.0)]),
-        ("four_components_four_peaks", 4,
-            [mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
+                mkpeak(; log_f = 2.2, log_σ = 0.08, log_A = 1.0),
+            ],
+        ),
+        (
+            "four_components_four_peaks", 4,
+            [
+                mkpeak(; log_f = 0.35, log_σ = 0.08, log_A = 1.2),
                 mkpeak(; log_f = 1.2, log_σ = 0.08, log_A = 1.1),
                 mkpeak(; log_f = 2.05, log_σ = 0.08, log_A = 1.0),
-                mkpeak(; log_f = 2.95, log_σ = 0.08, log_A = 1.0)]),
+                mkpeak(; log_f = 2.95, log_σ = 0.08, log_A = 1.0),
+            ],
+        ),
     ]
     for (name, np, pks) in configs
         truth = ComponentArray(; log_A = 2.5, peaks = pks, components = components, transition_width = 0.05)
@@ -926,8 +947,10 @@ end
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     lo, hi = -0.5, 4.5
     log_f = range(lo, hi, length = 1000); f = exp10.(log_f)
-    logr2(refined, truth) = (lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(refined, truth) = (
+        lp = log10.(mapple(f, refined)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # Six segments, six peaks over five decades — the regime where the broken-power-law background
     # becomes non-identifiable: many (β, breakpoint) sets give near-identical curves, the optimizer
@@ -977,8 +1000,10 @@ end
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
-    logr2(fit, truth) = (lp = log10.(mapple(f, fit)); lt = log10.(mapple(f, truth));
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(fit, truth) = (
+        lp = log10.(mapple(f, fit)); lt = log10.(mapple(f, truth));
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # Two falling segments with a single mid-band peak: comfortably inside the regime the refine
     # handles, so any loss of accuracy is attributable to the added noise, not the model complexity.
@@ -1032,8 +1057,10 @@ end
     n = length(f); half = n ÷ 2
 
     # Coefficient of determination of the whole fit against the CLEAN truth, in log-10 space.
-    logr2(fit) = (lp = log10.(mapple(f, fit)); lt = log10.(s_clean);
-        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt)))
+    logr2(fit) = (
+        lp = log10.(mapple(f, fit)); lt = log10.(s_clean);
+        1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
+    )
 
     # σ ramps linearly with frequency from a small floor to a growing ceiling: the noise variance
     # is concentrated in the high-frequency tail. Three ceilings, from mild to severe.

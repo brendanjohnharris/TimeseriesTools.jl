@@ -241,6 +241,10 @@ end
 @testitem "MAPPLE MAD" begin
     using CairoMakie
     using Optim
+    # `OptimExt` (which defines `fit!(::MAPPLE, ...)`) triggers on *both* Optim and ForwardDiff.
+    # Newer Optim no longer hard-depends on ForwardDiff, so it must be loaded explicitly or the
+    # extension --- and the `fit!` method --- never loads.
+    using ForwardDiff
 
     x = zeros(100000)
     x[1] = 0.0
