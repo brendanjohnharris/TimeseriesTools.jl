@@ -102,4 +102,3 @@ end
     T = 𝒯(-1)
     @test times(T(x)) == -1:step(x):0
 end
-

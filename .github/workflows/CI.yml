@@ -38,14 +38,14 @@ jobs:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
-      # Fathom is an unregistered test dependency (used for plot theming); check it out
+      # Fathom is an unregistered test dependency (used for plot theming).
       - name: Check out and develop Fathom
         shell: bash
         env:
           FATHOM_PATH: ${{ runner.temp }}/Fathom
         run: |
           git clone --depth 1 https://github.com/brendanjohnharris/Fathom.jl "$FATHOM_PATH"
-          julia --color=yes --project=. -e 'using Pkg; Pkg.develop(path = ENV["FATHOM_PATH"])'
+          julia --color=yes --project=test -e 'using Pkg; Pkg.develop([PackageSpec(path = pwd()), PackageSpec(path = ENV["FATHOM_PATH"])])'
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v6
