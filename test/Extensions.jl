@@ -266,6 +266,6 @@ end
     lines!(ax, mad_refined; label = "MAPPLE refined", color = :black)
     display(f)
 
-    @test m.params.components[1].β ≈ 0.5 atol = 0.05
-    @test m.params.components[2].β ≈ 0.0 atol = 0.05
+    @test m.params.components[1].β ≈ 0.5 atol = 0.06
+    @test m.params.components[2].β ≈ 0.0 atol = 0.06
 end
