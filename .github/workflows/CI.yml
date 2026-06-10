@@ -42,16 +42,14 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
-      # Fathom is an unregistered test dependency (used for plot theming); check it out and
-      # `dev` it into the project so the test environment can resolve it. `Pkg.test` propagates
-      # developed packages from the parent project into its test sandbox.
-      - name: Check out Fathom
-        uses: actions/checkout@v6
-        with:
-          repository: brendanjohnharris/Fathom.jl
-          path: Fathom
-      - name: Develop Fathom
-        run: julia --color=yes --project=. -e 'using Pkg; Pkg.develop(path = joinpath(pwd(), "Fathom"))'
+      # Fathom is an unregistered test dependency (used for plot theming); check it out
+      - name: Check out and develop Fathom
+        shell: bash
+        env:
+          FATHOM_PATH: ${{ runner.temp }}/Fathom
+        run: |
+          git clone --depth 1 https://github.com/brendanjohnharris/Fathom.jl "$FATHOM_PATH"
+          julia --color=yes --project=. -e 'using Pkg; Pkg.develop(path = ENV["FATHOM_PATH"])'
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v6
