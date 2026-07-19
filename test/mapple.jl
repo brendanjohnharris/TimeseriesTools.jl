@@ -592,6 +592,42 @@ end
     MapplePlots.save_fit("flat_spectrum_fit", f, parent(flat), m; init = init, subdir = "diagnostics")
 end
 
+@testitem "mapple: fit! is robust to degenerate spectra (finite + bounded)" tags = [:mapple] begin
+    using TimeseriesTools, Optim, ForwardDiff
+
+    f = exp10.(range(0, 3; length = 200))
+    fitβ(x; kw...) = (m = fit(MAPPLE, x; components = 2, peaks = 0); fit!(m, x; kw...); first(m.params.components.β))
+    @test isfinite(fitβ(ToolsArray(f .^ -1.5, 𝑓(f))))   # sanity: a clean power law fits
+
+    # (A) A zero/silent bin → `log10(0) = -Inf` in the objective must not poison the whole fit into
+    # NaN/Inf. Regression: before the safe-log10 guard, one zero bin drove the fitted exponent to NaN.
+    zb = collect(f .^ -1.5); zb[80:90] .= 0.0
+    @test isfinite(fitβ(ToolsArray(zb, 𝑓(f))))
+
+    # (B) A real low-dynamic-range MAD curve (a WRCircuit working-regime `itot` input) on which the
+    # UNCAPPED Fminbox refine wandered ~30-60 s even though the optimum is reached early. The bounded
+    # default budget must reach the SAME exponent in a small fraction of that time. Regression: with no
+    # default iteration cap, curves like this turned a per-neuron parameter sweep into an effective hang.
+    lags = unique(round.(Int, exp10.(range(1, 4, 100)))) ./ 10
+    s = [1.45763, 1.57037, 1.6742, 1.7685, 1.85299, 1.92805, 1.9947, 2.05432, 2.15678, 2.20155,
+        2.2818, 2.31816, 2.3851, 2.44564, 2.47383, 2.55167, 2.59857, 2.64202, 2.70158, 2.73814,
+        2.77541, 2.69008, 2.41115, 2.12487, 1.80093, 1.78285, 2.01123, 2.25617, 2.42017, 2.51865,
+        2.58963, 2.63558, 2.64861, 2.40036, 1.98147, 2.02651, 2.31385, 2.54985, 2.69065, 2.59615,
+        2.25737, 2.3472, 2.53125, 2.60808, 2.34354, 2.47621, 2.70026, 2.59311, 2.59517, 2.72218,
+        2.58298, 2.69988, 2.61941, 2.70915, 2.71232, 2.78858, 2.80357, 2.80875, 2.87425, 2.8744,
+        2.91203, 2.93889, 2.94648, 3.0124, 3.03716, 3.08576, 3.12241, 3.15742, 3.1982, 3.25253,
+        3.26843, 3.28528, 3.31252, 3.31327, 3.37337, 3.37107, 3.3838, 3.40228, 3.40549, 3.39346,
+        3.37416, 3.32477, 3.29771, 3.28583, 3.29731, 3.32491, 3.36026, 3.37732, 3.39327, 3.42337,
+        3.4288, 3.44047, 3.47026, 3.42306, 3.4001, 3.34346, 3.29111, 3.29352, 3.32632]
+    hard = ToolsArray(s, 𝑓(Float64.(lags)))
+    fitβ(hard); fitβ(hard; iterations = 5000, outer_iterations = 50)        # warmup both budgets
+    β_cap = fitβ(hard)                                   # default (bounded budget)
+    t_cap = @elapsed fitβ(hard)
+    β_big = fitβ(hard; iterations = 5000, outer_iterations = 50)            # an effectively unbounded budget
+    @test β_cap ≈ β_big atol = 0.05                      # the cap reaches the same exponent...
+    @test t_cap < 10                                     # ...far faster (uncapped was ~tens of seconds)
+end
+
 @testitem "mapple: refine options route through the `refine` channel" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))

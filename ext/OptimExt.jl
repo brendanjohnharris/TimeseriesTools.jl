@@ -6,7 +6,7 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort
+    frequency_check, mapple_sort, _safelog10
 
 # `box_peaks` controls the peak position/width box. When `true`, each peak is confined near its
 # detected centre and to a sub-decade width; this stops the joint refine sliding several peaks
@@ -18,21 +18,23 @@ function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
     lower = deepcopy(initial_params)
     upper = deepcopy(initial_params)
 
-    # `log_A` (and each peak `log_A`) lives on the same scale as `log_s` — a base amplitude is
-    # `10^log_A` — so the ceiling must be ABSOLUTE, not range-relative. The rough init
-    # `log_A = first(log_s)` is an absolute level; a range-relative `100*(max-min)` collapses to
-    # 0 on a flat spectrum, putting the init outside the box so Fminbox rejects the start.
+    # `log_A` is the background amplitude AT f = 1 (`10^log_A`). A data-magnitude ceiling assumes
+    # f = 1 sits near the data's largest values, which only holds for DECREASING (spectral) laws.
+    # For an INCREASING law (e.g. a structure function / MAD) whose band lies below f = 1, the
+    # f = 1 intercept is an upward extrapolation far above the data, so a data-magnitude cap clamps
+    # `log_A` and forces the slope shallow. Leave the background uncapped (the loss pins it); keep
+    # the peak amplitudes capped at `ampcap` below, where a finite ceiling still guards runaway.
     losS, hiS = extrema(log_s)
     ampcap = hiS + max(hiS - losS, oneunit(hiS))   # strictly above first(log_s) ≤ hiS
     lower.log_A = -Inf
-    upper.log_A = ampcap
+    upper.log_A = Inf
 
     lower.transition_width = minimum(diff(log_f)) / 4
     upper.transition_width = (maximum(log_f) - minimum(log_f)) / 3
 
     for i in eachindex(lower.peaks)
         lower.peaks[i].log_A = lower.log_A
-        upper.peaks[i].log_A = upper.log_A
+        upper.peaks[i].log_A = ampcap
 
         if box_peaks
             f0 = initial_params.peaks[i].log_f
@@ -52,8 +54,13 @@ function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
 
     for i in eachindex(lower.components)
         df = maximum(log_f) - minimum(log_f)
-        lower.components[i].log_f_stop = minimum(log_f) - df * 2
-        upper.components[i].log_f_stop = maximum(log_f) + df * 2
+        # Keep each breakpoint strictly INSIDE the data band. The old ±2·df window let a knot sit up to two
+        # decades OUTSIDE the data, where the segment it bounds collapses to a one-point sliver with an
+        # arbitrary slope --- the dominant broken-power-law failure (a MAD rise returning a > 1 off a 1 ms
+        # sliver). The `df/6` margin above the low edge guarantees a minimum leading-segment width, so the
+        # first component is a real power law rather than an edge sliver.
+        lower.components[i].log_f_stop = minimum(log_f) + df / 6
+        upper.components[i].log_f_stop = maximum(log_f)
 
         lower.components[i].β = -Inf
         upper.components[i].β = Inf
@@ -69,7 +76,7 @@ function mapple_loss(params; f, log_s, log_f = log10.(f))
     # evaluation (each is a full-length allocation, ×hundreds of evals ×ForwardDiff Duals).
     acc = zero(eltype(pred))
     @inbounds for i in eachindex(pred, log_s)
-        d = log_s[i] - log10(pred[i])
+        d = log_s[i] - _safelog10(pred[i])
         acc += d * d
     end
     return acc
@@ -109,11 +116,13 @@ function fit_mapple(
         return x
     end
 
+    # Bound the refine by default so a hard / ill-conditioned spectrum (e.g. a low-dynamic-range curve
+    # where the two components are near-degenerate and the objective nearly flat) cannot iterate without
+    # limit — the dominant cost when fitting many spectra. Caller `kwargs` override (e.g. a high-accuracy
+    # `iterations = 1000` refit, or `time_limit`).
+    opts = Optim.Options(; merge((; iterations = 500, outer_iterations = 5), (; kwargs...))...)
     refine(x0, (lower, upper)) = Optim.minimizer(
-        optimize(
-            objective, lower, upper, deepcopy(x0), Fminbox(algorithm),
-            Optim.Options(; kwargs...); autodiff
-        )
+        optimize(objective, lower, upper, deepcopy(x0), Fminbox(algorithm), opts; autodiff)
     )
     # Best-effort: a (boxed/perturbed) refine can land where Fminbox cannot build a finite barrier
     # (e.g. a vanishing gradient on a near-perfect fit). Skip such attempts rather than failing the
@@ -177,7 +186,7 @@ frequency lookup, linear spectral density). `kwargs` are forwarded to [`fit_mapp
 """
 function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     log_f = map(log10, lookup(spectrum, 1))
-    log_s = map(log10, parent(spectrum))
+    log_s = map(_safelog10, parent(spectrum))
     frequency_check(lookup(spectrum, 1), log_f)
     params = fit_mapple(log_f, log_s, m.params; kwargs...)
     m.params .= params

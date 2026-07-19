@@ -109,6 +109,12 @@ function StatsAPI.predict(m::MAPPLE, freqs::AbstractDimVector)
     return set(freqs, mapple(lookup(freqs, 1), m.params))
 end
 
+# A `log10` that never returns `-Inf`/`NaN`: a zero (or underflowed) spectral value is clamped to a
+# tiny positive floor. A single silent bin (`s == 0`) would otherwise make the fit objective `-Inf`,
+# which (a) drives the rough regression init to `NaN` and (b) leaves Optim with a non-finite landscape
+# it cannot descend. Applied to spectral DENSITIES only — frequencies/lags are positive by construction.
+@inline _safelog10(x) = log10(max(float(x), eps(float(typeof(x)))))
+
 function frequency_check(f, log_f)
     length(log_f) ≥ 2 ||
         throw(ArgumentError("MAPPLE needs at least two frequencies (got $(length(log_f)))"))
@@ -133,7 +139,7 @@ end
 # component-count sweep does not rebuild it per candidate.
 function _bic(params, f, log_s)
     n = length(f)
-    rss = sum(abs2, log_s .- map(log10, mapple(f, params)))
+    rss = sum(abs2, log_s .- map(_safelog10, mapple(f, params)))
     k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
     return n * log(rss / n) + k * log(n)
 end
@@ -194,7 +200,7 @@ function StatsAPI.fit(
         components = :auto, max_components = 3, refine = (;), kwargs...
     )
     log_f = map(log10, lookup(spectrum, 1))
-    log_s = map(log10, parent(spectrum))
+    log_s = map(_safelog10, parent(spectrum))
 
     frequency_check(lookup(spectrum, 1), log_f)
 
@@ -276,8 +282,8 @@ linear spectral density), matching the space in which the fit is performed.
 """
 function mapple_residuals(m::MAPPLE, spectrum::AbstractDimVector)
     f = lookup(spectrum, 1)
-    log_s = log10.(parent(spectrum))
-    return log_s .- log10.(mapple(f, m.params))
+    log_s = _safelog10.(parent(spectrum))
+    return log_s .- _safelog10.(mapple(f, m.params))
 end
 
 """
@@ -291,7 +297,7 @@ mapple_loss(m::MAPPLE, spectrum::AbstractDimVector) = sum(abs2, mapple_residuals
 Coefficient of determination of the fit, computed in log-10 space.
 """
 function rsquared(m::MAPPLE, spectrum::AbstractDimVector)
-    log_s = log10.(parent(spectrum))
+    log_s = _safelog10.(parent(spectrum))
     ss_res = sum(abs2, mapple_residuals(m, spectrum))
     ss_tot = sum(abs2, log_s .- (sum(log_s) / length(log_s)))
     iszero(ss_tot) && return NaN   # flat spectrum: R² is undefined rather than ±Inf
