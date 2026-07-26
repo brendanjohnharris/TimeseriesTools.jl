@@ -6,7 +6,7 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort, _safelog10
+    frequency_check, mapple_sort, _safelog10, logweights
 
 # `box_peaks` controls the peak position/width box. When `true`, each peak is confined near its
 # detected centre and to a sub-decade width; this stops the joint refine sliding several peaks
@@ -69,15 +69,23 @@ function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
     return lower, upper
 end
 
-function mapple_loss(params; f, log_s, log_f = log10.(f))
+function mapple_loss(params; f, log_s, log_f = log10.(f), w = nothing)
     pred = mapple(f, params; log_f)
     # Fuse log10 + residual + sum-of-squares into one pass over `pred`, avoiding the intermediate
     # `map(log10, …)` array and the `log_s .- pred_log` broadcast temporary on every objective
     # evaluation (each is a full-length allocation, ×hundreds of evals ×ForwardDiff Duals).
+    # The weighted branch is a separate loop so the (default) unweighted path keeps its tight one.
     acc = zero(eltype(pred))
-    @inbounds for i in eachindex(pred, log_s)
-        d = log_s[i] - _safelog10(pred[i])
-        acc += d * d
+    if w === nothing
+        @inbounds for i in eachindex(pred, log_s)
+            d = log_s[i] - _safelog10(pred[i])
+            acc += d * d
+        end
+    else
+        @inbounds for i in eachindex(pred, log_s, w)
+            d = log_s[i] - _safelog10(pred[i])
+            acc += w[i] * d * d
+        end
     end
     return acc
 end
@@ -92,15 +100,26 @@ centre/width and once with peaks free over the band — and the lower-loss resul
 boxed refine prevents peaks running away on dense fields while the free refine wins where the box
 would trap the optimizer. The supplied (clamped) initialisation is also a candidate, so the result
 never worsens it. With `multistart > 0`, additionally fit from that many randomly perturbed restarts.
+
+`w` weights the squared log-residuals: `nothing` (the default) fits unweighted, `true` computes
+[`logweights`](@ref) from `log_f`, and a vector supplies per-sample weights directly. Weighting
+makes the objective minimise `∫ r² d(log f)` rather than `Σ r²`, which matters whenever the fitted
+axis is not uniform in log space. Only the scale-free ratio of the weights affects the minimiser,
+so normalisation is irrelevant; every refine candidate is scored with the same `w`, leaving the
+multistart comparison valid.
+
 Extra `kwargs` go to `Optim.Options`.
 """
 function fit_mapple(
         log_f, log_s, initial_params;
         algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
-        multistart = 0, kwargs...
+        multistart = 0, w = nothing, kwargs...
     ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
-    objective = mapple_loss(; f, log_s, log_f)
+    # `w` has to be an explicit keyword rather than left in `kwargs`: the leftovers are splatted
+    # into `Optim.Options` below, which would reject it.
+    w === true && (w = logweights(log_f))
+    objective = mapple_loss(; f, log_s, log_f, w)
 
     boxed = mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
     free = mapple_bounds(log_f, log_s, initial_params; box_peaks = false)
@@ -182,7 +201,9 @@ end
 """
     fit!(m::MAPPLE, spectrum; kwargs...)
 Refine the parameters of a MAPPLE model `m` in place to fit the provided `spectrum` (linear
-frequency lookup, linear spectral density). `kwargs` are forwarded to [`fit_mapple`](@ref).
+frequency lookup, linear spectral density). `kwargs` are forwarded to [`fit_mapple`](@ref); in
+particular `w = true` weights the fit by [`logweights`](@ref) of the spectrum's own axis, so a
+grid that is not uniform in log space cannot bias the fit toward its log-denser end.
 """
 function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     log_f = map(log10, lookup(spectrum, 1))

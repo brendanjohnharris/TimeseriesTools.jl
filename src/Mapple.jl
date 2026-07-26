@@ -129,6 +129,42 @@ function frequency_check(f, log_f)
     end
 end
 
+export logweights
+
+"""
+    logweights(log_x)
+
+Cell weights for samples at log-10 positions `log_x`: each point owns a cell centred on it,
+reaching half the gap to each neighbour, normalised to sum to one. The two boundary points have
+only one neighbour, so their single gap is mirrored and they receive a full-width cell.
+
+Weighting a least-squares fit by these makes it represent the fitted range evenly, however the
+sample grid happens to discretise it, rather than weighting by sample count. This matters when the
+grid is not uniform in log space; a lag grid rounded to whole samples is the common case, where
+short lags land on consecutive integers (linearly spaced) while long lags remain log-spaced, so an
+unweighted fit is dominated by whichever end is log-denser.
+
+Mirroring the boundary gap (rather than giving the ends half-cells, as the trapezoidal rule for
+`∫ r² d(log x)` over `[x₁, xₙ]` would) is what makes the weighting an *exact* no-op on a uniformly
+log-spaced grid: every weight is then `1/n`. Half-cells miss that by `O(1/n)`, which reaches 4% at
+`n = 12`, and would down-weight the outermost samples purely for being outermost, even though
+nothing physical distinguishes them. Pass `w = true` to [`fit!`](@ref) to have these computed from
+the fitted axis.
+"""
+function logweights(log_x)
+    lx = collect(float.(log_x))
+    n = length(lx)
+    n == 0 && throw(ArgumentError("need at least one sample to weight"))
+    n == 1 && return ones(eltype(lx), 1)
+    w = similar(lx)
+    @inbounds for i in 1:n
+        left = i == 1 ? (lx[2] - lx[1]) / 2 : (lx[i] - lx[i - 1]) / 2
+        right = i == n ? (lx[n] - lx[n - 1]) / 2 : (lx[i + 1] - lx[i]) / 2
+        w[i] = left + right
+    end
+    return w ./ sum(w)
+end
+
 # Bayesian information criterion for a fitted model, treating the log-spectral residuals as
 # Gaussian: BIC = n·log(RSS/n) + k·log(n). Lower is better; used to pick the component count.
 # `k` counts effective free parameters. A component's breakpoint `log_f_stop` is a *free knot*:
@@ -137,9 +173,13 @@ end
 # therefore charge 3 dof per component (β + a 2-dof knot); peaks keep their 3 literal params.
 # `f` is the linear frequency grid (`exp10.(log_f)`), precomputed once by the caller so the
 # component-count sweep does not rebuild it per candidate.
-function _bic(params, f, log_s)
+# `w` must match the weights the candidates were REFINED under, or selection compares models on a
+# different criterion than the one they were fitted to. Scaling by `n` keeps the weighted RSS on the
+# same footing as the unweighted one (uniform weights are `1/n`, so `n·Σ wr² == Σ r²` exactly).
+function _bic(params, f, log_s, w = nothing)
     n = length(f)
-    rss = sum(abs2, log_s .- map(_safelog10, mapple(f, params)))
+    resid = log_s .- map(_safelog10, mapple(f, params))
+    rss = w === nothing ? sum(abs2, resid) : n * sum(w .* abs2.(resid))
     k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
     return n * log(rss / n) + k * log(n)
 end
