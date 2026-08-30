@@ -14,7 +14,23 @@ import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10�
 # ones" failure on dense fields). When `false`, peaks are free over the whole band — needed when
 # the box would trap the optimizer (e.g. a steep multi-segment background whose slopes can only be
 # fixed by letting peaks roam transiently). `fit_mapple` refines under both and keeps the better.
-function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
+#
+# `fix` holds arbitrary parameters at given values instead of fitting them: an iterable of
+# `label => value` pairs addressing the flat params by their ComponentArrays label (exactly as
+# printed by `ComponentArrays.labels(m.params)`), e.g.
+#     fix = ["components[1].β" => 0.0, "components[1].log_f_stop" => log10(150)]
+# Values are in the parameter's own internal units --- log10 units for knots and amplitudes.
+# Component indices refer to ascending-`log_f_stop` order of the initialisation (`fit_mapple`
+# sorts it), so `components[1]` is always the innermost segment and `components[end]` the
+# outermost. Fixing is how a knot known a priori keeps every fit spanning the same segments, how
+# the outermost knot is held at the band top so `last(β)` is the slope the curve draws rather
+# than a closing tanh window (every component is gated by `start_weight * stop_weight` once
+# there is more than one; see `mapple!`), and how a slope known on theoretical grounds (e.g. a
+# Fano factor's flat shot-noise shoulder, β = 0) is excluded from the parameter search.
+function mapple_bounds(
+        log_f, log_s, initial_params;
+        box_peaks = true, fix = nothing
+    )
     lower = deepcopy(initial_params)
     upper = deepcopy(initial_params)
 
@@ -66,6 +82,21 @@ function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
         upper.components[i].β = Inf
     end
 
+    # Each pinned bound is a sliver rather than a point: Fminbox's log-barrier is infinite on a
+    # boundary, so a degenerate `lower == upper` cannot be optimised. `_strictclamp` puts the
+    # start inside it. Applied last, so a pin overrides the generic bounds above.
+    if !isnothing(fix)
+        ϵ = 1.0e-6 * (maximum(log_f) - minimum(log_f))
+        labs = labels(lower)
+        for (lab, v) in fix
+            i = findfirst(==(String(lab)), labs)
+            isnothing(i) && throw(ArgumentError(
+                "fix: no parameter labelled \"$lab\"; valid labels: $(join(labs, ", "))"))
+            lower[i] = v - ϵ
+            upper[i] = v
+        end
+    end
+
     return lower, upper
 end
 
@@ -108,21 +139,36 @@ axis is not uniform in log space. Only the scale-free ratio of the weights affec
 so normalisation is irrelevant; every refine candidate is scored with the same `w`, leaving the
 multistart comparison valid.
 
+`fix` holds arbitrary parameters at given values instead of fitting them: an iterable of
+`label => value` pairs, where each label addresses one flat parameter exactly as printed by
+`ComponentArrays.labels(m.params)` and each value is in that parameter's own internal units
+(log10 units for knots and amplitudes). The initialisation is sorted, so `components[i]` always
+refers to ascending-`log_f_stop` order. Recipes: hold the outermost breakpoint at the top of the
+band so `last(β)` is the slope the fitted curve draws (`"components[\$n].log_f_stop" =>
+maximum(log_f)`, replacing the fitted knot's closing tanh window); hold an inner knot known a
+priori so every fitted curve spans the same segments (`"components[1].log_f_stop" =>
+log10(knee)`); pin a slope known on theoretical grounds (`"components[1].β" => 0.0` for a Fano
+factor's flat shot-noise shoulder). Fixing a knot forbids exactly what a multi-segment fit is
+usually for --- recovering that knot --- so pin only quantities that are wanted as constraints,
+not measurements.
+
 Extra `kwargs` go to `Optim.Options`.
 """
 function fit_mapple(
         log_f, log_s, initial_params;
         algorithm = LBFGS(), autodiff = Optim.ADTypes.AutoForwardDiff(),
-        multistart = 0, w = nothing, kwargs...
+        multistart = 0, w = nothing, fix = nothing,
+        kwargs...
     ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
+    initial_params = mapple_sort(initial_params) # so `fix` component indices mean ascending knots
     # `w` has to be an explicit keyword rather than left in `kwargs`: the leftovers are splatted
     # into `Optim.Options` below, which would reject it.
     w === true && (w = logweights(log_f))
     objective = mapple_loss(; f, log_s, log_f, w)
 
-    boxed = mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
-    free = mapple_bounds(log_f, log_s, initial_params; box_peaks = false)
+    boxed = mapple_bounds(log_f, log_s, initial_params; box_peaks = true, fix)
+    free = mapple_bounds(log_f, log_s, initial_params; box_peaks = false, fix)
 
     # Strictly clamp the initialisation inside a box before refining: a rough-init parameter that
     # lands on a recomputed bound makes Fminbox's log-barrier infinite. This generalises the
@@ -203,7 +249,9 @@ end
 Refine the parameters of a MAPPLE model `m` in place to fit the provided `spectrum` (linear
 frequency lookup, linear spectral density). `kwargs` are forwarded to [`fit_mapple`](@ref); in
 particular `w = true` weights the fit by [`logweights`](@ref) of the spectrum's own axis, so a
-grid that is not uniform in log space cannot bias the fit toward its log-denser end.
+grid that is not uniform in log space cannot bias the fit toward its log-denser end, and `fix`
+holds arbitrary parameters (addressed by their `ComponentArrays.labels` string) at given values
+instead of fitting them.
 """
 function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     log_f = map(log10, lookup(spectrum, 1))
