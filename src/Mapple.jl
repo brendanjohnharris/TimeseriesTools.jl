@@ -244,6 +244,22 @@ end
 # Pick the component count over `candidates` by minimum BIC, refining each candidate so the
 # slopes (and fit quality) actually differ. `kwargs` go to the rough peak-finding init; `refine`
 # (a NamedTuple) goes to the Optim refinement so refine-only options never leak into `findpeaks`.
+# The subset of `fix` addressing parameters this candidate actually has, recording which labels
+# matched anywhere in `used`. One `fix` has to serve every candidate in a `:auto` sweep, but the
+# candidates have different parameters: `"components[3].β"` is meaningless when fitting two
+# components, and `"peaks[2].log_f"` when only one peak was detected. Skipping an inapplicable
+# label is the only sensible reading of "hold this if it exists"; `_select_mapple` still rejects a
+# label that matched NO candidate, which is a typo rather than a count mismatch.
+function _applicable(fix, params, used)
+    isnothing(fix) && return nothing
+    labs = labels(params)
+    keep = [p for p in fix if String(first(p)) ∈ labs]
+    for p in keep
+        push!(used, String(first(p)))
+    end
+    return keep
+end
+
 function _select_mapple(log_f, log_s, candidates; refine = (;), kwargs...)
     f = map(exp10, log_f)
     # Score candidates on the criterion they were FITTED under: the refine's own weights, and its
@@ -251,14 +267,28 @@ function _select_mapple(log_f, log_s, candidates; refine = (;), kwargs...)
     w = get(refine, :w, nothing)
     w === true && (w = logweights(log_f))
     fix = get(refine, :fix, nothing)
+    used = Set{String}()
     best, best_bic = nothing, Inf
     for nc in candidates
         rough = fit_mapple(log_f, log_s; components = nc, kwargs...)
-        params = _refine_if_possible(log_f, log_s, rough; refine...)
-        bic = _bic(params, f, log_s, w, _held(log_f, params, fix))
+        fix_nc = _applicable(fix, rough, used)
+        params = _refine_if_possible(log_f, log_s, rough; merge(refine, (; fix = fix_nc))...)
+        bic = _bic(params, f, log_s, w, _held(log_f, params, fix_nc))
         if bic < best_bic
             best, best_bic = params, bic
         end
+    end
+    if !isnothing(fix)
+        unmatched = [String(first(p)) for p in fix if String(first(p)) ∉ used]
+        isempty(unmatched) || throw(
+            ArgumentError(
+                "fix: no candidate model has a parameter labelled " *
+                    join(map(l -> "\"$l\"", unmatched), ", ") *
+                    "; a label inapplicable at SOME component counts is skipped there, but one that " *
+                    "matches none is a typo. Valid labels for the largest candidate: " *
+                    join(labels(best), ", ")
+            )
+        )
     end
     return best
 end
@@ -279,6 +309,14 @@ fit only, then call [`fit!`](@ref) to refine. `kwargs` (e.g. `peaks`, `w`, `peak
 `refine` is a NamedTuple of Optim options (e.g. `refine = (; multistart = 4, iterations = 200)`)
 forwarded to the refinement of each `:auto` candidate, kept separate so refine-only options do
 not leak into the peak finder.
+
+A `refine.fix` label that does not exist for a given candidate is skipped for that candidate rather
+than raising: one `fix` has to serve the whole sweep, but `"components[3].β"` is meaningless when
+fitting two components, as is `"peaks[2].log_f"` when one peak was detected. A label that matches NO
+candidate is still an error --- that is a typo, not a count mismatch. Count-INDEPENDENT labels
+(`"log_A"`, `"transition_width"`, `"components[1].*"`) therefore apply to every candidate, while
+count-dependent ones apply only where they exist, which is usually what you want: pinning the
+outermost slope, say, means something different at each count.
 
 !!! tip "Log-sample noisy spectra first"
     The fit minimises an *unweighted* sum of squared log-10 residuals, so every frequency sample

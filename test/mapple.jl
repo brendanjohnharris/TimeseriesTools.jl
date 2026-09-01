@@ -1423,3 +1423,49 @@ end
     @test "components[1].β" ∉ freelabels(mh, spech; fix)
     @test length(freelabels(mh, spech; fix)) == length(m.params) - 2
 end
+
+@testitem "mapple: :auto skips fix labels a candidate does not have" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    log_f = collect(range(0, 3, length = 300)); f = exp10.(log_f)
+    truth = ComponentArray(;
+        log_A = 0.5, peaks = nopeaks(),
+        components = [
+            mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.0, β = -2.0),
+            mkcomp(; log_f_stop = 9.0, β = -3.0),
+        ], transition_width = 0.1
+    )
+    Random.seed!(3); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+    spec = Timeseries(exp10.(log_s), f)
+
+    # `"components[3].β"` does not exist for the 1- and 2-component candidates. Before, the sweep
+    # threw there; now those candidates are fitted without it and only the 3-component one holds it.
+    m = @test_nowarn fit(
+        MAPPLE, spec; peaks = 0, components = :auto, max_components = 3,
+        refine = (; fix = ["components[1].β" => -1.0, "components[3].β" => -3.0])
+    )
+    @test length(betas(m)) == 3
+    @test betas(m)[1] == -1.0        # count-independent: held exactly
+    @test betas(m)[3] == -3.0        # count-dependent: held exactly where it applies
+
+    # A count-independent pin alone still works across the whole sweep.
+    m2 = fit(
+        MAPPLE, spec; peaks = 0, components = :auto, max_components = 3,
+        refine = (; fix = ["transition_width" => 0.1])
+    )
+    @test m2.params.transition_width == 0.1
+
+    # A label no candidate has is a typo, and must still be rejected rather than silently ignored.
+    @test_throws ArgumentError fit(
+        MAPPLE, spec; peaks = 0, components = :auto, max_components = 3,
+        refine = (; fix = ["components[1].beta" => 0.0])
+    )
+    # ... including one that is merely out of range for EVERY candidate.
+    @test_throws ArgumentError fit(
+        MAPPLE, spec; peaks = 0, components = :auto, max_components = 3,
+        refine = (; fix = ["components[9].β" => 0.0])
+    )
+end
