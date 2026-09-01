@@ -7,7 +7,7 @@ using DimensionalData
 @reexport using DimensionalData
 @reexport using TimeseriesBase
 @reexport using Normalization
-import StatsAPI: fit, fit!, predict
+import StatsAPI: fit, fit!, predict, vcov, stderror
 export fit, fit!, predict
 import Normalization: params!
 

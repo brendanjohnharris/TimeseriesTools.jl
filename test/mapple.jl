@@ -7,8 +7,8 @@
 # Characterization tests pin down the current, correct behaviour of the model. The later
 # items also cover the robustness/reporting overhaul: the conservative peak-amplitude init
 # and the `log_A` do-block-leak fix, the Hz reporting accessors, the `rsquared` flat-spectrum
-# guard, the peak-width guard, data-driven (`:auto`) peak counting, and BIC component
-# selection. These tests are deterministic; every item that fits a model also saves a log–log
+# guard, the peak-width guard, data-driven (`:auto`) peak counting, BIC component
+# selection, and the outer-edge windowing fix (final items in this file). These tests are deterministic; every item that fits a model also saves a log–log
 # figure of the fit to `test/mapple_figs/` via the shared `MapplePlots` setup module.
 #
 # Construction helpers are repeated inside each `@testitem` because every item runs in
@@ -795,8 +795,8 @@ end
 
     @test length(refined.components) == 3
     @test sort(betas(m)) ≈ [-4.0, -2.5, -1.0] atol = 0.2
-    # Only the two interior breakpoints lie inside the data range; the last segment's `log_f_stop`
-    # is beyond the grid and so is unidentifiable (it parks at the edge — not asserted).
+    # `n` components carry `n - 1` breakpoints: the last `log_f_stop` is inert (the final component
+    # is never windowed), so only the two interior knots are asserted.
     @test sort(breakpoints(m))[1:2] ≈ [1.0, 2.0] atol = 0.2
 
     logfit = log10.(mapple(f, refined)); logtruth = log10.(mapple(f, truth))
@@ -1164,4 +1164,262 @@ end
     log_s = log10.(mapple(f, truth))
     init = fit_mapple(log_f, log_s; components = 1, w = 50, peak_threshold = 1.0)
     @test all(isfinite, init)
+end
+
+# --- Outer-edge windowing ----------------------------------------------------------------------
+# Regression cover for a windowing bug in `mapple!`: every component was multiplied by BOTH a
+# `tanh` shoulder opening at the previous knot and one closing at its own, including the outermost
+# components, which have nothing beyond them to crossfade into. The closing shoulder on the LAST
+# component attenuated the model across the top of its own domain --- to exactly half at that knot
+# --- so `last(β)` stopped being a slope and became a nuisance parameter absorbing the fade. Fits
+# whose top segment ended inside the data compensated with a runaway β (+2.5, +8.5 observed) or
+# collapsed the final knot onto its neighbour to switch the segment off entirely.
+#
+# The suite missed it because every multi-component case placed the truth model's final
+# `log_f_stop` well beyond the sampled grid, where the fade falls outside the data.
+
+@testitem "mapple: outer components are unwindowed at the edges of the model" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    f = exp10.(range(0, 3, length = 400))
+
+    # Equal slopes across every component must reproduce a SINGLE power law exactly, wherever the
+    # knots sit: the amplitudes chain to a common value, and unwindowed outer edges make the
+    # shoulders a partition of unity (tanh is odd, so the two halves of a crossfade sum to 1).
+    # A closing shoulder on the last component breaks this by tapering the top toward zero.
+    for stop in (1.5, 2.0, 3.0)      # inside the grid, at its top edge, and at the last sample
+        p = ComponentArray(;
+            log_A = 0.7, peaks = nopeaks(),
+            components = [mkcomp(; log_f_stop = 1.0, β = -1.3), mkcomp(; log_f_stop = stop, β = -1.3)],
+            transition_width = 0.1
+        )
+        @test mapple(f, p) ≈ exp10(0.7) .* f .^ -1.3 rtol = 1.0e-10
+    end
+
+    # Same invariant with three components and well-separated knots. Interior crossfades only
+    # partition to unity when they do not overlap, so this holds to a tolerance rather than exactly.
+    p3 = ComponentArray(;
+        log_A = 0.7, peaks = nopeaks(),
+        components = [
+            mkcomp(; log_f_stop = 1.0, β = -1.3), mkcomp(; log_f_stop = 2.0, β = -1.3),
+            mkcomp(; log_f_stop = 2.5, β = -1.3),
+        ], transition_width = 0.05
+    )
+    @test mapple(f, p3) ≈ exp10(0.7) .* f .^ -1.3 rtol = 1.0e-6
+
+    # The specific symptom: at the last component's own knot the model was halved.
+    p = ComponentArray(;
+        log_A = 0.0, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 1.0, β = 0.0), mkcomp(; log_f_stop = 2.0, β = 0.5)],
+        transition_width = 0.1
+    )
+    s = mapple(f, p)
+    i = argmin(abs.(f .- 100.0))                    # f = 10^2, the final knot
+    @test s[i] ≈ mapple([100.0], p)[1]
+    @test s[i] > 0.9 * (s[i - 1] + s[i + 1]) / 2    # no half-weight notch at the knot
+    # ... and the top decade follows the second segment's slope, not a taper toward zero.
+    hi = findall(>(exp10(2.2)), f)
+    slope = (log10(s[hi[end]]) - log10(s[hi[1]])) / (log10(f[hi[end]]) - log10(f[hi[1]]))
+    @test slope ≈ 0.5 atol = 1.0e-6
+
+    # The first component is likewise unwindowed below: the bottom decade follows ITS slope. The
+    # tolerance is looser than the top decade's because the INTERIOR crossfade still leaks here ---
+    # 0.4 decades below the knot component 1's weight is (1 + tanh 4)/2 = 0.99966, not 1, drifting
+    # ~3e-4 across the decade. A closing shoulder on an outer edge would instead taper by O(0.1).
+    lo = findall(<(exp10(0.6)), f)
+    slope_lo = (log10(s[lo[end]]) - log10(s[lo[1]])) / (log10(f[lo[end]]) - log10(f[lo[1]]))
+    @test slope_lo ≈ 0.0 atol = 1.0e-3
+end
+
+@testitem "mapple: the final component's log_f_stop is inert" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    f = exp10.(range(0, 3, length = 300))
+    # `n` components carry `n - 1` breakpoints; the last `log_f_stop` bounds nothing and neither
+    # windows the segment nor enters the amplitude chaining, so moving it must not touch the model.
+    build(stop) = ComponentArray(;
+        log_A = 0.4, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 1.2, β = -0.8), mkcomp(; log_f_stop = stop, β = -2.4)],
+        transition_width = 0.08
+    )
+    reference = mapple(f, build(1.3))
+    for stop in (1.25, 2.0, 3.0, 12.0, 500.0)
+        @test mapple(f, build(stop)) == reference
+    end
+
+    # Sorting is by `log_f_stop`, so a final knot BELOW its neighbour reorders the components; the
+    # segments then swap roles and the curve legitimately differs. Guard the inert claim against
+    # being read as "any value", and confirm sorting still yields a finite, positive spectrum.
+    swapped = mapple(f, build(0.5))
+    @test all(isfinite, swapped) && all(>(0), swapped)
+
+    # A single component has neither edge, so its knot is inert too.
+    one_comp(stop) = ComponentArray(;
+        log_A = 0.4, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = stop, β = -1.1)], transition_width = 0.08
+    )
+    @test mapple(f, one_comp(0.5)) == mapple(f, one_comp(9.0))
+end
+
+@testitem "mapple: the inert final knot is held at the top of the fitted band" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    # The final `log_f_stop` has exactly zero loss-gradient (it windows nothing), so left free it is
+    # still boxed and Fminbox's barrier drifts it through its box --- 1.25 decades on this fit ---
+    # towards its neighbour, where `sortperm` reads a crossing as a reordering of the components.
+    # It is pinned to the top of the fitted band instead, so the accessor keeps a uniform shape and
+    # a meaningful value.
+    log_f = collect(range(0, 3, length = 400)); f = exp10.(log_f)
+    truth = ComponentArray(;
+        log_A = 0.5, peaks = nopeaks(),
+        components = [mkcomp(; log_f_stop = 1.5, β = -1.0), mkcomp(; log_f_stop = 9.0, β = -2.5)],
+        transition_width = 0.1
+    )
+    Random.seed!(3); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+
+    for n in 2:4
+        init = fit_mapple(log_f, log_s; components = n, peaks = 0)
+        refined = fit_mapple(log_f, log_s, init)
+        m = MAPPLE(refined)
+        @test length(breakpoints(m)) == n                       # accessor shape is unchanged
+        @test breakpoints(m)[end] ≈ maximum(log_f) atol = 1.0e-5 # ... and the last entry is the band top
+        @test breakpoints(m)[end] == maximum(breakpoints(m))    # the pinned knot stays sorted last
+    end
+
+    # An explicit `fix` is applied after the automatic pin, so a caller can still override it.
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 0)
+    over = fit_mapple(log_f, log_s, init; fix = ["components[2].log_f_stop" => 2.0])
+    @test MAPPLE(over).params.components[2].log_f_stop ≈ 2.0 atol = 1.0e-5
+end
+
+@testitem "mapple: a top segment ending inside the data recovers its slope" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    # Truth built ANALYTICALLY (not through `mapple`), so the test cannot be satisfied by
+    # reproducing the model's own windowing. A Fano-factor shape: a flat shot-noise floor, a rise,
+    # then saturation --- the case that exposed the bug, where the top segment's knot is at 10^2
+    # with a full decade of data above it.
+    log_f = range(0, 3, length = 400); f = exp10.(log_f)
+    truth_log(x) = x < 1.0 ? 0.0 : (x < 2.0 ? 0.28 * (x - 1.0) : 0.28)
+    Random.seed!(7); log_s = truth_log.(log_f) .+ 0.004 .* randn(length(f))
+
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 0)
+    refined = fit_mapple(log_f, log_s, init; fix = ["components[1].β" => 0.0])
+    m = MAPPLE(refined)
+    MapplePlots.save_fit("top_segment_inside_data", f, exp10.(log_s), refined; init = init, subdir = "med")
+
+    βs, knots = betas(m), breakpoints(m)
+    @test βs[1] ≈ 0.0 atol = 1.0e-6            # pinned floor
+    @test βs[2] ≈ 0.28 atol = 0.05             # the rise
+    @test βs[3] ≈ 0.0 atol = 0.05              # the plateau: a slope, not a fade compensator
+    @test knots[1] ≈ 1.0 atol = 0.15
+    @test knots[2] ≈ 2.0 atol = 0.15
+
+    # The fitted curve must track the data ACROSS the top decade, above the final knot. This is the
+    # assertion the bug failed: the closing shoulder attenuated the model there by up to log10(2).
+    top = findall(>(exp10(knots[2])), f)
+    @test length(top) > 50
+    @test maximum(abs.(log_s[top] .- log10.(mapple(f, refined))[top])) < 0.02
+end
+
+@testitem "mapple: BIC charges only the parameters actually searched" setup = [MapplePlots] tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random
+    using TimeseriesTools: _held, _dof, _bic
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+
+    log_f = collect(range(0, 3, length = 400)); f = exp10.(log_f)
+    truth = ComponentArray(;
+        log_A = 0.5, peaks = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0),
+        components = [
+            ComponentArray(; log_f_stop = 1.0, β = -1.0), ComponentArray(; log_f_stop = 2.0, β = -2.0),
+            ComponentArray(; log_f_stop = 9.0, β = -3.0),
+        ], transition_width = 0.1
+    )
+    Random.seed!(3); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+    p = fit_mapple(log_f, log_s; components = 3, peaks = 0)
+
+    # 3 dof per component (β + a 2-dof free knot) + 2 global, minus what the fit never searched:
+    # a held knot returns 2, any other held parameter 1.
+    @test _dof(p, Dict{Int, Float64}()) == 2 + 3 * 3
+    @test _dof(p, _held(log_f, p, nothing)) == 11 - 2            # the inert knot is never searched
+    @test _dof(p, _held(log_f, p, ["components[1].β" => 0.0])) == 11 - 2 - 1
+    @test _dof(p, _held(log_f, p, ["components[1].β" => 0.0, "transition_width" => 0.1])) == 11 - 2 - 2
+    @test _dof(p, _held(log_f, p, ["components[1].log_f_stop" => 1.0])) == 11 - 2 - 2  # a knot is 2
+
+    # The automatic pin refunds the same 2 dof at every candidate count, so it cannot shift the
+    # component selection --- it only makes the absolute BIC right.
+    for nc in 1:4
+        q = fit_mapple(log_f, log_s; components = nc, peaks = 0)
+        @test (2 + 3nc) - _dof(q, _held(log_f, q, nothing)) == 2
+    end
+
+    # BIC must be scored under the same weights the candidates were refined with (`_select_mapple`
+    # resolves `w` out of `refine`); an unweighted score on a weighted fit is a different criterion.
+    w = TimeseriesTools.logweights(log_f)
+    @test _bic(p, f, log_s, w) != _bic(p, f, log_s)
+    @test _bic(p, f, log_s, nothing, _held(log_f, p, nothing)) < _bic(p, f, log_s)  # fewer dof, lower BIC
+
+    # The property that must not regress: a genuine three-segment spectrum still selects three.
+    m = fit(MAPPLE, f, exp10.(log_s))
+    @test length(betas(m)) == 3
+    @test sort(betas(m)) ≈ [-3.0, -2.0, -1.0] atol = 0.15
+    MapplePlots.save_fit("bic_dof_accounting", f, exp10.(log_s), m; subdir = "med")
+end
+
+@testitem "mapple: vcov/stderror are calibrated and skip held parameters" tags = [:mapple] begin
+    using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics, LinearAlgebra
+    mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
+    mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
+    nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
+
+    log_f = collect(range(0, 3, length = 300)); f = exp10.(log_f)
+    truth = ComponentArray(;
+        log_A = 0.5, peaks = nopeaks(),
+        components = [
+            mkcomp(; log_f_stop = 1.0, β = -1.0), mkcomp(; log_f_stop = 2.0, β = -2.0),
+            mkcomp(; log_f_stop = 9.0, β = -3.0),
+        ], transition_width = 0.1
+    )
+    function fitone(seed; fix = nothing)
+        Random.seed!(seed)
+        ls = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
+        m = MAPPLE(fit_mapple(log_f, ls, fit_mapple(log_f, ls; components = 3, peaks = 0); fix))
+        return m, Timeseries(exp10.(ls), f)
+    end
+
+    m, spec = fitone(1)
+    se = stderror(m, spec)
+    Σ = vcov(m, spec)
+
+    @test se isa ComponentArray && length(se) == length(m.params)  # shaped like the parameters
+    @test all(≥(0), se)
+    @test se.components[3].log_f_stop == 0                          # the inert knot is not searched
+    @test size(Σ) == (length(freelabels(m, spec)), length(freelabels(m, spec)))
+    @test Σ ≈ Σ' rtol = 1.0e-8
+    @test all(>(0), diag(Σ))
+    @test length(freelabels(m, spec)) == length(m.params) - 1       # everything but the inert knot
+    @test "components[3].log_f_stop" ∉ freelabels(m, spec)
+
+    # Calibration: on independent noise the Laplace SE must predict the estimator's real scatter.
+    βs = [betas(first(fitone(100 + s)))[2] for s in 1:15]
+    @test se.components[2].β ≈ std(βs) rtol = 0.4
+
+    # A held parameter is a constant: zero variance, and dropped from the covariance.
+    fix = ["components[1].β" => -1.0]
+    mh, spech = fitone(1; fix)
+    seh = stderror(mh, spech; fix)
+    @test seh.components[1].β == 0
+    @test "components[1].β" ∉ freelabels(mh, spech; fix)
+    @test length(freelabels(mh, spech; fix)) == length(m.params) - 2
 end

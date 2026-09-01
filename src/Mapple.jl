@@ -5,7 +5,10 @@ An MAPPLE (Adaptive Peaks and Power-Law Exponents) model for fitting power spect
 `params` consists of:
 - `log_A`: Base log-10 amplitude of the spectrum.
 - `components`: An array of components, each with:
-    - `log_f_stop`: Log-10 frequency where the component transitions to the next.
+    - `log_f_stop`: Log-10 frequency where the component crossfades into the next. The LAST
+      component has no next and so is never windowed; its `log_f_stop` bounds nothing, and
+      fitting holds it at the top of the fitted band so that it reports where the fit ends.
+      `n` components therefore have `n` entries but only `n - 1` crossover points.
     - `β`: Power-law exponent for the component.
 - `peaks`: An array of Gaussian peaks, each with:
     - `log_f`: Log-10 center frequency of the peak.
@@ -165,23 +168,68 @@ function logweights(log_x)
     return w ./ sum(w)
 end
 
-# Bayesian information criterion for a fitted model, treating the log-spectral residuals as
-# Gaussian: BIC = n·log(RSS/n) + k·log(n). Lower is better; used to pick the component count.
-# `k` counts effective free parameters. A component's breakpoint `log_f_stop` is a *free knot*:
-# a nonlinear parameter that hunts for structure (including noise), so its effective complexity
-# is ~2 dof, not 1 — standard BIC would otherwise under-penalise and over-select components. We
+"""
+Flat-index => value for every parameter a fit HOLDS rather than searches: the caller's `fix`, plus
+the last component's `log_f_stop`. That knot is never windowed (see [`mapple!`](@ref)), so it bounds
+nothing and has exactly zero loss-gradient; left in the optimisation it is still boxed, and
+Fminbox's log-barrier drifts it through its box for no gain --- 1.25 decades on a two-component fit
+--- and towards its neighbour, where a crossing reorders the components and the model changes
+discontinuously. Holding it at the top of the fitted band keeps the accessors a uniform shape (`n`
+components, `n` entries) and makes `breakpoints(m)[end]` report where the fit ends. A caller `fix`
+on the same parameter wins, so the automatic pin is a default rather than a constraint.
+
+Lives here rather than in `OptimExt` because which parameters are structurally held is a property of
+the MODEL, and [`_bic`](@ref) has to know them to count degrees of freedom.
+"""
+function _held(log_f, params, fix)
+    labs = labels(params)
+    held = Dict{Int, Float64}()
+    idx(lab) = findfirst(==(String(lab)), labs)
+    if !isempty(params.components)
+        i = argmax(k -> params.components[k].log_f_stop, eachindex(params.components))
+        held[idx("components[$i].log_f_stop")] = maximum(log_f)
+    end
+    isnothing(fix) && return held
+    for (lab, v) in fix
+        i = idx(lab)
+        isnothing(i) && throw(
+            ArgumentError(
+                "fix: no parameter labelled \"$lab\"; valid labels: $(join(labs, ", "))"
+            )
+        )
+        held[i] = v
+    end
+    return held
+end
+
+# Effective free parameters of a fit. A component's breakpoint `log_f_stop` is a *free knot*: a
+# nonlinear parameter that hunts for structure (including noise), so its effective complexity is
+# ~2 dof, not 1 — standard BIC would otherwise under-penalise and over-select components. We
 # therefore charge 3 dof per component (β + a 2-dof knot); peaks keep their 3 literal params.
+# Parameters that are HELD (`fix`, and the inert outermost knot) are never searched, so they are
+# not charged: a held knot returns its 2 dof, anything else 1.
+function _dof(params, held)
+    k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
+    labs = labels(params)
+    for i in keys(held)
+        k -= endswith(labs[i], ".log_f_stop") ? 2 : 1
+    end
+    return k
+end
+
+# Bayesian information criterion for a fitted model, treating the log-spectral residuals as
+# Gaussian: BIC = n·log(RSS/n) + k·log(n), with `k` from [`_dof`](@ref). Lower is better; used to
+# pick the component count.
 # `f` is the linear frequency grid (`exp10.(log_f)`), precomputed once by the caller so the
 # component-count sweep does not rebuild it per candidate.
 # `w` must match the weights the candidates were REFINED under, or selection compares models on a
 # different criterion than the one they were fitted to. Scaling by `n` keeps the weighted RSS on the
 # same footing as the unweighted one (uniform weights are `1/n`, so `n·Σ wr² == Σ r²` exactly).
-function _bic(params, f, log_s, w = nothing)
+function _bic(params, f, log_s, w = nothing, held = Dict{Int, Float64}())
     n = length(f)
     resid = log_s .- map(_safelog10, mapple(f, params))
     rss = w === nothing ? sum(abs2, resid) : n * sum(w .* abs2.(resid))
-    k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
-    return n * log(rss / n) + k * log(n)
+    return n * log(rss / n) + _dof(params, held) * log(n)
 end
 
 # Refine `params` with Optim when OptimExt is loaded, else return unchanged. Component-count
@@ -198,11 +246,16 @@ end
 # (a NamedTuple) goes to the Optim refinement so refine-only options never leak into `findpeaks`.
 function _select_mapple(log_f, log_s, candidates; refine = (;), kwargs...)
     f = map(exp10, log_f)
+    # Score candidates on the criterion they were FITTED under: the refine's own weights, and its
+    # held parameters, which are not searched and so must not be charged degrees of freedom.
+    w = get(refine, :w, nothing)
+    w === true && (w = logweights(log_f))
+    fix = get(refine, :fix, nothing)
     best, best_bic = nothing, Inf
     for nc in candidates
         rough = fit_mapple(log_f, log_s; components = nc, kwargs...)
         params = _refine_if_possible(log_f, log_s, rough; refine...)
-        bic = _bic(params, f, log_s)
+        bic = _bic(params, f, log_s, w, _held(log_f, params, fix))
         if bic < best_bic
             best, best_bic = params, bic
         end
@@ -270,7 +323,12 @@ _field(block, key) = isempty(block) ? Float64[] : collect(Float64, getproperty(b
 "Power-law exponents `β` of the broken-power-law components, in fitting order."
 betas(m::MAPPLE) = _field(m.params.components, :β)
 
-"Component breakpoints as log-10 frequencies (`log_f_stop`). See [`breakfrequencies`](@ref) for Hz."
+"""
+Component breakpoints as log-10 frequencies (`log_f_stop`), in fitting order. See
+[`breakfrequencies`](@ref) for Hz. Only the first `n - 1` are crossover points of the fitted curve:
+the final component is never windowed, so its entry bounds nothing and a fit holds it at the top of
+the fitted band, where it reports the end of the fitted range rather than a transition.
+"""
 breakpoints(m::MAPPLE) = _field(m.params.components, :log_f_stop)
 
 "Peak centres in log-10 frequency space (`log_f`). See [`peakcentres`](@ref) for Hz."
@@ -313,7 +371,19 @@ peakparams(m::MAPPLE) = (peakfreqs(m), peaksigmas(m), peakamplitudes(m))
 "All peak parameters in physical units as `(centre_Hz, FWHM_Hz, height)`."
 peakparams_hz(m::MAPPLE) = (peakcentres(m), peakbandwidths(m), peakheights(m))
 
-export mapple_residuals, mapple_loss, rsquared
+export mapple_residuals, mapple_loss, rsquared, vcov, stderror, freelabels
+
+"""
+    freelabels(m::MAPPLE, spectrum; fix = nothing)
+
+Labels of the parameters a fit actually searched, in the row/column order of [`vcov`](@ref). The
+complement of [`_held`](@ref): every other parameter was held, so it carries no uncertainty.
+"""
+function freelabels(m::MAPPLE, spectrum::AbstractDimVector; fix = nothing)
+    log_f = map(log10, lookup(spectrum, 1))
+    held = _held(log_f, m.params, fix)
+    return labels(m.params)[setdiff(eachindex(m.params), keys(held))]
+end
 
 """
     mapple_residuals(m::MAPPLE, spectrum)
@@ -408,9 +478,6 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
             f_transition^(β_prev - β_curr)
     end
 
-    # * Evaluate the model
-    log_f_min = minimum(log_f) - 5.0
-
     @inbounds @fastmath for i in eachindex(f, s)
         # * Add contribution from each component
         for j in 1:n_components
@@ -418,30 +485,23 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
             seg = components[idx]
             A_seg = component_amplitudes[idx]
 
-            # * Determine component boundaries without Inf
-            log_f_start = if j == 1
-                log_f_min
-            else
-                components[sorted_indices[j - 1]].log_f_stop
-            end
-
-            log_f_stop = if j == n_components
-                seg.log_f_stop # Inf # No transition width for final component
-            else
-                seg.log_f_stop
-            end
-
-            # * Calculate smooth window weight
-            if n_components == 1 # No transition width
-                weight = one(El)
-            else
-                start_weight = (one(El) + tanh((log_f[i] - log_f_start) / width)) / 2
-                stop_weight = (one(El) + tanh((log_f_stop - log_f[i]) / width)) / 2
-                weight = start_weight * stop_weight
-            end
+            # * Calculate smooth window weight.
+            # A shoulder crossfades one segment into the next, so it belongs only where there IS a
+            # next segment. The OUTER edges of the model have none: below the first component and
+            # above the last there is nothing to hand over to, and a shoulder there would taper the
+            # model to zero off the ends of its own domain rather than blend two power laws. The
+            # closing shoulder on the last component in particular made `last(β)` a nuisance
+            # parameter absorbing the fade instead of a slope --- a fit whose top segment ended
+            # inside the data was attenuated to half at that knot, and the optimiser compensated
+            # with a runaway β, or collapsed the knot onto its neighbour to switch the segment off.
+            # Consequently `components[end].log_f_stop` is unused: n components have n-1 knots.
+            start_weight = j == 1 ? one(El) :
+                (one(El) + tanh((log_f[i] - components[sorted_indices[j - 1]].log_f_stop) / width)) / 2
+            stop_weight = j == n_components ? one(El) :
+                (one(El) + tanh((seg.log_f_stop - log_f[i]) / width)) / 2
 
             # * Add weighted contribution
-            s[i] += weight * A_seg * f[i]^seg.β
+            s[i] += start_weight * stop_weight * A_seg * f[i]^seg.β
         end
     end
 
