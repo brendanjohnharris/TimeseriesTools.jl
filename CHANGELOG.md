@@ -24,7 +24,10 @@ Fixed:
 
 - `bandpass` under DSP 0.8.
 - `convolve` with a positive `range` returned a closure rather than `0.0` where no spike lay within range.
-- `waveletspectrogram` on array views, which the multivariate path produces.
+- `waveletspectrogram` on array views. ContinuousWavelets reads the compute device off the outermost array wrapper, so from v1.2.2 it rejects a view, reshape or adjoint against a dense daughter matrix; inputs are now materialised first, preserving the device. Requires ContinuousWavelets v1.2.2.
+- `waveletspectrogram` on a `MultivariateTimeseries` now runs as a single batched transform rather than a transform per column, and no longer discards its positional and keyword arguments.
+- `waveletspectrogram` on GPU data no longer copies to the host. The bundled `cwt(::CuArray, ...)` method was written against ContinuousWavelets v1.1 internals and errors under v1.2.2; it has been removed in favour of upstream's own GPU support.
+- `CUDAExt` no longer requires `ContinuousWavelets` to be loaded, and `ContinuousWaveletsExt` no longer requires `Mmap`.
 
 ## v0.8.1 (2026-03-08)
 

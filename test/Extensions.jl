@@ -112,7 +112,7 @@ end
 
 @testitem "ContinuousWaveletsExt" begin
     import TimeseriesTools: Timeseries
-    using ContinuousWavelets, BenchmarkTools
+    using ContinuousWavelets, CUDA, BenchmarkTools
     # Define a test time series
     fs = 200
     t = range(0, stop = 5, length = 100 * fs + 1)
@@ -122,26 +122,36 @@ end
     S = waveletspectrogram(x)
     @test S isa TimeseriesTools.TimeseriesBase.Spectra.RegularSpectrogram
 
-    # Multivariate
+    # Multivariate: one batched transform, identical to transforming each column
     x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
     S = @test_nowarn waveletspectrogram(x)
     @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
+    @test all(i -> S[:, :, i] ≈ waveletspectrogram(x[:, i]), 1:2)
 
-    # GPU correctness path. Disabled by default: it requires a functional CUDA device (the CUDAExt
-    # is loaded by `using CUDA, ContinuousWavelets`), so it is skipped on CPU-only CI. To run it on
-    # a GPU host, add CUDA to the test environment and change `if false` to `if CUDA.functional()`.
-    if false
-        using CUDA
-        x = cat(ts, ts .* randn(length(ts)), dims = Var(1:2))
-        S = @test_nowarn waveletspectrogram(x)
-        @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
+    # Keywords reach the multivariate path
+    @test size(waveletspectrogram(x; Q = 8), 2) < size(S, 2)
 
-        y = set(x, CuArray(x.data))
-        S = @test_nowarn waveletspectrogram(y)
-        @test all(isa.(dims(S), (𝑡, 𝑓, Var)))
+    # `pass` limits the returned frequencies on both paths
+    P = waveletspectrogram(ts; pass = 50)
+    @test maximum(lookup(P, 𝑓)) <= 50
+    PM = waveletspectrogram(x; pass = 50)
+    @test size(PM) == (size(P)..., 2)
+    @test all(i -> PM[:, :, i] ≈ waveletspectrogram(x[:, i]; pass = 50), 1:2)
 
-        @test all(x .== y)
-        @test dims(x) == dims(y)
+    # `cwt` rejects array wrappers (it reads the device off the outermost wrapper), so views
+    # must be materialised first
+    @test_nowarn waveletspectrogram(view(ts, 1:500))
+    @test_nowarn waveletspectrogram(view(x, 1:500, :))
+
+    # GPU: the transform must stay on the device and agree with the host result
+    if CUDA.functional()
+        y = set(x, CuArray(Float32.(x.data)))
+        G = @test_nowarn waveletspectrogram(y)
+        @test parent(G) isa CuArray
+        @test all(isa.(dims(G), (𝑡, 𝑓, Var)))
+        @test dims(G) == dims(S)
+        H = waveletspectrogram(set(x, Float32.(x.data)))
+        @test Array(parent(G)) ≈ parent(H) rtol = 1.0e-4
     end
 end
 

@@ -116,8 +116,8 @@ frequency. Provided by `ContinuousWaveletsExt` (loaded with `using ContinuousWav
 
 `moth` selects the mother wavelet, `Q` the number of voices per octave, and `β` the spacing of
 scales (`β = 1` is linear in log space). `pass` limits the returned frequencies to those below its
-maximum. A `MultivariateTimeseries` is transformed column by column, giving a time x frequency x
-variable array.
+maximum. A `MultivariateTimeseries` is transformed in one batch over its second dimension, giving a
+time x frequency x variable array. Data held on a GPU stays there.
 """
 function waveletspectrogram end
 """
