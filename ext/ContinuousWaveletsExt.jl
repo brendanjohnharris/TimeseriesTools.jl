@@ -23,7 +23,9 @@ end
 
 function _waveletspectrogram(x::AbstractVector; moth, β, Q) # β = 1 means linear in log space
     c = wavelet(moth; β, Q)
-    return ContinuousWavelets.cwt(x, c)
+    # `cwt` rejects a view against a dense daughter matrix, and the multivariate path slices
+    # columns, so materialise first. `Array` is a no-op when `x` is already dense.
+    return ContinuousWavelets.cwt(Array(x), c)
 end
 
 function _waveletspectrogram(t, x::AbstractVector; pass = nothing, moth, β, Q)
@@ -37,7 +39,7 @@ function _waveletspectrogram(t, x::AbstractVector; pass = nothing, moth, β, Q)
     freqs = getMeanFreq(W, 1.0 ./ step(t))
     pass = ClosedInterval(0, maximum(pass))
     W = W[:, freqs .∈ [pass]]
-    return ContinuousWavelets.cwt(x, c, W)[:, freqs .∈ [pass]]
+    return ContinuousWavelets.cwt(Array(x), c, W)[:, freqs .∈ [pass]]
 end
 
 function _waveletspectrogram(

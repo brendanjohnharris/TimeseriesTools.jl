@@ -20,25 +20,37 @@ bench_peak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_
 # Each case: a name, the true components/peaks, and the (ncomp, npeak) requested of the fit.
 function benchmark_cases()
     return [
-        (; name = "falling_2comp_0peak",
+        (;
+            name = "falling_2comp_0peak",
             comps = [bench_comp(; β = -1.0, log_f_stop = 1.5), bench_comp(; β = -3.0, log_f_stop = 5.0)],
-            peaks = ComponentArray[], log_A = 1.0, tw = 0.15, ncomp = 2, npeak = 0),
-        (; name = "rising_2comp_2peak_steep",
+            peaks = ComponentArray[], log_A = 1.0, tw = 0.15, ncomp = 2, npeak = 0,
+        ),
+        (;
+            name = "rising_2comp_2peak_steep",
             comps = [bench_comp(; β = 2.0, log_f_stop = 1.5), bench_comp(; β = 4.0, log_f_stop = 5.0)],
             peaks = [bench_peak(; log_f = 0.7, log_σ = 0.1, log_A = 1.5), bench_peak(; log_f = 2.5, log_σ = 0.1, log_A = 0.5)],
-            log_A = 1.0, tw = 0.15, ncomp = 2, npeak = 2),
-        (; name = "falling_1comp_1peak_shallow",
+            log_A = 1.0, tw = 0.15, ncomp = 2, npeak = 2,
+        ),
+        (;
+            name = "falling_1comp_1peak_shallow",
             comps = [bench_comp(; β = -1.5, log_f_stop = 5.0)],
             peaks = [bench_peak(; log_f = 1.0, log_σ = 0.15, log_A = 1.0)],
-            log_A = 1.0, tw = 0.1, ncomp = 1, npeak = 1),
-        (; name = "falling_1comp_1peak_steep",
+            log_A = 1.0, tw = 0.1, ncomp = 1, npeak = 1,
+        ),
+        (;
+            name = "falling_1comp_1peak_steep",
             comps = [bench_comp(; β = -4.0, log_f_stop = 5.0)],
             peaks = [bench_peak(; log_f = 1.5, log_σ = 0.1, log_A = 0.5)],
-            log_A = 1.0, tw = 0.1, ncomp = 1, npeak = 1),
-        (; name = "falling_3comp_0peak",
-            comps = [bench_comp(; β = -0.5, log_f_stop = 1.0), bench_comp(; β = -2.0, log_f_stop = 2.5),
-                bench_comp(; β = -4.0, log_f_stop = 5.0)],
-            peaks = ComponentArray[], log_A = 1.0, tw = 0.1, ncomp = 3, npeak = 0),
+            log_A = 1.0, tw = 0.1, ncomp = 1, npeak = 1,
+        ),
+        (;
+            name = "falling_3comp_0peak",
+            comps = [
+                bench_comp(; β = -0.5, log_f_stop = 1.0), bench_comp(; β = -2.0, log_f_stop = 2.5),
+                bench_comp(; β = -4.0, log_f_stop = 5.0),
+            ],
+            peaks = ComponentArray[], log_A = 1.0, tw = 0.1, ncomp = 3, npeak = 0,
+        ),
     ]
 end
 
@@ -59,13 +71,15 @@ function run_one(case; noise = 0.1, n = 500, seed = 0, fitkw...)
     t = @timed refined = fit_mapple(log_f, log_s, init; autodiff = Optim.ADTypes.AutoForwardDiff(), fitkw...)
     βtrue = sort(collect(Float64, truth.components.β))
     βfit = sort(collect(Float64, refined.components.β))
-    return (; name = case.name, noise,
+    return (;
+        name = case.name, noise,
         rel_loss = loss(refined) / max(loss(truth), eps()),
         loss_truth = loss(truth), loss_fit = loss(refined),
         cor = cor(mapple(f, refined), s_clean),
         beta_err = maximum(abs, βfit .- βtrue),
         npeak_true = case.npeak, npeak_fit = length(refined.peaks),
-        time = t.time, bytes = t.bytes)
+        time = t.time, bytes = t.bytes,
+    )
 end
 
 function run_mapple_benchmark(; noises = (0.05, 0.2), fitkw...)

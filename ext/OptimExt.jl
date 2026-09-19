@@ -197,12 +197,12 @@ function fit_mapple(
     # (e.g. a vanishing gradient on a near-perfect fit). Skip such attempts rather than failing the
     # whole fit; another candidate (in the worst case the clamped init) is always retained.
     tryrefine(x0, bnds) =
-        try
-            refine(x0, bnds)
-        catch err
-            err isa InterruptException && rethrow()
-            nothing
-        end
+    try
+        refine(x0, bnds)
+    catch err
+        err isa InterruptException && rethrow()
+        nothing
+    end
 
     # Baseline candidate: the clamped init, so the result never worsens the supplied fit.
     best = clamp_into(free)
