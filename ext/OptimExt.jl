@@ -9,22 +9,33 @@ import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10�
     frequency_check, mapple_sort, _safelog10, logweights, _held
 using LinearAlgebra
 
+# Rebuild a full parameter vector from the free coordinates `x`, splicing them into `base` at
+# `freeidx`. Generic in the element type so ForwardDiff Duals flow through it.
+function _expand(x::AbstractVector{T}, base, freeidx, ax) where {T}
+    y = Vector{T}(undef, length(base))
+    copyto!(y, base)
+    @inbounds for (k, i) in enumerate(freeidx)
+        y[i] = x[k]
+    end
+    return ComponentArray(y, ax)
+end
+
 # `box_peaks` controls the peak position/width box. When `true`, each peak is confined near its
 # detected centre and to a sub-decade width; this stops the joint refine sliding several peaks
 # together and ballooning one into a background-like blob (the "small peaks vanish next to large
-# ones" failure on dense fields). When `false`, peaks are free over the whole band — needed when
+# ones" failure on dense fields). When `false`, peaks are free over the whole band, needed when
 # the box would trap the optimizer (e.g. a steep multi-segment background whose slopes can only be
 # fixed by letting peaks roam transiently). `fit_mapple` refines under both and keeps the better.
 #
-# These bound EVERY parameter; the ones being held (see `_held`) are dropped from the optimisation
+# These bound every parameter; the ones being held (see `_held`) are dropped from the optimisation
 # by `fit_mapple` and their bounds simply go unused.
 function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
     lower = deepcopy(initial_params)
     upper = deepcopy(initial_params)
 
-    # `log_A` is the background amplitude AT f = 1 (`10^log_A`). A data-magnitude ceiling assumes
-    # f = 1 sits near the data's largest values, which only holds for DECREASING (spectral) laws.
-    # For an INCREASING law (e.g. a structure function / MAD) whose band lies below f = 1, the
+    # `log_A` is the background amplitude at f = 1 (`10^log_A`). A data-magnitude ceiling assumes
+    # f = 1 sits near the data's largest values, which only holds for decreasing (spectral) laws.
+    # For an increasing law (e.g. a structure function / MAD) whose band lies below f = 1, the
     # f = 1 intercept is an upward extrapolation far above the data, so a data-magnitude cap clamps
     # `log_A` and forces the slope shallow. Leave the background uncapped (the loss pins it); keep
     # the peak amplitudes capped at `ampcap` below, where a finite ceiling still guards runaway.
@@ -76,7 +87,7 @@ end
 function mapple_loss(params; f, log_s, log_f = log10.(f), w = nothing)
     pred = mapple(f, params; log_f)
     # Fuse log10 + residual + sum-of-squares into one pass over `pred`, avoiding the intermediate
-    # `map(log10, …)` array and the `log_s .- pred_log` broadcast temporary on every objective
+    # `map(log10, ...)` array and the `log_s .- pred_log` broadcast temporary on every objective
     # evaluation (each is a full-length allocation, ×hundreds of evals ×ForwardDiff Duals).
     # The weighted branch is a separate loop so the (default) unweighted path keeps its tight one.
     acc = zero(eltype(pred))
@@ -99,8 +110,8 @@ mapple_loss(; kwargs...) = params -> mapple_loss(params; kwargs...)
     fit_mapple(log_f, log_s, initial_params; multistart = 0, algorithm = LBFGS(), kwargs...)
 
 Refine MAPPLE `initial_params` against log-10 frequencies `log_f` and log-10 spectral density
-`log_s` with Optim. Each fit is refined twice — once with peaks boxed near their detected
-centre/width and once with peaks free over the band — and the lower-loss result is kept; the
+`log_s` with Optim. Each fit is refined twice (once with peaks boxed near their detected
+centre/width, once with peaks free over the band) and the lower-loss result is kept; the
 boxed refine prevents peaks running away on dense fields while the free refine wins where the box
 would trap the optimizer. The supplied (clamped) initialisation is also a candidate, so the result
 never worsens it. With `multistart > 0`, additionally fit from that many randomly perturbed restarts.
@@ -160,16 +171,7 @@ function fit_mapple(
     end
     isempty(freeidx) && return ComponentArray(base, ax) # everything held: nothing to optimise
 
-    # Rebuild a full parameter vector from the free coordinates. Generic in the element type so
-    # ForwardDiff Duals flow through it.
-    function expand(x::AbstractVector{T}) where {T}
-        y = Vector{T}(undef, length(base))
-        copyto!(y, base)
-        @inbounds for (k, i) in enumerate(freeidx)
-            y[i] = x[k]
-        end
-        return ComponentArray(y, ax)
-    end
+    expand(x) = _expand(x, base, freeidx, ax)
     reduced(x) = objective(expand(x))
 
     # Bounds, restricted to the coordinates actually being optimised.
@@ -179,13 +181,13 @@ function fit_mapple(
 
     # Strictly clamp the initialisation inside a box before refining: a rough-init parameter that
     # lands on a recomputed bound makes Fminbox's log-barrier infinite. This generalises the
-    # absolute-log_A fix to every parameter (transition_width, log_σ, log_f_stop, …).
+    # absolute-log_A fix to every parameter (transition_width, log_σ, log_f_stop, ...).
     clamp_into((lower, upper)) =
         [_strictclamp(base[i], lower[k], upper[k]) for (k, i) in enumerate(freeidx)]
 
     # Bound the refine by default so a hard / ill-conditioned spectrum (e.g. a low-dynamic-range curve
     # where the two components are near-degenerate and the objective nearly flat) cannot iterate without
-    # limit — the dominant cost when fitting many spectra. Caller `kwargs` override (e.g. a high-accuracy
+    # limit, the dominant cost when fitting many spectra. Caller `kwargs` override (e.g. a high-accuracy
     # `iterations = 1000` refit, or `time_limit`).
     opts = Optim.Options(; merge((; iterations = 500, outer_iterations = 5), (; kwargs...))...)
     refine(x0, (lower, upper)) = Optim.minimizer(
@@ -277,21 +279,14 @@ function _laplace(m::MAPPLE, spectrum::AbstractDimVector; fix = nothing, w = not
     w === true && (w = logweights(log_f))
     p̂ = m.params
 
-    # Only WHICH parameters were held matters here; their values are read from the fitted model, so
+    # Only which parameters were held matters here; their values are read from the fitted model, so
     # passing a `fix` with different values cannot move the model off its optimum.
     held = _held(log_f, p̂, fix)
     freeidx = setdiff(eachindex(p̂), keys(held))
     isempty(freeidx) && throw(ArgumentError("every parameter is held; nothing to report on"))
     base = collect(p̂)
     ax = getaxes(p̂)
-    function expand(x::AbstractVector{T}) where {T}
-        y = Vector{T}(undef, length(base))
-        copyto!(y, base)
-        @inbounds for (k, i) in enumerate(freeidx)
-            y[i] = x[k]
-        end
-        return ComponentArray(y, ax)
-    end
+    expand(x) = _expand(x, base, freeidx, ax)
     n = length(log_s)
     # Put a weighted fit on the same footing as an unweighted one, exactly as `_bic` does, so σ²
     # below is a residual variance either way.
@@ -342,9 +337,9 @@ end
     stderror(m::MAPPLE, spectrum; fix = nothing, w = nothing)
 
 Asymptotic standard errors of the fitted parameters, shaped exactly like `m.params` so they can be
-read with the same accessors (`betas(stderror(...))`, `.components[2].β`, …). Held parameters are
-constants and report `0`. Square roots of the [`vcov`](@ref) diagonal; the same independence
-warning applies.
+indexed the same way (`.components[2].β`, and so on). Note that the `MAPPLE` accessors (`betas`,
+`breakpoints`) take a model, not this array. Held parameters are constants and report `0`.
+Square roots of the [`vcov`](@ref) diagonal; the same independence warning applies.
 """
 function StatsAPI.stderror(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
     Σ, freeidx, ax, n = _laplace(m, spectrum; kwargs...)

@@ -145,7 +145,7 @@ end
     end
 end
 
-# GeneralizedPhaseExt smoke test. Kept commented because GeneralizedPhase is not in the test
+# GeneralizedPhaseExt check. Kept commented because GeneralizedPhase is not in the test
 # environment (test/Project.toml); add it as a test dependency to enable this item.
 # @testitem "GeneralizedPhaseExt" begin
 #     using GeneralizedPhase, Unitful

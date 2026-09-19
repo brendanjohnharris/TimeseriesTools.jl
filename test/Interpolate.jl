@@ -383,4 +383,13 @@ end
     @test length(dims(Yb2, 1)) == 2 * length(tx) - 1
     @test DimensionalData.name.(dims(Yb2)) == DimensionalData.name.(dims(X))
     @test all(minimum(U) - 1 .≤ Yb2 .≤ maximum(U) + 1)   # bounded, smoothed
+
+    # * a tuple of one type per axis is fine; mixing types is rejected up front, since
+    # * `NDInterpolation` only stores a homogeneous `NTuple{N, ID}`
+    @test TimeseriesTools.interpolate(
+        X, (LinearInterpolationDimension, LinearInterpolationDimension)
+    ) isa NDInterpolation
+    @test_throws ArgumentError TimeseriesTools.interpolate(
+        X, (LinearInterpolationDimension, BSplineInterpolationDimension)
+    )
 end

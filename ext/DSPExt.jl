@@ -289,10 +289,10 @@ dimensions are carried through unchanged.
 - `antialias = true` (default): apply an anti-aliasing FIR filter (`DSP.resample`) *before*
   decimating, so content above the new Nyquist (`samplingrate(x) / 2factor`) is suppressed
   rather than folded back into the retained band. Use this when you want a faithful
-  lower-rate **representation** of the low-frequency band — the honest way to lower a rate.
+  lower-rate *representation* of the low-frequency band.
 - `antialias = false`: plain decimation (`x[1:factor:end]`), no filtering. Use this when you
-  want to **simulate having physically sampled the process at the lower rate**, aliasing and
-  all — the fold-back is the real acquisition behaviour you're reproducing.
+  want to *simulate having physically sampled the process at the lower rate*, aliasing and
+  all; the fold-back is the acquisition behaviour you are reproducing.
 
 Prefer this over `resample` onto a coarser grid, which subsamples a fitted interpolant
 without anti-aliasing. For *increasing* the rate see [`upsample`](@ref).

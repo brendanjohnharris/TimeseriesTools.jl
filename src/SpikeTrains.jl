@@ -197,7 +197,7 @@ function closeneighbours(
     mapneighbours!(x, y, f!; kwargs...)
     lx = length(x)
     ly = length(y)
-    return D = ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, lx, ly)
+    return ly > lx ? sparse(I, J, V, lx, ly) : sparse(J, I, V, lx, ly)
 end
 
 """

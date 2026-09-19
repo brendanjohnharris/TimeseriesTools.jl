@@ -197,7 +197,7 @@ function spikefft(t::AbstractVector, ::Val{:schild})
     @debug "Calculating spike FFT using :schild method"
     t .-= minimum(t)
     T = maximum(t)
-    return W(f) = (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
+    return f -> (sum(cos.(2π * f .* t))^2 + sum(sin.(2π * f .* t))^2) / T
 end
 
 spikefft(fs, t::AbstractVector, method) = spikefft(t, method).(fs)

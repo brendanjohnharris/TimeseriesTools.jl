@@ -115,7 +115,7 @@ end
 # A `log10` that never returns `-Inf`/`NaN`: a zero (or underflowed) spectral value is clamped to a
 # tiny positive floor. A single silent bin (`s == 0`) would otherwise make the fit objective `-Inf`,
 # which (a) drives the rough regression init to `NaN` and (b) leaves Optim with a non-finite landscape
-# it cannot descend. Applied to spectral DENSITIES only — frequencies/lags are positive by construction.
+# it cannot descend. Applied to spectral densities only; frequencies/lags are positive by construction.
 @inline _safelog10(x) = log10(max(float(x), eps(float(typeof(x)))))
 
 function frequency_check(f, log_f)
@@ -179,7 +179,7 @@ components, `n` entries) and makes `breakpoints(m)[end]` report where the fit en
 on the same parameter wins, so the automatic pin is a default rather than a constraint.
 
 Lives here rather than in `OptimExt` because which parameters are structurally held is a property of
-the MODEL, and [`_bic`](@ref) has to know them to count degrees of freedom.
+the model, and [`_bic`](@ref) has to know them to count degrees of freedom.
 """
 function _held(log_f, params, fix)
     labs = labels(params)
@@ -204,9 +204,9 @@ end
 
 # Effective free parameters of a fit. A component's breakpoint `log_f_stop` is a *free knot*: a
 # nonlinear parameter that hunts for structure (including noise), so its effective complexity is
-# ~2 dof, not 1 — standard BIC would otherwise under-penalise and over-select components. We
+# ~2 dof, not 1; standard BIC would otherwise under-penalise and over-select components. We
 # therefore charge 3 dof per component (β + a 2-dof knot); peaks keep their 3 literal params.
-# Parameters that are HELD (`fix`, and the inert outermost knot) are never searched, so they are
+# Parameters that are held (`fix`, and the inert outermost knot) are never searched, so they are
 # not charged: a held knot returns its 2 dof, anything else 1.
 function _dof(params, held)
     k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
@@ -222,7 +222,7 @@ end
 # pick the component count.
 # `f` is the linear frequency grid (`exp10.(log_f)`), precomputed once by the caller so the
 # component-count sweep does not rebuild it per candidate.
-# `w` must match the weights the candidates were REFINED under, or selection compares models on a
+# `w` must match the weights the candidates were refined under, or selection compares models on a
 # different criterion than the one they were fitted to. Scaling by `n` keeps the weighted RSS on the
 # same footing as the unweighted one (uniform weights are `1/n`, so `n·Σ wr² == Σ r²` exactly).
 function _bic(params, f, log_s, w = nothing, held = Dict{Int, Float64}())
@@ -262,7 +262,7 @@ end
 
 function _select_mapple(log_f, log_s, candidates; refine = (;), kwargs...)
     f = map(exp10, log_f)
-    # Score candidates on the criterion they were FITTED under: the refine's own weights, and its
+    # Score candidates on the criterion they were fitted under: the refine's own weights, and its
     # held parameters, which are not searched and so must not be charged degrees of freedom.
     w = get(refine, :w, nothing)
     w === true && (w = logweights(log_f))
@@ -465,7 +465,7 @@ model is evaluated many times (e.g. inside an objective).
 """
 # Whole-model evaluation. mapple! reads `.components`/`.transition_width`/`.log_A` from the first
 # argument and `.peaks` from the second, so passing the full model as both avoids splitting it into
-# `model[[:log_A,…]]` / `model[[:peaks]]` sub-ComponentArrays (which allocate on every objective eval).
+# `model[[:log_A, ...]]` / `model[[:peaks]]` sub-ComponentArrays (which allocate on every objective eval).
 function mapple(f::AbstractVector, model::ComponentArray; log_f = log10.(f))
     ElType = promote_type(eltype(f), eltype(model))
     s = similar(f, ElType)   # mapple! zero-fills before accumulating
@@ -473,7 +473,7 @@ function mapple(f::AbstractVector, model::ComponentArray; log_f = log10.(f))
     return s
 end
 # Split component/peak blocks. One parametric method covers every (Float, ForwardDiff.Dual)
-# combination via promote_type — the previous four type-specialised overloads were redundant.
+# combination via promote_type; the previous four type-specialised overloads were redundant.
 function mapple(f, component_params::ComponentArray, peaks::ComponentArray; log_f = log10.(f))
     ElType = promote_type(eltype(f), eltype(component_params), eltype(peaks))
     s = similar(f, ElType)   # mapple! zero-fills before accumulating
@@ -524,8 +524,8 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
             A_seg = component_amplitudes[idx]
 
             # * Calculate smooth window weight.
-            # A shoulder crossfades one segment into the next, so it belongs only where there IS a
-            # next segment. The OUTER edges of the model have none: below the first component and
+            # A shoulder crossfades one segment into the next, so it belongs only where there is a
+            # next segment. The outer edges of the model have none: below the first component and
             # above the last there is nothing to hand over to, and a shoulder there would taper the
             # model to zero off the ends of its own domain rather than blend two power laws. The
             # closing shoulder on the last component in particular made `last(β)` a nuisance
@@ -548,7 +548,7 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
         f_peak = exp10(peak.log_f)
         A_peak = exp10(peak.log_A)
         # log_σ gives a constant width in log_f space. Floor σ at a tiny positive fraction of the
-        # centre so a degenerate log_σ ≤ 0 (only reachable for hand-built models — the fit bounds
+        # centre so a degenerate log_σ ≤ 0 (only reachable for hand-built models, since the fit bounds
         # keep log_σ > 0) cannot divide by zero and produce NaN at the peak centre.
         σ_peak = max(f_peak * tanh(peak.log_σ), f_peak * 1.0e-6)
 
@@ -573,10 +573,10 @@ _lower_envelope_mask(resid; k = 2) = resid .≤ (median(resid) + k * _rstd(resid
 
 # Shared robust lower-envelope loop. Starting from `refit(all-kept)`, iteratively drop the
 # positive excursions (peaks) and refit through the remaining troughs. `refit(mask)` returns the
-# fitted log-space trend over the FULL grid given a boolean keep-mask; `minpoints` stops the loop
+# fitted log-space trend over the full grid given a boolean keep-mask; `minpoints` stops the loop
 # before the fit becomes underdetermined. Both background estimators (least squares here, Optim
 # in OptimExt) route through this loop so the detrending behaves identically regardless of which
-# inner fit is used — only the inner model differs, not the robust-iteration scheme.
+# inner fit is used; only the inner model differs, not the robust-iteration scheme.
 function _robust_envelope(log_s, refit; iters = 3, minpoints = 0)
     trend = refit(trues(length(log_s)))
     mask = trues(length(log_s))
@@ -590,9 +590,9 @@ function _robust_envelope(log_s, refit; iters = 3, minpoints = 0)
 end
 
 # Estimate the log-space background trend for peak detection: a continuous piecewise-linear
-# (hard-break) power law fitted by least squares over the component breakpoints — the actual
+# (hard-break) power law fitted by least squares over the component breakpoints: the actual
 # background shape, so peaks on a steep, curved background stand out on the residual. Fitted
-# robustly through `_robust_envelope`. This least-squares estimate is used for DETECTION whether
+# robustly through `_robust_envelope`. This least-squares estimate is used for detection whether
 # or not Optim is loaded (a single linear solve, ~1000× cheaper than a bounded Optim background
 # fit, and reproducible across load state); the smooth Optim model is reserved for the final fit.
 function _background_trend(log_f, log_s, components)
@@ -611,7 +611,7 @@ broken-power-law segments by regression, then detect peaks on the detrended resi
 Peak count:
 - `peaks = :auto` (default) keeps every detection whose prominence clears `peak_threshold`
   robust standard deviations of the residual, up to `max_n_peaks` strongest. The default
-  threshold is deliberately conservative — noise produces local-maxima prominences several
+  threshold is deliberately conservative: noise produces local-maxima prominences several
   times the point-noise scale, so a low threshold over-detects. Detection is best-effort;
   pass an explicit `peaks::Integer` when the count is known.
 - `peaks::Integer` takes the strongest that many detections (no threshold, no padding);
@@ -656,14 +656,14 @@ function fit_mapple(
     end
 
     # * Find peaks on the residual after removing the robust least-squares piecewise-linear
-    #   background. Peaks that ride a steep, curved background — and so are not local maxima of
-    #   the raw spectrum — stand out cleanly on the residual.
+    #   background. Peaks that ride a steep, curved background (and so are not local maxima of
+    #   the raw spectrum) stand out cleanly on the residual.
     trend = _background_trend(log_f, log_s, components)
     residual = ToolsArray(log_s .- trend, Log10𝑓(log_f))
 
     # For a fixed count, take the strongest peaks with no threshold (the count is the
     # selection). For `:auto`, gate on a data-driven prominence threshold. A (near-)flat residual
-    # — a smooth spectrum the background already explains — has no peaks; skip detection, since
+    # (a smooth spectrum the background already explains) has no peaks; skip detection, since
     # findpeaks' width estimate is NaN on a flat signal and would throw an InexactError.
     auto = !(peaks isa Integer)
     resvec = parent(residual)
@@ -690,7 +690,7 @@ function fit_mapple(
         @warn "Requested up to $peaks peaks but only $(length(proms)) were detected"
     end
 
-    # Initialise each peak's amplitude from the LOCAL background under it, not the global spectral
+    # Initialise each peak's amplitude from the local background under it, not the global spectral
     # floor. A Gaussian peak adds linear power `A_peak` on top of the background `B`, so at the
     # centre the data is `B + A_peak`; with the (log-10) prominence measuring the rise above the
     # local background trend `t`, `A_peak = 10^t·(10^prom − 1)`, i.e. `log_A = t + log10(10^prom−1)`.
@@ -698,9 +698,9 @@ function fit_mapple(
     # background sits well above the high-frequency floor orders of magnitude too low; at that
     # amplitude the peak is invisible to the loss (∂loss/∂log_A ≈ 0) and the refine cannot grow it,
     # so only the single tallest peak survives. Using the local trend gives every detected peak a
-    # start near its true height — `log_A < log_s` at the centre always holds (since
+    # start near its true height; `log_A < log_s` at the centre always holds (since
     # `log10(10^prom−1) < prom`), so the start cannot overshoot the data and hijack β.
-    # NB: use fresh names inside this closure — assigning `log_A`/`log_σ` here would leak to the
+    # NB: use fresh names inside this closure; assigning `log_A`/`log_σ` here would leak to the
     # enclosing `log_A = first(log_s)` (a `do` block shares enclosing locals).
     peakparams = map(proms, bounds) do prom, bound
         pf = mean(bound)

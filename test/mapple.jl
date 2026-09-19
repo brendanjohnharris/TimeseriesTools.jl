@@ -1,4 +1,4 @@
-# Comprehensive unit tests for the MAPPLE spectral model.
+# Unit tests for the MAPPLE spectral model.
 #
 #   Core model:        src/Mapple.jl    (`mapple`, `mapple!`, `MAPPLE`, `mapple_sort!`,
 #                                         `fit`, `predict`)
@@ -8,8 +8,9 @@
 # items also cover the robustness/reporting overhaul: the conservative peak-amplitude init
 # and the `log_A` do-block-leak fix, the Hz reporting accessors, the `rsquared` flat-spectrum
 # guard, the peak-width guard, data-driven (`:auto`) peak counting, BIC component
-# selection, and the outer-edge windowing fix (final items in this file). These tests are deterministic; every item that fits a model also saves a log–log
-# figure of the fit to `test/mapple_figs/` via the shared `MapplePlots` setup module.
+# selection, and the outer-edge windowing fix (final items in this file). These tests are
+# deterministic; every item that fits a model also saves a log-log figure of the fit to
+# `test/mapple_figs/` via the shared `MapplePlots` setup module.
 #
 # Construction helpers are repeated inside each `@testitem` because every item runs in
 # its own isolated module.
@@ -108,7 +109,7 @@ end
     )
     @test mapple(f, pfwd) ≈ mapple(f, prev)
 
-    # The hot path is type stable.
+    # Whole-model evaluation is type stable.
     @test @inferred(mapple(f, p1)) isa Vector{Float64}
 end
 
@@ -528,9 +529,9 @@ end
     )
     log_f = range(0, 3, length = 400); f = exp10.(log_f)
     Random.seed!(11); log_s = log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f))
-    # Rough init: `:auto` finds the one real peak and seeds its amplitude from the LOCAL background
+    # Rough init: `:auto` finds the one real peak and seeds its amplitude from the local background
     # under it, so the start is already near the true height (anchoring to the global spectral floor
-    # instead would start it orders of magnitude too low for the refine to grow — see the peak-init
+    # instead would start it orders of magnitude too low for the refine to grow; see the peak-init
     # note in `fit_mapple`).
     init = fit_mapple(log_f, log_s; components = 1, w = 50)   # peaks = :auto
     @test length(init.peaks) == 1                              # the one real peak, not noise bumps
@@ -722,7 +723,7 @@ end
 
 # --- Complex-spectrum accuracy ----------------------------------------------------------------
 # These items exercise the refinement on harder spectra (multiple peaks, >2 power-law segments).
-# They judge accuracy in LOG-10 space — the space the loss is defined in — rather than by linear
+# They judge accuracy in log-10 space (the space the loss is defined in) rather than by linear
 # `cor`, which is dominated by the high-power low-frequency samples and stays ≈1 even when a
 # mid-band peak is missed entirely. The conservative rough init only seeds peaks and slopes; the
 # Optim refine is what grows peaks to their true height, so every accuracy claim is on `refined`.
@@ -771,7 +772,7 @@ end
     MapplePlots.save_fit("complex_multipeak", f, exp10.(log_s), refined; init = init, subdir = "med")
 end
 
-@testitem "mapple: >2 components — three power-law segments recover their slopes" setup = [MapplePlots] tags = [:mapple] begin
+@testitem "mapple: >2 components; three power-law segments recover their slopes" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -812,10 +813,10 @@ end
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
 
-    # Four segments over four decades. The individual (β, breakpoint) values are NOT uniquely
-    # identifiable here — several decompositions yield near-identical curves — so we assert the
-    # spectrum is reproduced, not the parameters. This is the honest claim for deep stacks of
-    # power laws: the model is expressive enough to capture the shape.
+    # Four segments over four decades. The individual (β, breakpoint) values are not uniquely
+    # identifiable here (several decompositions yield near-identical curves), so we assert the
+    # spectrum is reproduced, not the parameters: the model is expressive enough to capture the
+    # shape, but the decomposition is not unique.
     truth = ComponentArray(;
         log_A = 2.0, peaks = nopeaks(),
         components = [
@@ -845,16 +846,16 @@ end
 # navigation; the recovery tests above also file into these tiers (auto_detect_peak/peak_width_guard
 # → low, complex_multipeak/three_component_slopes → med, four_component_spectrum → high).
 #
-# With peaks seeded from the LOCAL background (see the peak-init note in `fit_mapple`), peak recovery
-# is now robust well past a handful of peaks: the low/med/high tiers recover every peak. The frontier
-# has moved to the BACKGROUND — at ~6 components the broken-power-law has too many near-degenerate
+# With peaks seeded from the local background (see the peak-init note in `fit_mapple`), peak recovery
+# holds well past a handful of peaks: the low/med/high tiers recover every peak. The background is
+# the limiting factor: at ~6 components the broken-power-law has too many near-degenerate
 # (β, breakpoint) combinations, so the optimizer wanders (occasionally to a NaN gradient, which Optim
 # absorbs) and the recovered slopes/knots drift even though the peaks are still found. The `very_high`
 # tier exercises that regime; we assert only the robustness invariants there (finite, positive
-# spectrum; a loose log-R² floor) and record the worst-case residual via `@info`, with the figure
-# carrying the rest of the story. Lower tiers additionally assert that all peaks are recovered.
+# spectrum; a loose log-R² floor) and record the worst-case residual via `@info`, leaving the
+# figure to show the detail. Lower tiers additionally assert that all peaks are recovered.
 
-@testitem "mapple: complexity sweep (low) — simple spectra fit cleanly" setup = [MapplePlots] tags = [:mapple] begin
+@testitem "mapple: complexity sweep (low): simple spectra fit cleanly" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -880,7 +881,7 @@ end
     MapplePlots.save_fit("two_components_one_peak", f, exp10.(log_s), refined; init = init, subdir = "low")
 end
 
-@testitem "mapple: complexity sweep (medium) — three peaks on three segments" setup = [MapplePlots] tags = [:mapple] begin
+@testitem "mapple: complexity sweep (medium): three peaks on three segments" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -890,8 +891,8 @@ end
         1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
     )
 
-    # Three segments, three peaks (one per segment). All three are recovered — both centres and
-    # heights — thanks to the local-background amplitude seeding.
+    # Three segments, three peaks (one per segment). All three are recovered (both centres and
+    # heights) thanks to the local-background amplitude seeding.
     truth = ComponentArray(;
         log_A = 2.0,
         peaks = [
@@ -922,7 +923,7 @@ end
     MapplePlots.save_fit("three_components_three_peaks", f, exp10.(log_s), refined; init = init, subdir = "med")
 end
 
-@testitem "mapple: complexity sweep (high) — dense peaks on four segments" setup = [MapplePlots] tags = [:mapple] begin
+@testitem "mapple: complexity sweep (high): dense peaks on four segments" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -933,9 +934,9 @@ end
     )
 
     # Four segments with three then four peaks. Even on this dense field every peak is recovered at
-    # its true centre — the boxed refine (one of the two bound sets `fit_mapple` tries) stops the
-    # peaks from sliding together or one ballooning into a background-like blob, which is what used
-    # to swallow the smaller peaks next to large ones.
+    # its true centre: the boxed refine (one of the two bound sets `fit_mapple` tries) stops the
+    # peaks from sliding together or one ballooning into a background-like blob, which otherwise
+    # swallows the smaller peaks next to large ones.
     components = [
         mkcomp(; log_f_stop = 0.8, β = -0.8), mkcomp(; log_f_stop = 1.7, β = -1.6),
         mkcomp(; log_f_stop = 2.6, β = -2.6), mkcomp(; log_f_stop = 10.0, β = -3.6),
@@ -977,7 +978,7 @@ end
     end
 end
 
-@testitem "mapple: complexity sweep (very high) — background identifiability breaks down" setup = [MapplePlots] tags = [:mapple] begin
+@testitem "mapple: complexity sweep (very high): background identifiability breaks down" setup = [MapplePlots] tags = [:mapple] begin
     using TimeseriesTools, ComponentArrays, Optim, ForwardDiff, Random, Statistics
     mkcomp(; log_f_stop, β) = ComponentArray(; log_f_stop = float(log_f_stop), β = float(β))
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
@@ -988,11 +989,11 @@ end
         1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
     )
 
-    # Six segments, six peaks over five decades — the regime where the broken-power-law background
-    # becomes non-identifiable: many (β, breakpoint) sets give near-identical curves, the optimizer
+    # Six segments, six peaks over five decades, where the broken-power-law background becomes
+    # non-identifiable: many (β, breakpoint) sets give near-identical curves, the optimizer
     # wanders (Optim absorbs the occasional NaN gradient), and the recovered slopes/knots drift even
     # though the peaks are still found. We assert only that the result stays physical and broadly
-    # tracks the data; the figure shows the local background mismatches that define this frontier.
+    # tracks the data; the figure shows the remaining local background mismatches.
     edges = collect(range(lo, hi, length = 7)); stops = edges[2:end]; stops[end] = hi + 1.0
     betas = collect(range(-0.8, -0.8 - 0.7 * 5, length = 6))
     components = [mkcomp(; log_f_stop = stops[i], β = betas[i]) for i in 1:6]
@@ -1024,12 +1025,12 @@ end
 #      and recovery of the clean truth degrades only gently with σ.
 #
 #   2. FREQUENCY-INCREASING (heteroscedastic): the noise standard deviation ramps up with
-#      frequency, so the high-frequency tail is far noisier than the low-frequency body — the
+#      frequency, so the high-frequency tail is far noisier than the low-frequency body: the
 #      realistic shape for an un-averaged periodogram approaching its noise floor. The unweighted
-#      loss does NOT down-weight the noisy tail, so the test checks that the (clean) low-frequency
+#      loss does not down-weight the noisy tail, so the test checks that the (clean) low-frequency
 #      structure is still recovered while the residual carries the injected frequency structure.
 #
-# Both items save one log–log figure per noise level, bucketed into `mapple_figs/noise/{uniform,
+# Both items save one log-log figure per noise level, bucketed into `mapple_figs/noise/{uniform,
 # increasing}/` with σ-sorted filenames, matching the per-tier figure convention used above.
 
 @testitem "mapple: robustness to uniform spectral noise" setup = [MapplePlots] tags = [:mapple] begin
@@ -1112,12 +1113,12 @@ end
         lo, hi = mean(abs, resid[1:half]), mean(abs, resid[(half + 1):end])
 
         @test all(isfinite, sfit) && all(>(0), sfit)            # physical despite the noisy tail
-        # The injected variance — and so the fit residual — is concentrated at high frequency: the
+        # The injected variance (and so the fit residual) is concentrated at high frequency: the
         # heteroscedastic structure survives the fit rather than being smeared uniformly.
         @test hi > lo
         # Yet the unweighted fit still tracks the overall clean spectral shape: it is not dragged
         # into a wild curve by the noisy tail (this is the robustness claim the figures illustrate;
-        # `logsample`ing the spectrum first sharpens it further — see the `fit(MAPPLE, …)` docstring).
+        # `logsample`ing the spectrum first sharpens it further; see the `fit(MAPPLE, ...)` docstring).
         @test logr2(refined) > 0.9
         push!(tail_res, hi)
 

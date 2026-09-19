@@ -1,19 +1,19 @@
 module NaturalNeighboursExt
 
 using NaturalNeighbours
-import NaturalNeighbours: interpolate, NaturalNeighboursInterpolant
+import NaturalNeighbours: NaturalNeighboursInterpolant
 
 using DimensionalData
 using Normalization
 using TimeseriesTools
-import TimeseriesTools: upsample
+import TimeseriesTools: upsample, interpolate
 
 function interpolate(X::DimensionalData.AbstractDimMatrix; kwargs...)
     xy = [Float64.(x) for x in lookup(X)]
     N = fit.([MinMax], xy)
 
     points = Iterators.product((xy .|> N)...) |> collect |> vec
-    itp = interpolate(
+    itp = NaturalNeighbours.interpolate(
         Float64.(first.(points)), Float64.(last.(points)), X.data[:];
         kwargs...
     )

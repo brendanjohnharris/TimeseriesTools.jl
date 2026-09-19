@@ -37,7 +37,18 @@ end
 # Per-dimension spec: a single type/instance is broadcast across every axis; a tuple gives
 # one spec per axis.
 _nd_specs(spec, n) = ntuple(_ -> spec, n)
-_nd_specs(spec::Tuple, n) = (length(spec) == n || throw(ArgumentError("expected $n dimension specs, got $(length(spec))")); spec)
+function _nd_specs(spec::Tuple, n)
+    length(spec) == n ||
+        throw(ArgumentError("expected $n dimension specs, got $(length(spec))"))
+    # `NDInterpolation` stores its dimensions as `NTuple{N, ID}` for a single `ID`, so every axis
+    # must use the same interpolation-dimension type; a mixed tuple otherwise fails deep inside
+    # `DataInterpolationsND` with an opaque `validate_size_u` MethodError.
+    allequal(map(_spec_type, spec)) ||
+        throw(ArgumentError("all dimension specs must be the same interpolation-dimension type; got $(map(_spec_type, spec))"))
+    return spec
+end
+_spec_type(spec::Type{<:AbstractInterpolationDimension}) = spec
+_spec_type(spec::AbstractInterpolationDimension) = Base.typename(typeof(spec)).wrapper
 
 _build_dim(spec::Type{<:AbstractInterpolationDimension}, t; kwargs...) = _nd_dim(spec, t; kwargs...)
 _build_dim(spec::AbstractInterpolationDimension, _) = spec  # already constructed
@@ -48,15 +59,17 @@ _build_dim(spec::AbstractInterpolationDimension, _) = spec  # already constructe
 Fit a joint N-dimensional interpolant to `x` using `DataInterpolationsND`.
 
 `dimspec` is a `DataInterpolationsND.AbstractInterpolationDimension` type (or instance),
-or a tuple of one per dimension of `x` — e.g. `LinearInterpolationDimension` to use linear
-interpolation on every axis, or `(LinearInterpolationDimension, ConstantInterpolationDimension)`
-for a 2-D array. Unlike the 1-D `DataInterpolations` method this fits all axes jointly, so
-`x` must be a complete (gap-free) array.
+or a tuple of one per dimension of `x`; e.g. `LinearInterpolationDimension` to use linear
+interpolation on every axis. Every axis must use the *same* dimension type: `NDInterpolation`
+stores its dimensions as an `NTuple{N, ID}` for a single `ID`, so a tuple is only useful for
+supplying a pre-built instance per axis, and a mixed-type tuple throws. Unlike the 1-D
+`DataInterpolations` method this fits all axes jointly, so `x` must be a complete (gap-free)
+array.
 
 `LinearInterpolationDimension` and `ConstantInterpolationDimension` pass through the samples
-exactly. `BSplineInterpolationDimension` is **not** a true interpolation for `degree > 1`:
+exactly. `BSplineInterpolationDimension` is *not* a true interpolation for `degree > 1`:
 `DataInterpolationsND` treats the data as B-spline control points, so the values along that
-axis are used as control points over a reduced knot vector — the result smooths the data
+axis are used as control points over a reduced knot vector, so the result smooths the data
 rather than passing through it (roughly, a smoothing followed by spline evaluation). For
 `degree == 1` it reduces to ordinary piecewise-linear interpolation. The `degree` keyword
 (default 2) is forwarded per BSpline axis.
