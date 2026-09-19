@@ -152,18 +152,25 @@ end
 
 phasewrap(ϕ::Number) = mod(ϕ + π, 2π) - π
 
+# Samples to discard at an interface: a fraction `trim` of `n`, validated so a slice never starts at
+# index 0 or runs backwards.
+function _trimcount(n, trim)
+    0 ≤ trim < 0.5 || throw(ArgumentError("trim must satisfy 0 ≤ trim < 0.5 (got $trim)"))
+    return floor(Int, n * trim)
+end
+
 function _phasestitch(a::Tuple, b::Tuple; tol = 0.05, trim = 0.1) # a = (LFP1, PHI1)
     x, xp = a
     y, yp = b
 
     # Drop a fraction `trim` of the samples at each interface to suppress Hilbert edge effects.
     # This is a coarse heuristic; tune `trim` (or pre-window the inputs) for edge-sensitive uses.
-    c = floor(Int, length(xp) * trim)
+    c = _trimcount(length(xp), trim)
     x = x[1:(end - c)]
     xp = xp[1:(end - c)]
-    c = floor(Int, length(yp) * trim)
-    y = y[c:end]
-    yp = yp[c:end]
+    c = _trimcount(length(yp), trim)
+    y = y[(c + 1):end]
+    yp = yp[(c + 1):end]
 
     idxs = 0 .< (yp .- xp[end]) .< tol # Phase is close in value
     i = findfirst(idxs)
@@ -240,9 +247,9 @@ function TimeseriesTools.phasestitch(
 
     # Drop a fraction `trim` of the samples at each interface to suppress Hilbert edge effects.
     for i in eachindex(_a)
-        c = floor(Int, length(_a[i]) * trim)
-        push!(a, _a[i][c:(end - c)])
-        push!(ap, _ap[i][c:(end - c)])
+        c = _trimcount(length(_a[i]), trim)
+        push!(a, _a[i][(c + 1):(end - c)])
+        push!(ap, _ap[i][(c + 1):(end - c)])
     end
 
     # Now match phases, ready for stitching
@@ -302,20 +309,15 @@ function downsample(x::RegularTimeseries, factor::Integer; antialias = true)
     factor == 1 && return x
     u = unit(eltype(x))
     raw = ustripall(parent(x))
-    mat = reshape(raw, size(raw, 1), :)
-    cols = if antialias
-        # `DSP.resample` applies a polyphase anti-aliasing FIR filter, then decimates.
-        [DSP.resample(c, 1 // factor) for c in eachcol(mat)]
-    else
-        [c[1:factor:end] for c in eachcol(mat)]
-    end
-    n = length(first(cols))
-    data = reshape(reduce(hcat, cols), n, size(raw)[2:end]...)
-    data = ndims(x) == 1 ? vec(data) : data
+    # `DSP.resample` applies a polyphase anti-aliasing FIR filter, then decimates.
+    op = antialias ? (c -> DSP.resample(c, 1 // factor)) : (c -> c[1:factor:end])
+    data = mapslices(op, raw; dims = 1)
     t = DimensionalData.dims(x, 1)
-    newt = rebuild(t, range(start = first(t), step = step(t) * factor, length = n))
+    newt = rebuild(t, range(start = first(t), step = step(t) * factor, length = size(data, 1)))
     otherdims = ntuple(i -> DimensionalData.dims(x, i + 1), ndims(x) - 1)
-    return ToolsArray(data * u, (newt, otherdims...))
+    # `format` gives the new time axis a `Sampled`/`Regular` lookup, as the `ToolsArray` constructor would.
+    newdims = DimensionalData.Dimensions.format((newt, otherdims...), data)
+    return rebuild(x; data = data * u, dims = newdims)
 end
 
 end # module

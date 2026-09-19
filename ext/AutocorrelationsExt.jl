@@ -32,9 +32,7 @@ function dotacf(x::IrregularTimeseries, args...; kwargs...)
     throw(MethodError(dotacf, (x, args...)))
 end
 
-"""
-Inspired by https://github.com/mastrof/MeanSquaredDisplacement.jl/
-"""
+# Inspired by https://github.com/mastrof/MeanSquaredDisplacement.jl/
 function msdist(
         x::AbstractVector,
         lags = range(0, length(x) - 1, step = 1)

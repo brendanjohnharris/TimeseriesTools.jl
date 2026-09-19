@@ -105,6 +105,13 @@ function Base.sort(m::MAPPLE)
     return m
 end
 
+"""
+    predict(m::MAPPLE, freqs)
+
+Evaluate a fitted [`MAPPLE`](@ref) model over `freqs`, returning the modelled spectral density in
+linear (not log-10) units. Given an `AbstractDimVector` of frequencies the result keeps its
+dimension, so it can be plotted against, or compared with, the spectrum the model was fitted to.
+"""
 function StatsAPI.predict(m::MAPPLE, freqs)
     return mapple(freqs, m.params)
 end
@@ -117,6 +124,21 @@ end
 # which (a) drives the rough regression init to `NaN` and (b) leaves Optim with a non-finite landscape
 # it cannot descend. Applied to spectral densities only; frequencies/lags are positive by construction.
 @inline _safelog10(x) = log10(max(float(x), eps(float(typeof(x)))))
+
+# Frequencies and log-10 axis/density of a spectrum for fitting. Non-positive bins are dropped
+# rather than clamped: `_safelog10` floors a *prediction* harmlessly, but a floored datum
+# (`log10(eps()) ≈ -15.7`) is a residual of ~15 log-units that bends the whole fit toward it.
+function _logdata(spectrum::AbstractDimVector)
+    s = parent(spectrum)
+    keep = s .> 0
+    all(keep) || @warn "MAPPLE: dropping $(count(!, keep)) non-positive spectral bins" maxlog = 1
+    f = collect(lookup(spectrum, 1))[keep]
+    return f, map(log10, f), map(log10, s[keep])
+end
+
+# The `w` keyword shared by the fit, the BIC and the Laplace uncertainties: `true` computes
+# `logweights` of the axis, `false`/`nothing` is unweighted, anything else is used as given.
+_weights(w, log_f) = w === true ? logweights(log_f) : w === false ? nothing : w
 
 function frequency_check(f, log_f)
     length(log_f) ≥ 2 ||
@@ -169,11 +191,11 @@ function logweights(log_x)
 end
 
 """
-Flat-index => value for every parameter a fit HOLDS rather than searches: the caller's `fix`, plus
-the last component's `log_f_stop`. That knot is never windowed (see [`mapple!`](@ref)), so it bounds
+Flat-index => value for every parameter a fit holds rather than searches: the caller's `fix`, plus
+the last component's `log_f_stop` (and, for a single component, the inert `transition_width`). That knot is never windowed (see [`mapple!`](@ref)), so it bounds
 nothing and has exactly zero loss-gradient; left in the optimisation it is still boxed, and
-Fminbox's log-barrier drifts it through its box for no gain --- 1.25 decades on a two-component fit
---- and towards its neighbour, where a crossing reorders the components and the model changes
+Fminbox's log-barrier drifts it through its box for no gain (1.25 decades on a two-component fit)
+and towards its neighbour, where a crossing reorders the components and the model changes
 discontinuously. Holding it at the top of the fitted band keeps the accessors a uniform shape (`n`
 components, `n` entries) and makes `breakpoints(m)[end]` report where the fit ends. A caller `fix`
 on the same parameter wins, so the automatic pin is a default rather than a constraint.
@@ -189,6 +211,8 @@ function _held(log_f, params, fix)
         i = argmax(k -> params.components[k].log_f_stop, eachindex(params.components))
         held[idx("components[$i].log_f_stop")] = maximum(log_f)
     end
+    # One segment has no knot, so its shoulder width is inert too (see `mapple!`).
+    length(params.components) == 1 && (held[idx("transition_width")] = params.transition_width)
     isnothing(fix) && return held
     for (lab, v) in fix
         i = idx(lab)
@@ -206,8 +230,8 @@ end
 # nonlinear parameter that hunts for structure (including noise), so its effective complexity is
 # ~2 dof, not 1; standard BIC would otherwise under-penalise and over-select components. We
 # therefore charge 3 dof per component (β + a 2-dof knot); peaks keep their 3 literal params.
-# Parameters that are held (`fix`, and the inert outermost knot) are never searched, so they are
-# not charged: a held knot returns its 2 dof, anything else 1.
+# Parameters that are held (`fix`, the inert outermost knot, a lone component's inert shoulder width)
+# are never searched, so they are not charged: a held knot returns its 2 dof, anything else 1.
 function _dof(params, held)
     k = 2 + 3 * length(params.components) + 3 * length(params.peaks)
     labs = labels(params)
@@ -226,6 +250,7 @@ end
 # different criterion than the one they were fitted to. Scaling by `n` keeps the weighted RSS on the
 # same footing as the unweighted one (uniform weights are `1/n`, so `n·Σ wr² == Σ r²` exactly).
 function _bic(params, f, log_s, w = nothing, held = Dict{Int, Float64}())
+    w = _weights(w, map(log10, f))
     n = length(f)
     resid = log_s .- map(_safelog10, mapple(f, params))
     rss = w === nothing ? sum(abs2, resid) : n * sum(w .* abs2.(resid))
@@ -278,6 +303,7 @@ function _select_mapple(log_f, log_s, candidates; refine = (;), kwargs...)
             best, best_bic = params, bic
         end
     end
+    best === nothing && throw(ArgumentError("no candidate in $candidates produced a finite BIC"))
     if !isnothing(fix)
         unmatched = [String(first(p)) for p in fix if String(first(p)) ∉ used]
         isempty(unmatched) || throw(
@@ -305,7 +331,8 @@ selection compares fully-fitted models and the returned model is already refined
 loaded the candidates cannot be refined and the `:auto` sweep collapses to a single component (the
 rough fits give every component the same slope and so are indistinguishable); load `Optim` for
 meaningful component selection. Pass an `Integer` `components` to fix the count and get the rough
-fit only, then call [`fit!`](@ref) to refine. `kwargs` (e.g. `peaks`, `w`, `peak_threshold`) are forwarded to the peak-finding init;
+fit only, then call [`fit!`](@ref) to refine. `kwargs` (e.g. `peaks`, `window`, `peak_threshold`) are forwarded to the peak-finding init;
+`w` (residual weights, as for [`fit!`](@ref)) is forwarded to the refinement, as if given in `refine`;
 `refine` is a NamedTuple of Optim options (e.g. `refine = (; multistart = 4, iterations = 200)`)
 forwarded to the refinement of each `:auto` candidate, kept separate so refine-only options do
 not leak into the peak finder.
@@ -313,7 +340,7 @@ not leak into the peak finder.
 A `refine.fix` label that does not exist for a given candidate is skipped for that candidate rather
 than raising: one `fix` has to serve the whole sweep, but `"components[3].β"` is meaningless when
 fitting two components, as is `"peaks[2].log_f"` when one peak was detected. A label that matches NO
-candidate is still an error --- that is a typo, not a count mismatch. Count-INDEPENDENT labels
+candidate is still an error: that is a typo, not a count mismatch. Count-independent labels
 (`"log_A"`, `"transition_width"`, `"components[1].*"`) therefore apply to every candidate, while
 count-dependent ones apply only where they exist, which is usually what you want: pinning the
 outermost slope, say, means something different at each count.
@@ -328,17 +355,17 @@ outermost slope, say, means something different at each count.
 """
 function StatsAPI.fit(
         ::Type{MAPPLE}, spectrum::AbstractDimVector;
-        components = :auto, max_components = 3, refine = (;), kwargs...
+        components = :auto, max_components = 3, refine = (;), w = nothing, kwargs...
     )
-    log_f = map(log10, lookup(spectrum, 1))
-    log_s = map(_safelog10, parent(spectrum))
-
-    frequency_check(lookup(spectrum, 1), log_f)
+    f, log_f, log_s = _logdata(spectrum)
+    frequency_check(f, log_f)
 
     params = if components isa Integer
+        w === nothing || throw(ArgumentError("`w` weights the refinement; pass it to `fit!`"))
         fit_mapple(log_f, log_s; components, kwargs...)
     else
-        _select_mapple(log_f, log_s, 1:max_components; refine, kwargs...)
+        max_components ≥ 1 || throw(ArgumentError("max_components must be at least 1 (got $max_components)"))
+        _select_mapple(log_f, log_s, 1:max_components; refine = merge((; w), refine), kwargs...)
     end
     return sort(MAPPLE(params))
 end
@@ -426,11 +453,11 @@ end
 """
     mapple_residuals(m::MAPPLE, spectrum)
 Log-10 residuals between model `m` and a measured `spectrum` (linear frequency lookup,
-linear spectral density), matching the space in which the fit is performed.
+linear spectral density), matching the space in which the fit is performed. Non-positive bins are
+omitted, as they are from the fit.
 """
 function mapple_residuals(m::MAPPLE, spectrum::AbstractDimVector)
-    f = lookup(spectrum, 1)
-    log_s = _safelog10.(parent(spectrum))
+    f, _, log_s = _logdata(spectrum)
     return log_s .- _safelog10.(mapple(f, m.params))
 end
 
@@ -445,7 +472,7 @@ mapple_loss(m::MAPPLE, spectrum::AbstractDimVector) = sum(abs2, mapple_residuals
 Coefficient of determination of the fit, computed in log-10 space.
 """
 function rsquared(m::MAPPLE, spectrum::AbstractDimVector)
-    log_s = _safelog10.(parent(spectrum))
+    _, _, log_s = _logdata(spectrum)
     ss_res = sum(abs2, mapple_residuals(m, spectrum))
     ss_tot = sum(abs2, log_s .- (sum(log_s) / length(log_s)))
     iszero(ss_tot) && return NaN   # flat spectrum: R² is undefined rather than ±Inf
@@ -462,11 +489,18 @@ Evaluate the MAPPLE model on linear frequencies `f`, returning the linear spectr
 (`component_params`) and `peaks` blocks separate, which the optimiser uses to bound the two
 blocks independently. Pass a precomputed `log_f = log10.(f)` to avoid recomputing it when the
 model is evaluated many times (e.g. inside an objective).
+
+Shoulders of width `transition_width` crossfade each segment into the next, so only the `n - 1` inner
+knots are windowed: below the first component and above the last there is nothing to hand over to,
+and a shoulder there would taper the model to zero off its own domain (making the last `β` a fade
+parameter rather than a slope). Hence `components[end].log_f_stop` is unused, and with a single
+component so is `transition_width`; a fit holds both.
 """
-# Whole-model evaluation. mapple! reads `.components`/`.transition_width`/`.log_A` from the first
-# argument and `.peaks` from the second, so passing the full model as both avoids splitting it into
-# `model[[:log_A, ...]]` / `model[[:peaks]]` sub-ComponentArrays (which allocate on every objective eval).
 function mapple(f::AbstractVector, model::ComponentArray; log_f = log10.(f))
+    # Whole-model evaluation. mapple! reads `.components`/`.transition_width`/`.log_A` from the first
+    # argument and `.peaks` from the second, so passing the full model as both avoids splitting it
+    # into `model[[:log_A, ...]]` / `model[[:peaks]]` sub-ComponentArrays (which allocate on every
+    # objective eval).
     ElType = promote_type(eltype(f), eltype(model))
     s = similar(f, ElType)   # mapple! zero-fills before accumulating
     mapple!(s, f, model, model; log_f)
@@ -523,16 +557,7 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
             seg = components[idx]
             A_seg = component_amplitudes[idx]
 
-            # * Calculate smooth window weight.
-            # A shoulder crossfades one segment into the next, so it belongs only where there is a
-            # next segment. The outer edges of the model have none: below the first component and
-            # above the last there is nothing to hand over to, and a shoulder there would taper the
-            # model to zero off the ends of its own domain rather than blend two power laws. The
-            # closing shoulder on the last component in particular made `last(β)` a nuisance
-            # parameter absorbing the fade instead of a slope --- a fit whose top segment ended
-            # inside the data was attenuated to half at that knot, and the optimiser compensated
-            # with a runaway β, or collapsed the knot onto its neighbour to switch the segment off.
-            # Consequently `components[end].log_f_stop` is unused: n components have n-1 knots.
+            # Smooth window weight; only inner knots are windowed (see the `mapple` docstring).
             start_weight = j == 1 ? one(El) :
                 (one(El) + tanh((log_f[i] - components[sorted_indices[j - 1]].log_f_stop) / width)) / 2
             stop_weight = j == n_components ? one(El) :
@@ -560,11 +585,9 @@ function mapple!(s::AbstractVector{El}, f, component_params, peaks; log_f = log1
     return
 end
 
-# Classic median absolute deviation and its normal-consistent scale estimate. Used as a
-# robust spread for the peak-detection threshold and the lower-envelope background trim;
-# unlike `std`, neither is inflated by the peaks we are trying to detect.
-_mad(x) = median(abs.(x .- median(x)))
-_rstd(x) = 1.4826 * _mad(x)
+# Normal-consistent median absolute deviation: a robust spread for the peak-detection threshold and
+# the lower-envelope trim that, unlike `std`, the peaks being detected do not inflate.
+_rstd(x) = mad(x; normalize = true)
 
 # Keep points that lie on the lower envelope of `resid`, i.e. drop the positive excursions
 # that are peaks. Returns a boolean mask; used to fit the background through the troughs
@@ -603,7 +626,7 @@ function _background_trend(log_f, log_s, components)
 end
 
 """
-    fit_mapple(log_f, log_s; components, peaks = :auto, peak_threshold = 5.0, max_n_peaks = 8, peak_width_limits, w, kwargs...)
+    fit_mapple(log_f, log_s; components, peaks = :auto, peak_threshold = 5.0, max_n_peaks = 8, peak_width_limits, window, kwargs...)
 
 Rough MAPPLE initialisation from log-10 frequencies/spectral density: fit `components`
 broken-power-law segments by regression, then detect peaks on the detrended residual.
@@ -618,12 +641,12 @@ Peak count:
   fewer are returned, with a warning, if detection finds fewer.
 
 `peak_width_limits = (wmin, wmax)` (log-frequency units) rejects implausibly narrow
-(sub-resolution) or wide detections before counting. `w` is the peak-finder smoothing
+(sub-resolution) or wide detections before counting. `window` is the peak-finder smoothing
 window; pass an explicit `minprom` to override the `:auto` threshold.
 """
 function fit_mapple(
         log_f, log_s;
-        w = max(1, length(log_f) ÷ 100),
+        window = max(1, length(log_f) ÷ 100),
         peaks = :auto,
         components,
         peak_threshold = 5.0,
@@ -672,7 +695,7 @@ function fit_mapple(
         proms, bounds = Float64[], Any[]
     else
         auto && isnothing(minprom) && (minprom = peak_threshold * _rstd(resvec))
-        _, proms, bounds = findpeaks(residual, w; minprom, kwargs...)
+        _, proms, bounds = findpeaks(residual, window; minprom, kwargs...)
     end
 
     # Reject implausibly narrow (sub-resolution spike) or wide detections before counting.

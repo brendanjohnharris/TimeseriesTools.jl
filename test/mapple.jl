@@ -247,7 +247,7 @@ end
     log_s = log10.(s_clean) .+ 0.1 .* randn(length(s_clean))
 
     # Rough fit (peak-finding + regression) then Optim refinement; components only.
-    init = fit_mapple(log_f, log_s; components = 2, peaks = 0, w = 50)
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 0, window = 50)
     refined = fit_mapple(log_f, log_s, init; autodiff = Optim.ADTypes.AutoForwardDiff())
 
     loss(p) = sum((log_s .- log10.(mapple(f, p))) .^ 2)
@@ -422,7 +422,7 @@ end
     s_clean = mapple(f, truth)
     log_s = log10.(s_clean) .+ 0.05 .* randn(length(s_clean))
     loss(p) = sum(abs2, log_s .- log10.(mapple(f, p)))
-    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, window = 50)
     refined = fit_mapple(log_f, log_s, init; autodiff = Optim.ADTypes.AutoForwardDiff())
     @test length(refined.peaks) == 2                 # peaks detected, not the fallback
     @test loss(refined) < 1.5 * loss(truth)          # no degenerate collapse
@@ -446,7 +446,7 @@ end
     )
     log_f = range(0, 3, length = 500); f = exp10.(log_f)
     Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
-    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, window = 50)
     @test init.log_A ≈ first(log_s)              # base amplitude is the DC estimate, not a peak's
     @test all(isfinite, mapple(f, init))         # init is sane, not a 10^(peak log_A) blow-up
 
@@ -505,10 +505,10 @@ end
     log_f = range(0, 3, length = 400); f = exp10.(log_f)
     Random.seed!(7); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
     # Default limits: the narrow peak is found.
-    init = fit_mapple(log_f, log_s; components = 1, w = 50)
+    init = fit_mapple(log_f, log_s; components = 1, window = 50)
     @test length(init.peaks) ≥ 1
     # Demanding very wide peaks rejects every detection before counting.
-    @test length(fit_mapple(log_f, log_s; components = 1, w = 50, peak_width_limits = (2.0, 3.0)).peaks) == 0
+    @test length(fit_mapple(log_f, log_s; components = 1, window = 50, peak_width_limits = (2.0, 3.0)).peaks) == 0
 
     # Refine for a clean full fit: the recovered peak lands at the true centre and height.
     refined = fit_mapple(log_f, log_s, init)
@@ -533,7 +533,7 @@ end
     # under it, so the start is already near the true height (anchoring to the global spectral floor
     # instead would start it orders of magnitude too low for the refine to grow; see the peak-init
     # note in `fit_mapple`).
-    init = fit_mapple(log_f, log_s; components = 1, w = 50)   # peaks = :auto
+    init = fit_mapple(log_f, log_s; components = 1, window = 50)   # peaks = :auto
     @test length(init.peaks) == 1                              # the one real peak, not noise bumps
     @test only(collect(Float64, init.peaks.log_f)) ≈ 1.5 atol = 0.2
     @test only(collect(Float64, init.peaks.log_A)) ≈ 1.2 atol = 0.6   # seeded near the true height
@@ -606,8 +606,8 @@ end
     @test isfinite(fitβ(ToolsArray(zb, 𝑓(f))))
 
     # (B) A real low-dynamic-range MAD curve (a WRCircuit working-regime `itot` input) on which the
-    # UNCAPPED Fminbox refine wandered ~30-60 s even though the optimum is reached early. The bounded
-    # default budget must reach the SAME exponent in a small fraction of that time. Regression: with no
+    # An uncapped Fminbox refine wandered ~30-60 s even though the optimum is reached early. The bounded
+    # default budget must reach the same exponent in a small fraction of that time. Regression: with no
     # default iteration cap, curves like this turned a per-neuron parameter sweep into an effective hang.
     lags = unique(round.(Int, exp10.(range(1, 4, 100)))) ./ 10
     s = [
@@ -709,7 +709,7 @@ end
     log_f = range(0, 3, length = 500); f = exp10.(log_f)
     Random.seed!(0); log_s = log10.(mapple(f, truth)) .+ 0.05 .* randn(length(f))
     loss(p) = sum(abs2, log_s .- log10.(mapple(f, p)))
-    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, w = 50)
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 2, window = 50)
     single = fit_mapple(log_f, log_s, init)
     Random.seed!(1); multi = fit_mapple(log_f, log_s, init; multistart = 4)
     @test multi isa ComponentArray
@@ -717,7 +717,7 @@ end
     # Multistart survives a degenerate over-parameterised noiseless target without crashing
     # (a perturbed restart where Fminbox cannot build a barrier is skipped, not fatal).
     clean = log10.(mapple(f, truth))
-    cinit = fit_mapple(log_f, clean; components = 3, peaks = 2, w = 50)
+    cinit = fit_mapple(log_f, clean; components = 3, peaks = 2, window = 50)
     Random.seed!(2); @test fit_mapple(log_f, clean, cinit; multistart = 3) isa ComponentArray
 
     MapplePlots.save_fit("multistart_refine", f, exp10.(log_s), multi; init = init, subdir = "diagnostics")
@@ -753,7 +753,7 @@ end
     log_f = range(0, 3, length = 600); f = exp10.(log_f)
     Random.seed!(2); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
 
-    init = fit_mapple(log_f, log_s; components = 3, peaks = 2, w = 40)
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 2, window = 40)
     refined = fit_mapple(log_f, log_s, init)
     m = MAPPLE(refined)
 
@@ -792,7 +792,7 @@ end
     log_f = range(0, 3, length = 500); f = exp10.(log_f)
     Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.03 .* randn(length(f))
 
-    init = fit_mapple(log_f, log_s; components = 3, peaks = 0, w = 50)
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 0, window = 50)
     refined = fit_mapple(log_f, log_s, init)
     m = MAPPLE(refined)
 
@@ -830,7 +830,7 @@ end
     log_f = range(-0.5, 3.5, length = 700); f = exp10.(log_f)
     Random.seed!(11); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
 
-    init = fit_mapple(log_f, log_s; components = 4, peaks = 0, w = 40)
+    init = fit_mapple(log_f, log_s; components = 4, peaks = 0, window = 40)
     refined = fit_mapple(log_f, log_s, init)
 
     @test length(refined.components) == 4
@@ -874,7 +874,7 @@ end
         transition_width = 0.06
     )
     Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
-    init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 40)
+    init = fit_mapple(log_f, log_s; components = 2, peaks = 1, window = 40)
     refined = fit_mapple(log_f, log_s, init)
     sfit = mapple(f, refined)
     @test all(isfinite, sfit) && all(>(0), sfit)
@@ -908,7 +908,7 @@ end
         ], transition_width = 0.06
     )
     Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
-    init = fit_mapple(log_f, log_s; components = 3, peaks = 3, w = 40)
+    init = fit_mapple(log_f, log_s; components = 3, peaks = 3, window = 40)
     refined = fit_mapple(log_f, log_s, init)
     sfit = mapple(f, refined)
     m = MAPPLE(refined)
@@ -965,7 +965,7 @@ end
     for (name, np, pks) in configs
         truth = ComponentArray(; log_A = 2.5, peaks = pks, components = components, transition_width = 0.05)
         Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
-        init = fit_mapple(log_f, log_s; components = 4, peaks = np, w = 40)
+        init = fit_mapple(log_f, log_s; components = 4, peaks = np, window = 40)
         refined = fit_mapple(log_f, log_s, init)
         sfit = mapple(f, refined)
         m = MAPPLE(refined)
@@ -1004,7 +1004,7 @@ end
     truth = ComponentArray(; log_A = 2.5, peaks = peaks, components = components, transition_width = 0.05)
     Random.seed!(1); log_s = log10.(mapple(f, truth)) .+ 0.02 .* randn(length(f))
 
-    init = fit_mapple(log_f, log_s; components = 6, peaks = 6, w = 40)
+    init = fit_mapple(log_f, log_s; components = 6, peaks = 6, window = 40)
     refined = fit_mapple(log_f, log_s, init)
     sfit = mapple(f, refined)
     @test all(isfinite, sfit) && all(>(0), sfit)   # still physical despite the degeneracy
@@ -1061,7 +1061,7 @@ end
     for (i, σ) in enumerate(sigmas)
         Random.seed!(100 + i)
         log_s = log10.(s_clean) .+ σ .* randn(length(f))
-        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 50)
+        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, window = 50)
         refined = fit_mapple(log_f, log_s, init)
         sfit = mapple(f, refined)
         @test all(isfinite, sfit) && all(>(0), sfit)        # a physical spectrum at every level
@@ -1095,7 +1095,7 @@ end
     s_clean = mapple(f, truth)
     n = length(f); half = n ÷ 2
 
-    # Coefficient of determination of the whole fit against the CLEAN truth, in log-10 space.
+    # Coefficient of determination of the whole fit against the clean truth, in log-10 space.
     logr2(fit) = (
         lp = log10.(mapple(f, fit)); lt = log10.(s_clean);
         1 - sum(abs2, lt .- lp) / sum(abs2, lt .- mean(lt))
@@ -1108,7 +1108,7 @@ end
         Random.seed!(round(Int, σ_hi * 100))
         ramp = collect(range(σ_lo, σ_hi, length = n))
         log_s = log10.(s_clean) .+ ramp .* randn(n)
-        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, w = 50)
+        init = fit_mapple(log_f, log_s; components = 2, peaks = 1, window = 50)
         refined = fit_mapple(log_f, log_s, init)
         sfit = mapple(f, refined)
         resid = log_s .- log10.(sfit)
@@ -1165,16 +1165,16 @@ end
         components = [mkcomp(; log_f_stop = 5.0, β = -2.0)], transition_width = 0.1
     )
     log_s = log10.(mapple(f, truth))
-    init = fit_mapple(log_f, log_s; components = 1, w = 50, peak_threshold = 1.0)
+    init = fit_mapple(log_f, log_s; components = 1, window = 50, peak_threshold = 1.0)
     @test all(isfinite, init)
 end
 
 # --- Outer-edge windowing ----------------------------------------------------------------------
-# Regression cover for a windowing bug in `mapple!`: every component was multiplied by BOTH a
+# Regression cover for a windowing bug in `mapple!`: every component was multiplied by both a
 # `tanh` shoulder opening at the previous knot and one closing at its own, including the outermost
-# components, which have nothing beyond them to crossfade into. The closing shoulder on the LAST
-# component attenuated the model across the top of its own domain --- to exactly half at that knot
-# --- so `last(β)` stopped being a slope and became a nuisance parameter absorbing the fade. Fits
+# components, which have nothing beyond them to crossfade into. The closing shoulder on the last
+# component attenuated the model across the top of its own domain (to exactly half at that knot)
+# so `last(β)` stopped being a slope and became a nuisance parameter absorbing the fade. Fits
 # whose top segment ended inside the data compensated with a runaway β (+2.5, +8.5 observed) or
 # collapsed the final knot onto its neighbour to switch the segment off entirely.
 #
@@ -1189,7 +1189,7 @@ end
 
     f = exp10.(range(0, 3, length = 400))
 
-    # Equal slopes across every component must reproduce a SINGLE power law exactly, wherever the
+    # Equal slopes across every component must reproduce a single power law exactly, wherever the
     # knots sit: the amplitudes chain to a common value, and unwindowed outer edges make the
     # shoulders a partition of unity (tanh is odd, so the two halves of a crossfade sum to 1).
     # A closing shoulder on the last component breaks this by tapering the top toward zero.
@@ -1229,7 +1229,7 @@ end
     @test slope ≈ 0.5 atol = 1.0e-6
 
     # The first component is likewise unwindowed below: the bottom decade follows ITS slope. The
-    # tolerance is looser than the top decade's because the INTERIOR crossfade still leaks here ---
+    # tolerance is looser than the top decade's because the interior crossfade still leaks here:
     # 0.4 decades below the knot component 1's weight is (1 + tanh 4)/2 = 0.99966, not 1, drifting
     # ~3e-4 across the decade. A closing shoulder on an outer edge would instead taper by O(0.1).
     lo = findall(<(exp10(0.6)), f)
@@ -1256,7 +1256,7 @@ end
         @test mapple(f, build(stop)) == reference
     end
 
-    # Sorting is by `log_f_stop`, so a final knot BELOW its neighbour reorders the components; the
+    # Sorting is by `log_f_stop`, so a final knot below its neighbour reorders the components; the
     # segments then swap roles and the curve legitimately differs. Guard the inert claim against
     # being read as "any value", and confirm sorting still yields a finite, positive spectrum.
     swapped = mapple(f, build(0.5))
@@ -1309,7 +1309,7 @@ end
     mkpeak(; log_f, log_σ, log_A) = ComponentArray(; log_f = float(log_f), log_σ = float(log_σ), log_A = float(log_A))
     nopeaks() = map(_ -> mkpeak(; log_f = 0.0, log_σ = 0.0, log_A = 0.0), 1:0)
 
-    # Truth built ANALYTICALLY (not through `mapple`), so the test cannot be satisfied by
+    # Truth built analytically (not through `mapple`), so the test cannot be satisfied by
     # reproducing the model's own windowing. A Fano-factor shape: a flat shot-noise floor, a rise,
     # then saturation --- the case that exposed the bug, where the top segment's knot is at 10^2
     # with a full decade of data above it.
@@ -1360,11 +1360,11 @@ end
     @test _dof(p, _held(log_f, p, ["components[1].β" => 0.0, "transition_width" => 0.1])) == 11 - 2 - 2
     @test _dof(p, _held(log_f, p, ["components[1].log_f_stop" => 1.0])) == 11 - 2 - 2  # a knot is 2
 
-    # The automatic pin refunds the same 2 dof at every candidate count, so it cannot shift the
-    # component selection --- it only makes the absolute BIC right.
+    # The automatic pin refunds 2 dof at every count (3 for a single segment, whose shoulder width is
+    # inert as well), so it only makes the absolute BIC right.
     for nc in 1:4
         q = fit_mapple(log_f, log_s; components = nc, peaks = 0)
-        @test (2 + 3nc) - _dof(q, _held(log_f, q, nothing)) == 2
+        @test (2 + 3nc) - _dof(q, _held(log_f, q, nothing)) == (nc == 1 ? 3 : 2)
     end
 
     # BIC must be scored under the same weights the candidates were refined with (`_select_mapple`
@@ -1471,4 +1471,65 @@ end
         MAPPLE, spec; peaks = 0, components = :auto, max_components = 3,
         refine = (; fix = ["components[9].β" => 0.0])
     )
+end
+
+@testitem "mapple: non-positive bins are dropped, not clamped" tags = [:mapple] begin
+    using TimeseriesTools, Optim, ForwardDiff
+    f = exp10.(range(0, 3; length = 200))
+    s = collect(f .^ -1.5); s[80:90] .= 0.0
+    spec = ToolsArray(s, 𝑓(f))
+    m = fit(MAPPLE, spec; components = 1, peaks = 0)
+    fit!(m, spec)
+    @test only(betas(m)) ≈ -1.5 atol = 0.05                 # a clamped -15.65 target bends this
+    @test length(TimeseriesTools.mapple_residuals(m, spec)) == count(>(0), s)
+    @test TimeseriesTools.rsquared(m, spec) > 0.999
+end
+
+@testitem "mapple: a single component holds its inert transition width" tags = [:mapple] begin
+    using TimeseriesTools
+    using TimeseriesTools: _held, _dof
+    log_f = collect(range(0, 3; length = 100)); log_s = -1.5 .* log_f
+    p1 = fit_mapple(log_f, log_s; components = 1, peaks = 0)
+    p2 = fit_mapple(log_f, log_s; components = 2, peaks = 0)
+    @test _dof(p1, _held(log_f, p1, nothing)) == 2          # log_A and β: no knot, so no shoulder
+    @test _dof(p2, _held(log_f, p2, nothing)) == 2 + 3 * 2 - 2
+end
+
+@testitem "mapple: w = false is an unweighted fit" tags = [:mapple] begin
+    using TimeseriesTools, Optim, ForwardDiff, Random
+    using TimeseriesTools: _bic
+    f = exp10.(range(0, 3; length = 200))
+    Random.seed!(1)
+    spec = ToolsArray(f .^ -1.5 .* exp10.(0.05 .* randn(length(f))), 𝑓(f))
+    m0 = fit(MAPPLE, spec; components = 1, peaks = 0); m1 = deepcopy(m0)
+    fit!(m0, spec); fit!(m1, spec; w = false)
+    @test m1.params == m0.params
+    @test isfinite(_bic(m0.params, f, log10.(parent(spec)), false))
+end
+
+@testitem "mapple: an empty candidate set raises ArgumentError" tags = [:mapple] begin
+    using TimeseriesTools
+    f = exp10.(range(0, 3; length = 100))
+    spec = ToolsArray(f .^ -1.5, 𝑓(f))
+    @test_throws ArgumentError fit(MAPPLE, spec; max_components = 0)
+end
+
+@testitem "mapple: fit routes w to the refinement" tags = [:mapple] begin
+    using TimeseriesTools, Optim, ForwardDiff, Random
+    f = collect(1.0:200.0)                                  # linear grid, so weighting matters
+    Random.seed!(2)
+    spec = ToolsArray(f .^ -1.5 .* exp10.(0.1 .* randn(length(f))), 𝑓(f))
+    a = fit(MAPPLE, spec; max_components = 2, peaks = 0, w = true)
+    b = fit(MAPPLE, spec; max_components = 2, peaks = 0, refine = (; w = true))
+    c = fit(MAPPLE, spec; max_components = 2, peaks = 0)
+    @test a.params == b.params
+    @test a.params != c.params
+end
+
+@testitem "mapple: refine errors that are not barrier failures propagate" tags = [:mapple] begin
+    using TimeseriesTools, Optim, ForwardDiff
+    f = exp10.(range(0, 3; length = 100))
+    spec = ToolsArray(f .^ -1.5, 𝑓(f))
+    m = fit(MAPPLE, spec; components = 1, peaks = 0)
+    @test_throws MethodError fit!(m, spec; algorithm = :nope)
 end

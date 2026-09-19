@@ -6,7 +6,7 @@ using StatsAPI
 using StatsBase
 using ComponentArrays
 import TimeseriesTools: mapple, fit_mapple, MAPPLE, UnivariateSpectrum, Log10𝑓,
-    frequency_check, mapple_sort, _safelog10, logweights, _held
+    frequency_check, mapple_sort, _safelog10, logweights, _held, _logdata, _weights
 using LinearAlgebra
 
 # Rebuild a full parameter vector from the free coordinates `x`, splicing them into `base` at
@@ -69,9 +69,9 @@ function mapple_bounds(log_f, log_s, initial_params; box_peaks = true)
 
     for i in eachindex(lower.components)
         df = maximum(log_f) - minimum(log_f)
-        # Keep each breakpoint strictly INSIDE the data band. The old ±2·df window let a knot sit up to two
-        # decades OUTSIDE the data, where the segment it bounds collapses to a one-point sliver with an
-        # arbitrary slope --- the dominant broken-power-law failure (a MAD rise returning a > 1 off a 1 ms
+        # Keep each breakpoint strictly inside the data band. The old ±2·df window let a knot sit up to two
+        # decades outside the data, where the segment it bounds collapses to a one-point sliver with an
+        # arbitrary slope; this is the dominant broken-power-law failure (a MAD rise returning a > 1 off a 1 ms
         # sliver). The `df/6` margin above the low edge guarantees a minimum leading-segment width, so the
         # first component is a real power law rather than an edge sliver.
         lower.components[i].log_f_stop = minimum(log_f) + df / 6
@@ -130,10 +130,10 @@ multistart comparison valid.
 refers to ascending-`log_f_stop` order. Recipes: hold an inner knot known a priori so every fitted
 curve spans the same segments (`"components[1].log_f_stop" => log10(knee)`); pin a slope known on
 theoretical grounds (`"components[1].β" => 0.0` for a Fano factor's flat shot-noise shoulder).
-Fixing a knot forbids exactly what a multi-segment fit is usually for --- recovering that knot ---
+Fixing a knot forbids exactly what a multi-segment fit is usually for (recovering that knot),
 so pin only quantities that are wanted as constraints, not measurements.
 
-Held parameters are ELIMINATED from the optimisation, not boxed into a narrow interval: they are
+Held parameters are eliminated from the optimisation, not boxed into a narrow interval: they are
 removed from the vector Optim searches and spliced back in to evaluate the objective. Boxing leaves
 them differentiated on every evaluation (ForwardDiff's cost scales with the free-parameter count),
 carried through every line search, and starting a hair from a barrier wall whose gradient distorts
@@ -150,18 +150,10 @@ function fit_mapple(
     ) # If you have ForwardDiff loaded, you can pass autodiff=:forward
     f = map(exp10, log_f)
     initial_params = mapple_sort(initial_params) # so `fix` component indices mean ascending knots
-    # `w` has to be an explicit keyword rather than left in `kwargs`: the leftovers are splatted
-    # into `Optim.Options` below, which would reject it.
-    w === true && (w = logweights(log_f))
+    w = _weights(w, log_f)   # an explicit keyword: leftover `kwargs` go to `Optim.Options`
     objective = mapple_loss(; f, log_s, log_f, w)
 
-    # Held parameters are ELIMINATED from the optimisation rather than boxed into a sliver. A
-    # slivered parameter is still differentiated on every objective evaluation (ForwardDiff's cost
-    # scales with the free-parameter count), still carried through every line search, and starts a
-    # hair from a barrier wall whose enormous gradient both pollutes Fminbox's convergence test and
-    # skews its automatic `μ0` for every OTHER parameter. Measured across 2-4 component fits,
-    # eliminating rather than boxing is 1.1-2.0x cheaper per objective call and converges to a
-    # markedly better optimum (34x lower loss on a 3-component, 2-peak spectrum).
+    # Held parameters are eliminated from the search, not boxed (see the docstring).
     held = _held(log_f, initial_params, fix)
     freeidx = setdiff(eachindex(initial_params), keys(held))
     ax = getaxes(initial_params)
@@ -194,13 +186,14 @@ function fit_mapple(
         optimize(reduced, lower, upper, copy(x0), Fminbox(algorithm), opts; autodiff)
     )
     # Best-effort: a (boxed/perturbed) refine can land where Fminbox cannot build a finite barrier
-    # (e.g. a vanishing gradient on a near-perfect fit). Skip such attempts rather than failing the
-    # whole fit; another candidate (in the worst case the clamped init) is always retained.
+    # (an `ArgumentError`, e.g. on a vanishing gradient). Skip such attempts rather than failing the
+    # whole fit; the clamped init is always retained. Anything else is a bug and propagates.
     tryrefine(x0, bnds) =
     try
         refine(x0, bnds)
     catch err
-        err isa InterruptException && rethrow()
+        err isa Union{ArgumentError, DomainError} || rethrow()
+        @debug "MAPPLE refine attempt skipped" exception = err
         nothing
     end
 
@@ -224,7 +217,7 @@ function fit_mapple(
     return expand(best)
 end
 
-# Clamp `v` strictly INSIDE `(lo, hi)`, never onto a boundary where Fminbox's log-barrier is
+# Clamp `v` strictly inside `(lo, hi)`, never onto a boundary where Fminbox's log-barrier is
 # `Inf`. Either bound may be infinite, in which case that side is left open.
 function _strictclamp(v, lo, hi)
     if isfinite(lo) && isfinite(hi)
@@ -258,9 +251,8 @@ holds arbitrary parameters (addressed by their `ComponentArrays.labels` string) 
 instead of fitting them.
 """
 function StatsAPI.fit!(m::MAPPLE, spectrum::AbstractDimVector; kwargs...)
-    log_f = map(log10, lookup(spectrum, 1))
-    log_s = map(_safelog10, parent(spectrum))
-    frequency_check(lookup(spectrum, 1), log_f)
+    f, log_f, log_s = _logdata(spectrum)
+    frequency_check(f, log_f)
     params = fit_mapple(log_f, log_s, m.params; kwargs...)
     m.params .= params
     return sort!(m)
@@ -269,14 +261,12 @@ end
 
 # --- Uncertainty ------------------------------------------------------------------------------
 # Laplace (observed-information) uncertainties: invert the Hessian of the residual sum of squares
-# at the fitted optimum. One Hessian, no sampler. Only the parameters the fit SEARCHED get an
-# uncertainty --- held ones (`fix`, and the inert outermost knot) are constants, and including them
+# at the fitted optimum. One Hessian, no sampler. Only the parameters the fit searched get an
+# uncertainty; held ones (`fix`, and the inert outermost knot) are constants, and including them
 # would make the Hessian singular.
 function _laplace(m::MAPPLE, spectrum::AbstractDimVector; fix = nothing, w = nothing)
-    log_f = map(log10, lookup(spectrum, 1))
-    log_s = map(_safelog10, parent(spectrum))
-    f = map(exp10, log_f)
-    w === true && (w = logweights(log_f))
+    f, log_f, log_s = _logdata(spectrum)
+    w = _weights(w, log_f)
     p̂ = m.params
 
     # Only which parameters were held matters here; their values are read from the fitted model, so
@@ -313,12 +303,12 @@ end
 Covariance matrix of the fitted parameters, from the Laplace (observed-information) approximation:
 `2σ̂² H⁻¹`, where `H` is the Hessian of the residual sum of squares at the optimum. Rows and columns
 are the parameters the fit searched, ordered as [`freelabels`](@ref); pass the same `fix` and `w`
-the fit used, so the held set and the objective match (only which parameters were held matters --- 
+the fit used, so the held set and the objective match (only which parameters were held matters;
 their values come from the fitted model).
 
 !!! warning "Independent residuals are assumed"
-    These are exact only for independent, equal-variance residuals. On an AVERAGED curve --- a
-    median Fano curve or spectrum --- neighbouring samples share most of their underlying data and
+    These are exact only for independent, equal-variance residuals. On an AVERAGED curve (a
+    median Fano curve or spectrum) neighbouring samples share most of their underlying data and
     the residuals are strongly autocorrelated: lag-1 correlations of 0.58 and 0.86 have been
     measured on real curves, understating variances by 3.7x and 13x respectively. Check
     `cor(r[1:(end - 1)], r[2:end])` on [`mapple_residuals`](@ref) and inflate accordingly, or

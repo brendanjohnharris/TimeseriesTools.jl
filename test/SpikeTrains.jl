@@ -189,3 +189,11 @@ end
 #     Colorbar(f[1, 2], p, label = "stoic")
 #     f
 # end
+
+@testitem "convolve: no spikes within range gives zero" begin
+    import TimeseriesTools: Timeseries
+    t = Timeseries(trues(3), [1.0, 2.0, 3.0])
+    g = convolve(t, 0.1; range = 0.5)
+    @test g(10.0) == 0.0
+    @test g(2.0) > 0
+end

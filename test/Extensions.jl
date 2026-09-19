@@ -273,3 +273,17 @@ end
     @test m.params.components[1].β ≈ 0.5 atol = 0.06
     @test m.params.components[2].β ≈ 0.0 atol = 0.06
 end
+
+@testitem "DSPExt: phasestitch trim edge cases" begin
+    using DSP, TimeseriesTools
+    import TimeseriesTools: Timeseries
+    dt = 0.005
+    t = dt:dt:4                                                    # longer than one period of sin(2t)
+    segs = [Timeseries(sin.(2 .* t .+ randn()), t) for _ in 1:3]
+    @test phasestitch(segs; trim = 0.0) isa AbstractVector         # was a BoundsError at index 0
+    @test phasestitch(segs[1], segs[2]; trim = 0.0) isa AbstractVector
+    ts = dt:dt:(5dt)                                               # fewer than 1/trim samples
+    short = [Timeseries(sin.(2 .* ts .+ randn()), ts) for _ in 1:3]
+    @test phasestitch(short) isa AbstractVector
+    @test_throws ArgumentError phasestitch(segs; trim = 0.5)
+end

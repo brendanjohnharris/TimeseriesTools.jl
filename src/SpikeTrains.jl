@@ -24,7 +24,7 @@ function convolve(t::SpikeTrain; kernel::Function, range = 0.0)
         function f(x)
             inrange = [abs(x - b) < range for b in times(t)] # Only consider spikes that are within a reasonable time of one another; the others should be negligible if the kernel decays
             _x = [g(x) for (i, g) in enumerate(fs) if inrange[i]]
-            isempty(_x) && return x -> 0.0
+            isempty(_x) && return 0.0
             return sum(_x)
         end
     else

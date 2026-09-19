@@ -5,6 +5,20 @@ using LinearAlgebra
 
 export findpeaks, maskpeaks!, maskpeaks, madev
 
+"""
+    findpeaks(x, w = 1; minprom = nothing, maxprom = nothing, strict = true, N = nothing)
+
+Find local maxima of `x` that remain maxima over a window of `w` points either side, returning
+`(values, prominences, widths)`. Each is indexed by the position of its peak along the lookup of
+`x`; `widths` holds the interval spanned by each peak at half its prominence.
+
+`minprom`/`maxprom` bound the prominences kept, and may be given as a function of `x` (e.g.
+`minprom = x -> 3std(x)`). `N` keeps only the `N` most prominent peaks. For an array of more than
+one dimension, pass `dims` to select the axis to search; the other dimensions are carried through.
+
+Wraps [Peaks.jl](https://github.com/halleysfifthinc/Peaks.jl). See [`maskpeaks`](@ref) to label
+the samples each peak occupies.
+"""
 function findpeaks(
         x::DimensionalData.AbstractDimVector, w = 1;
         minprom = nothing,
@@ -49,6 +63,11 @@ function findpeaks(x::DimensionalData.AbstractDimArray, args...; dims = 1, kwarg
     return [getindex.(P, i) for i in 1:3] # vals, proms, widths
 end
 
+"""
+    maskpeaks!(y, x, args...; kwargs...)
+
+In-place [`maskpeaks`](@ref), writing the labels into `y`.
+"""
 function maskpeaks!(y, x::DimensionalData.AbstractDimVector, args...; kwargs...)
     vals, proms, widths = findpeaks(x, args...; kwargs...)
     y .= 0
@@ -57,6 +76,14 @@ function maskpeaks!(y, x::DimensionalData.AbstractDimVector, args...; kwargs...)
     end
     return y
 end
+"""
+    maskpeaks(x, args...; dims = 1, kwargs...)
+
+Label every sample of `x` with the index of the peak it belongs to, returning an integer array of
+the same shape: samples within the width of the `i`th peak take the value `i`, and samples in no
+peak take `0`. Arguments are passed to [`findpeaks`](@ref), so peak selection is controlled the
+same way. See [`maskpeaks!`](@ref) for the in-place form.
+"""
 function maskpeaks(x::DimensionalData.AbstractDimVector, args...; kwargs...)
     y = set(x, similar(x, Int))
     maskpeaks!(y, x, args...; kwargs...)
@@ -85,6 +112,17 @@ end
 _default_lags(x::AbstractVector) = range(1, length(x) - Int(length(x) ÷ 2), step = 1)
 _default_lags(x::AbstractMatrix) = range(1, size(x, 1) - Int(size(x, 1) ÷ 2), step = 1)
 
+"""
+    madev(x, lags = 1:(length(x) ÷ 2); p = 1)
+
+Mean absolute deviation of `x` at each of `lags`: the `p`-norm of `x[k+1:n] - x[1:n-k]`, divided by
+the number of pairs. For a `RegularTimeseries` the lags are given in time units and the result is
+returned as a `Timeseries` indexed by lag.
+
+Unlike the mean-squared displacement this is finite for heavy-tailed processes, since it does not
+rely on a variance: for a Lévy process with `α < 2` the MSD diverges while `madev` does not. Lags
+must be sorted; a lag at or beyond the length of `x` contributes `0`.
+"""
 function madev(x::AbstractVector, lags = _default_lags(x); p = 1)
     if !issorted(lags)
         throw(ArgumentError("Lags must be sorted"))

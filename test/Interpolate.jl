@@ -393,3 +393,20 @@ end
         X, (LinearInterpolationDimension, BSplineInterpolationDimension)
     )
 end
+
+@testitem "Downsampling keeps metadata" begin
+    using DSP
+    t = 0.0:0.005:2.0
+    x = rebuild(Timeseries(sin.(2π * 5 .* t), t); metadata = Dict(:channel => "a"))
+    @test DimensionalData.metadata(downsample(x, 4)) == DimensionalData.metadata(x)
+    @test DimensionalData.metadata(downsample(x, 4; antialias = false)) == DimensionalData.metadata(x)
+end
+
+@testitem "DataInterpolationsNDExt accepts keywords for every dimension type" begin
+    using DataInterpolationsND
+    tx = 0.0:0.5:5.0; ty = 0.0:0.5:4.0
+    X = Timeseries([1.0 + 2.0x - 0.5y for x in tx, y in ty], 𝑡(tx), Var(ty))
+    @test upsample(X, 2, LinearInterpolationDimension; degree = 1) isa ToolsArray
+    @test resample(X, 0.25, ConstantInterpolationDimension; degree = 1) isa ToolsArray
+    @test resample(X, 0.25, BSplineInterpolationDimension; degree = 1) isa ToolsArray
+end

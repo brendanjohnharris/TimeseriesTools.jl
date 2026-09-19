@@ -17,8 +17,8 @@ const NDDimSpec = Union{
 }
 
 # Build an interpolation-dimension object for a single axis from its (unitless) lookup.
-_nd_dim(::Type{LinearInterpolationDimension}, t) = LinearInterpolationDimension(collect(t))
-function _nd_dim(::Type{ConstantInterpolationDimension}, t)
+_nd_dim(::Type{LinearInterpolationDimension}, t; kwargs...) = LinearInterpolationDimension(collect(t))
+function _nd_dim(::Type{ConstantInterpolationDimension}, t; kwargs...)
     return ConstantInterpolationDimension(collect(t))
 end
 function _nd_dim(::Type{BSplineInterpolationDimension}, t; degree = 2)
@@ -51,10 +51,10 @@ _spec_type(spec::Type{<:AbstractInterpolationDimension}) = spec
 _spec_type(spec::AbstractInterpolationDimension) = Base.typename(typeof(spec)).wrapper
 
 _build_dim(spec::Type{<:AbstractInterpolationDimension}, t; kwargs...) = _nd_dim(spec, t; kwargs...)
-_build_dim(spec::AbstractInterpolationDimension, _) = spec  # already constructed
+_build_dim(spec::AbstractInterpolationDimension, _t; kwargs...) = spec  # already constructed
 
 """
-    interpolate(x, dimspec, args...; kwargs...)
+    interpolate(x, dimspec; kwargs...)
 
 Fit a joint N-dimensional interpolant to `x` using `DataInterpolationsND`.
 
@@ -79,12 +79,11 @@ dimensions to produce a rewrapped array on the new grid.
 """
 function interpolate(
         x::DimensionalData.AbstractDimArray,
-        dimspec::Union{NDDimSpec, Tuple},
-        args...; kwargs...
+        dimspec::Union{NDDimSpec, Tuple}; kwargs...
     )
     specs = _nd_specs(dimspec, ndims(x))
     idims = ntuple(ndims(x)) do i
-        _build_dim(specs[i], ustrip.(lookup(x, i)), args...; kwargs...)
+        _build_dim(specs[i], ustrip.(lookup(x, i)); kwargs...)
     end
     return NDInterpolation(ustrip.(parent(x)), idims)
 end
@@ -111,11 +110,11 @@ single pass rather than axis-by-axis. `x` must be gap-free.
 """
 function upsample(
         x::DimensionalData.AbstractDimArray, factor::Number,
-        dimspec::Union{NDDimSpec, Tuple}, args...;
+        dimspec::Union{NDDimSpec, Tuple};
         dims = Tuple(1:ndims(x)), kwargs...
     )
     u = unit(eltype(x))
-    itp = interpolate(x, dimspec, args...; kwargs...)
+    itp = interpolate(x, dimspec; kwargs...)
     dimnums = dimnum(x, dims)
     targets = ntuple(ndims(x)) do i
         d = DimensionalData.dims(x, i)
@@ -134,11 +133,11 @@ grid runs from each axis' first sample up by that step, not exceeding the last).
 selects the per-axis interpolation method, as in [`interpolate`](@ref). `x` must be gap-free.
 """
 function resample(
-        x::DimensionalData.AbstractDimArray, targets, dimspec::Union{NDDimSpec, Tuple},
-        args...; kwargs...
+        x::DimensionalData.AbstractDimArray, targets, dimspec::Union{NDDimSpec, Tuple};
+        kwargs...
     )
     u = unit(eltype(x))
-    itp = interpolate(x, dimspec, args...; kwargs...)
+    itp = interpolate(x, dimspec; kwargs...)
     tdims = _nd_targets(x, targets)
     return (itp(tdims)) * u
 end

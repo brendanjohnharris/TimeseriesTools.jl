@@ -102,3 +102,12 @@ end
     T = 𝒯(-1)
     @test times(T(x)) == -1:step(x):0
 end
+
+@testitem "Extension hints" tags = [:fast] begin
+    hint(f, args) = sprint(showerror, MethodError(f, args))
+    @test occursin("using Distributions", hint(gammarenewal, (10, 1.0, 1.0)))
+    @test occursin("using Distributions", hint(pointprocess!, (1,)))
+    @test occursin("using DSP", hint(downsample, (1, 2)))
+    @test occursin("using DataInterpolations", hint(upsample, (1, 2)))
+    @test occursin("using DataInterpolations", hint(TimeseriesTools.interpolate, (1,)))
+end
