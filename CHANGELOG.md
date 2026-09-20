@@ -3,7 +3,7 @@
 All notable changes to TimeseriesTools.jl.
 
 
-## v0.9.0 (2026-09-19)
+## v0.9.0 (2026-09-20)
 
 Breaking:
 
@@ -14,6 +14,8 @@ Breaking:
 - `NaturalNeighbours` interpolation now extends `TimeseriesTools.interpolate` rather than `NaturalNeighbours.interpolate`.
 - New exported names (`interpolate`, `resample`, `impute`, `stderror`, and the MAPPLE accessors) may conflict with other packages under `using`.
 - `fit_mapple(log_f, log_s; w)`: the peak-finder smoothing window is now `window`. `w` is reserved for the residual weights of the refinement, and `fit(MAPPLE, s; w = true)` forwards it there.
+- `phasestitch` now includes its first segment. Previously the output began at the second, so results are longer by one segment; see Fixed below.
+- `TimeseriesMakie` removed from `[weakdeps]` and `[compat]`. No extension used it, so it only constrained resolution: v0.7-0.8.0 capped `TimeseriesMakie` at 0.2, which made newer versions unresolvable alongside this package. Completes the decoupling begun in v0.8.0.
 
 Added:
 
@@ -23,6 +25,8 @@ Added:
 Fixed:
 
 - `bandpass` under DSP 0.8.
+- `phasestitch` dropped its first segment: the loop matched each segment against its predecessor but only ever collected the successor's tail, so the opening segment never reached the output.
+- `phasestitch` threw `ArgumentError` ("reducing over an empty collection") when no segment phases matched within `tol`, rather than returning what it had. Reachable with short inputs, and intermittent, since matching depends on the data.
 - `convolve` with a positive `range` returned a closure rather than `0.0` where no spike lay within range.
 - `waveletspectrogram` on array views. ContinuousWavelets reads the compute device off the outermost array wrapper, so from v1.2.2 it rejects a view, reshape or adjoint against a dense daughter matrix; inputs are now materialised first, preserving the device. Requires ContinuousWavelets v1.2.2.
 - `waveletspectrogram` on a `MultivariateTimeseries` now runs as a single batched transform rather than a transform per column, and no longer discards its positional and keyword arguments.
