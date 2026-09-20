@@ -1,0 +1,13 @@
+# Environment for regenerating the figures embedded in ../README.md.
+# Not part of the package's tests; activate it and run `make_readme_figures.jl`.
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Fathom = "05518021-a905-466c-bf96-cf0c89e1b0a0"
+TimeseriesMakie = "5e3e9a77-7bbf-480c-931c-0802e2453f5a"
+TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[sources]
+Fathom = {url = "https://github.com/brendanjohnharris/Fathom.jl", rev = "main"}
+TimeseriesMakie = {url = "https://github.com/brendanjohnharris/TimeseriesMakie.jl", rev = "main"}
+TimeseriesTools = {path = ".."}

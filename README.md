@@ -16,8 +16,8 @@ TimeseriesTools.jl is a package for analyzing and visualizing time-series data i
 - 📊 Spectral analysis and visualization
 - 🌈 Beautiful plotting using [Makie](https://github.com/MakieOrg/Makie.jl)
 
-![Example Shadow Plot](test/shadows_dark.png#gh-dark-mode-only)
-![Example Shadow Plot](test/shadows.png#gh-light-mode-only)
+![Example Shadow Plot](docs/plots/shadows_dark.png#gh-dark-mode-only)
+![Example Shadow Plot](docs/plots/shadows.png#gh-light-mode-only)
 
 > [!Warning]
 > The latest releases (v0.8, v0.9) come with major breaking changes. Please be aware that `TimeSeries(t, x)` should now be written as `Timeseries(x, t)`.
@@ -63,10 +63,10 @@ S = powerspectrum(x, 0.001)
 p = plot(S)
 ```
 
-![Example Time-series Plot](test/timeseries_dark.png#gh-dark-mode-only)
-![Example Spectrum Plot](test/powerspectrum_dark.png#gh-dark-mode-only)
-![Example Time-series Plot](test/timeseries.png#gh-light-mode-only)
-![Example Spectrum Plot](test/powerspectrum.png#gh-light-mode-only)
+![Example Time-series Plot](docs/plots/timeseries_dark.png#gh-dark-mode-only)
+![Example Spectrum Plot](docs/plots/powerspectrum_dark.png#gh-dark-mode-only)
+![Example Time-series Plot](docs/plots/timeseries.png#gh-light-mode-only)
+![Example Spectrum Plot](docs/plots/powerspectrum.png#gh-light-mode-only)
 
 Note that an instance of the most basic type of this package, the `AbstractTimeseries`, can be generated with:
 ```julia

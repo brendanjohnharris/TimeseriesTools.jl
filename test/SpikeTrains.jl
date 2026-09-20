@@ -1,5 +1,4 @@
 @testitem "Spike FFT" begin
-    using CairoMakie, TimeseriesMakie
     import TimeseriesTools: Timeseries
     ts = 0:0.01:100
     t = [abs(_t - round(_t)) < 0.05 ? 1 : 0 for _t in ts][1:(end - 1)]
@@ -20,13 +19,6 @@
     et = energyspectrum(x, 0.01)
     @test (2 * sum(et[2:end]) + et[1]) * fs[1] ≈ sum(t)
 
-    # if false # Yep works, better, even
-    f = Figure()
-    ax = Axis(f[1, 1])
-    lines!(ax, et, color = :crimson)
-    lines!(ax, e)
-    f
-    # end
 
     # Multivariate
     T = cat(t, t, t, t, dims = Var(1:4))
@@ -37,11 +29,6 @@
     p = energyspectrum(t, fs; method = stoic(; σ = 0.01))
     @test (2 * sum(p[2:end]) + p[1]) * fs[1] ≈ sum(t)
 
-    f = Figure()
-    ax = Axis(f[1, 1])
-    lines!(ax, decompose(et)..., color = :crimson)
-    lines!(ax, decompose(p)...)
-    f
 end
 
 @testitem "Spike-time tiling coefficient" begin
@@ -79,7 +66,7 @@ end
 end
 
 @testitem "Spike-time overlap-integral coefficient (stoic)" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie
+    using Distances, LinearAlgebra, CairoMakie, StatsBase
     x = randn(1000) |> sort
     y = randn(1000) |> sort
     σ = 0.25
@@ -132,7 +119,7 @@ end
 end
 
 @testitem "Stoic spike-train length" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie, Distributions
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, Distributions
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     Ns = range(start = 100, step = 100, length = 100)
@@ -147,7 +134,7 @@ end
     Colorbar(f[1, 2], p, label = "stoic")
 end
 @testitem "Stoic spike-train fano" begin
-    using Distances, LinearAlgebra, CairoMakie, StatsBase, TimeseriesMakie, Distributions
+    using Distances, LinearAlgebra, CairoMakie, StatsBase, Distributions
     # * Set up independent gamma renewal processes and verify stoic scaling with length vs.
     #   kernel width
     θs = range(start = 0.1, step = 0.01, length = 150)

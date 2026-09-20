@@ -21,7 +21,7 @@ end
 end
 
 @testitem "Spectra" begin
-    using Unitful, CairoMakie, TimeseriesMakie
+    using Unitful
     # Define a test time series
     fs = 1000
     t = range(0, stop = 1, length = fs + 1)
@@ -38,9 +38,6 @@ end
     @test all(ustripall(Pxu) .≈ Pxx)
 
     @test_throws "DomainError" powerspectrum(x, 1.0e-6)
-
-    # Plotting
-    p = @test_nowarn lines(Pxx)
 
     freqs = dims(Pxx, 𝑓)
     peaks = findall(x -> x > maximum(Pxx) / 2, Pxx)

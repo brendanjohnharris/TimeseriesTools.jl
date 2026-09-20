@@ -1,6 +1,5 @@
 @testitem "AutocorrelationsExt" begin # Optimize this some more?
-    using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, CairoMakie,
-        Unitful, TimeseriesMakie
+    using Autocorrelations, StatsBase, BenchmarkTools, MeanSquaredDisplacement, Unitful
     import TimeseriesTools: Timeseries
     x = colorednoise(1:10)
     @test Autocorrelations.default_lags(x) == 0:1:9
@@ -52,16 +51,11 @@
 
     x = Timeseries(cumsum(randn(10000, 100), dims = 1), 0.1:0.1:1000, 1:100)
     m = msdist(x, 1:1000)
-    traces(m; linecolor = (:gray, 0.1), axis = (; xscale = log10, yscale = log10))
-    m = dropdims(mean(m, dims = 2), dims = 2)
-    plot!(decompose(m)...)
-    current_figure()
+    @test size(m, 2) == 100
 end
 
 @testitem "DSPExt" begin
     using DSP
-    using CairoMakie
-    using TimeseriesMakie
     using TimeseriesTools
     import TimeseriesTools.Timeseries # or TS
     using StatsBase
@@ -74,35 +68,17 @@ end
     x̂ = Timeseries(vcat(collect.(x)...), dt:dt:(sum(length.(x)) * dt))
     x = phasestitch(x)
 
-    p = @test_nowarn heatmap(y) # Should default to the DimensionalData recipe
-    @test p.plot isa CairoMakie.Heatmap
-
-    pargs = Makie.convert_arguments(Traces, y)
-    @test pargs[1] == lookup(y, 1) |> collect
-    @test pargs[2] == lookup(y, 2) |> collect
-    @test pargs[3] isa Matrix
-
-    f = Figure()
-    ax = Axis(f[1, 1])
-    p = @test_nowarn traces!(ax, y[Var(1:5)])
-    f
-
-    @test_nowarn plot(x[𝑡(1:10000)])
-    plot(x̂[𝑡(1500:(length(t) * 5))])
 
     # And a power spectrum of a 'perfect' signal
     _t = dt:dt:(dt * N)
     p = Timeseries(sin.(2 * _t), _t)
     S′ = powerspectrum(p, dt * 4)
-    @test_nowarn spectrumplot(S′)
 
     # Power spectrum of the concatenated time series
     Ŝ = powerspectrum(x̂[1:N], dt * 4)
-    @test_nowarn spectrumplot(Ŝ)
 
     # Power spectrum of the phasestitched time series
     S = powerspectrum(x[1:N], dt * 4)
-    fax = @test_nowarn spectrumplot(S)
 
     pac = autocor(p, [10])[1]
     @test ≈(pac, autocor(x[𝑡(1:10000)] |> collect, [10])[1]; rtol = 1.0e-2)

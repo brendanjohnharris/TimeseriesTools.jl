@@ -19,11 +19,15 @@ LocalPreferences.toml
 data
 docs/build/
 docs/site/
-!test/test_timeseries.tsv
 
 node_modules/
 .claude/
-docs/
+# docs/ holds the README figure generator and its output; everything else there is local
+docs/*
+!docs/Project.toml
+!docs/make_readme_figures.jl
+!docs/plots/
+!docs/test_timeseries.tsv
 benchmark/
 test/mapple_figs/
 _research/
