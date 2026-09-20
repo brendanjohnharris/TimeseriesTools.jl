@@ -252,9 +252,12 @@ function TimeseriesTools.phasestitch(
         push!(ap, _ap[i][(c + 1):(end - c)])
     end
 
-    # Now match phases, ready for stitching
+    # Now match phases, ready for stitching. The first segment is always kept whole; each
+    # later one contributes the tail that starts where its phase meets the end of the last.
+    # Seeding `aa` here also keeps the reduction below total: a run where nothing matches
+    # would otherwise reduce over an empty collection and throw.
+    isempty(a) || push!(aa, a[1])
     for i in collect(eachindex(a))[2:end]
-        x = a[i - 1]
         y = a[i]
         xp = ap[i - 1]
         yp = ap[i]

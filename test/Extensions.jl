@@ -261,8 +261,11 @@ end
 end
 
 @testitem "DSPExt: phasestitch trim edge cases" begin
-    using DSP, TimeseriesTools
+    using DSP, TimeseriesTools, Random
     import TimeseriesTools: Timeseries
+    # whether any phases match depends on the random offsets, so pin them: this test was a
+    # coin flip that failed on roughly one CI job in twelve
+    Random.seed!(42)
     dt = 0.005
     t = dt:dt:4                                                    # longer than one period of sin(2t)
     segs = [Timeseries(sin.(2 .* t .+ randn()), t) for _ in 1:3]
